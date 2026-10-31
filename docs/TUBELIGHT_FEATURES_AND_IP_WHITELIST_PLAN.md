@@ -127,3 +127,4 @@ class AllowedIpWhitelist(Base):
 3. **Step 3 (Tubelight 9 Break Reasons & 6 Timers)**:
    - Update `break-type-select` in `templates/dashboard.html` with the 9 Tubelight break options (*Lunch, Tea, Meeting, Bio Break, Quality Feedback, Training, Social Media, Submit And Go, Health Issue*).
    - Render the Tubelight 6-timer ribbon directly on the agent dashboard.
+

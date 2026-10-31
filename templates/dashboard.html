@@ -136,6 +136,34 @@
                 <p class="text-xs text-slate-400 max-w-xl">
                     Assigned: <strong class="text-white">{{ today_shift }}</strong>. Start shift when taking the desk, track lunch/tea breaks, and complete shift when finished.
                 </p>
+
+                <!-- TUBELIGHT CALL CENTER REAL-TIME 6-TIMER RIBBON -->
+                <div class="pt-2 grid grid-cols-3 sm:grid-cols-6 gap-2 text-[11px] font-mono">
+                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                        <span class="text-[9px] uppercase tracking-wider text-emerald-400 block font-sans font-bold">Online</span>
+                        <span class="font-bold text-white">{{ today_online_hours }}h</span>
+                    </div>
+                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                        <span class="text-[9px] uppercase tracking-wider text-amber-400 block font-sans font-bold">Break</span>
+                        <span class="font-bold text-white">{{ (active_work_session.total_break_mins if active_work_session else 0) }}m / 60m</span>
+                    </div>
+                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                        <span class="text-[9px] uppercase tracking-wider text-blue-400 block font-sans font-bold">Preview</span>
+                        <span class="font-bold text-slate-300">00:00</span>
+                    </div>
+                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                        <span class="text-[9px] uppercase tracking-wider text-indigo-400 block font-sans font-bold">Ringing</span>
+                        <span class="font-bold text-slate-300">00:00</span>
+                    </div>
+                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                        <span class="text-[9px] uppercase tracking-wider text-purple-400 block font-sans font-bold">ACW Work</span>
+                        <span class="font-bold text-slate-300">00:00</span>
+                    </div>
+                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80">
+                        <span class="text-[9px] uppercase tracking-wider text-cyan-400 block font-sans font-bold">Talk Time</span>
+                        <span class="font-bold text-white">{{ active_net_display or '00:00' }}</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Right: Action Buttons & Timers -->
@@ -165,7 +193,7 @@
                 {% elif active_work_session.status == 'COMPLETED' %}
                 <div class="px-3.5 py-2 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-cyan-300 text-xs font-semibold flex items-center gap-2">
                     <i data-lucide="check-check" class="w-4 h-4 text-emerald-400"></i>
-                    <span>Net Worked: {{ active_work_session.net_work_mins // 60 }}h {{ active_work_session.net_work_mins % 60 }}m (Breaks: {{ active_work_session.total_break_mins }}m)</span>
+                    <span>Net Worked: <strong class="text-white font-mono">{{ active_net_display or (active_work_session.net_work_mins ~ 'm') }}</strong> (Breaks: {{ active_work_session.total_break_mins }}m)</span>
                 </div>
                 <!-- Restart Shift / Start Additional Shift Option -->
                 <button type="button" onclick="performShiftAction('/api/work/start-shift', 'Resume or start a new working session for today?')" class="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5" title="Start another working shift session today">
@@ -745,8 +773,13 @@ async function submitBreakStart(e) {
                 <select id="break-type-select" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-blue-500">
                     <option value="Lunch">Lunch Break (Max 45 mins)</option>
                     <option value="Tea">Tea Break (Max 15 mins)</option>
-                    <option value="Dinner">Dinner Break (Max 45 mins)</option>
-                    <option value="Auxiliary">Auxiliary / Rest Break (Max 15 mins)</option>
+                    <option value="Meeting">Meeting (Operational Briefing)</option>
+                    <option value="Bio Break">Bio Break (Short Rest)</option>
+                    <option value="Quality Feedback">Quality Feedback (QA Audit Session)</option>
+                    <option value="Training">Training (Process Update)</option>
+                    <option value="Social Media">Social Media (Digital Queue Response)</option>
+                    <option value="Submit And Go">Submit And Go (Shift Wrap-up)</option>
+                    <option value="Health Issue">Health Issue (Medical Need)</option>
                 </select>
                 <div class="mt-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-300">
                     <strong class="block font-bold">24/7 Shift Break Policy:</strong>

@@ -286,6 +286,39 @@ def login_action(
         (models.User.email == clean_id) | (models.User.unique_id == clean_id)
     ).first()
 
+    # Check IP Whitelist Enforcement before authenticating
+    ip_enforce = get_company_setting_val("ip_whitelist_enforced", "DISABLED", db)
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+
+    if ip_enforce == "ENABLED":
+        # Check if client_ip or 127.0.0.1 is in allowed_ip_whitelist
+        allowed = db.query(models.AllowedIpWhitelist).filter(
+            models.AllowedIpWhitelist.ip_address.in_([client_ip, "127.0.0.1", "localhost"]),
+            models.AllowedIpWhitelist.is_active == True
+        ).first()
+
+        # If user is not Super Admin or connecting from non-whitelisted IP
+        if not allowed:
+            # Check if this user happens to be Super Admin attempting to configure
+            temp_user = db.query(models.User).filter(
+                (models.User.email == clean_id) | (models.User.unique_id == clean_id)
+            ).first()
+            if not temp_user or temp_user.access_level not in ["Admin", "Super Admin"]:
+                return templates.TemplateResponse(
+                    request=request,
+                    name="login.html",
+                    context={
+                        "user": None,
+                        "error": f"Access Restricted: Your station IP address ({client_ip}) is not in the company approved whitelist. Please connect from the office network or contact Administrator.",
+                        "locations": locations,
+                        "loc_stats": loc_stats,
+                        "preselected_location_id": location_id
+                    }
+                )
+
     if not user or not verify_password(password, user.hashed_password):
         return templates.TemplateResponse(
             request=request,
@@ -525,6 +558,19 @@ def dashboard(
             models.SessionBreak.end_time == None
         ).first()
 
+    # Format active work session duration cleanly
+    active_net_display = None
+    if active_work_session and active_work_session.status == "COMPLETED":
+        if active_work_session.net_work_mins > 0:
+            active_net_display = f"{active_work_session.net_work_mins // 60}h {active_work_session.net_work_mins % 60}m"
+        else:
+            # Under a minute
+            if active_work_session.start_time and active_work_session.end_time:
+                secs = max(0, int((active_work_session.end_time - active_work_session.start_time).total_seconds()))
+                active_net_display = f"{secs}s" if secs > 0 else "< 1 min"
+            else:
+                active_net_display = "< 1 min"
+
     # User's recent website session logs (Login/Logout count & duration)
     recent_session_logs = db.query(models.UserSessionLog).filter(
         models.UserSessionLog.user_id == user.id
@@ -563,6 +609,7 @@ def dashboard(
             "active_break": active_break,
             "recent_session_logs": recent_session_logs,
             "today_online_hours": today_online_hours,
+            "active_net_display": active_net_display,
             "timedelta": timedelta
         }
     )
@@ -637,16 +684,25 @@ def end_work_shift(
     sess.end_time = now
     sess.status = "COMPLETED"
 
-    # Compute gross and break minutes
-    gross_mins = max(0, int((now - sess.start_time).total_seconds() / 60))
+    # Compute gross and break duration in seconds & minutes
+    gross_seconds = max(0, int((now - sess.start_time).total_seconds()))
+    gross_mins = gross_seconds // 60
+
     breaks = db.query(models.SessionBreak).filter(models.SessionBreak.session_id == sess.id).all()
     total_brk_mins = sum(b.duration_mins for b in breaks)
-    net_mins = max(0, gross_mins - total_brk_mins)
+    total_brk_seconds = total_brk_mins * 60
+    net_seconds = max(0, gross_seconds - total_brk_seconds)
+    net_mins = net_seconds // 60
 
     sess.gross_duration_mins = gross_mins
     sess.total_break_mins = total_brk_mins
     sess.net_work_mins = net_mins
     db.commit()
+
+    if net_mins == 0:
+        display_net = f"{net_seconds}s" if net_seconds > 0 else "< 1m"
+    else:
+        display_net = f"{net_mins // 60}h {net_mins % 60}m"
 
     log_audit_event(
         db=db,
@@ -654,14 +710,15 @@ def end_work_shift(
         action="WORK_SHIFT_END",
         resource_type="WorkSession",
         resource_id=str(sess.id),
-        details=f"Employee {user.name} completed shift. Gross: {gross_mins}m, Breaks: {total_brk_mins}m, Net Productive: {net_mins}m."
+        details=f"Employee {user.name} completed shift. Gross: {gross_mins}m, Breaks: {total_brk_mins}m, Net Productive: {display_net}."
     )
 
     return JSONResponse({
         "status": "success",
-        "message": f"Shift completed! Net working time: {net_mins // 60}h {net_mins % 60}m.",
+        "message": f"Shift completed! Net working time: {display_net}.",
         "gross_mins": gross_mins,
-        "net_mins": net_mins
+        "net_mins": net_mins,
+        "display_net": display_net
     })
 
 @app.post("/api/work/start-break")
@@ -728,13 +785,21 @@ def end_work_break(
         cumulative_break_mins = sum(b.duration_mins for b in all_breaks)
 
         # Flag excess:
-        # 1. Individual break limits: Lunch > 45 mins, Tea > 15 mins
+        # 1. Individual break limits based on Tubelight Call Center rules:
+        #    - Lunch: Max 45 mins
+        #    - Tea / Bio Break: Max 15 mins
+        #    - Training / Meeting / Quality Feedback / Submit And Go / Health Issue: Max 30 mins
         # 2. Cumulative shift break limit: Total Breaks > 60 mins (1 hour)
-        is_individual_excess = (
-            (open_brk.break_type.lower() == "lunch" and dur > 45) or
-            (open_brk.break_type.lower() == "tea" and dur > 15) or
-            (open_brk.break_type.lower() == "dinner" and dur > 45)
-        )
+        b_type = open_brk.break_type.lower()
+        if b_type in ["lunch", "dinner"]:
+            is_individual_excess = dur > 45
+        elif b_type in ["tea", "bio break"]:
+            is_individual_excess = dur > 15
+        elif b_type in ["meeting", "training", "quality feedback", "social media", "submit and go", "health issue"]:
+            is_individual_excess = dur > 30
+        else:
+            is_individual_excess = dur > 15
+
         is_total_excess = cumulative_break_mins > 60
 
         if is_individual_excess or is_total_excess:
@@ -2304,6 +2369,13 @@ def settings_page(
     all_settings = db.query(models.CompanySetting).all()
     settings_map = {s.setting_key: s.setting_value for s in all_settings}
 
+    # Load IP whitelist entries
+    whitelisted_ips = db.query(models.AllowedIpWhitelist).order_by(models.AllowedIpWhitelist.id.desc()).all()
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+
     return templates.TemplateResponse(
         request=request,
         name="settings.html",
@@ -2317,6 +2389,8 @@ def settings_page(
             "shifts": shifts,
             "locations": locations,
             "settings": settings_map,
+            "whitelisted_ips": whitelisted_ips,
+            "current_client_ip": client_ip,
             "alert_msg": alert_msg,
             "alert_type": alert_type
         }
@@ -2415,6 +2489,91 @@ def delete_holiday(
             status_code=302
         )
     return RedirectResponse(url="/admin/settings?alert_msg=Holiday+not+found&alert_type=error", status_code=302)
+
+# ================= IP WHITELISTING MANAGEMENT APIS ================= #
+
+@app.post("/admin/ip-whitelist/toggle")
+def toggle_ip_whitelist(
+    enforce_status: str = Form(...), # "ENABLED" or "DISABLED"
+    user: models.User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    val = "ENABLED" if enforce_status == "ENABLED" else "DISABLED"
+    s = db.query(models.CompanySetting).filter(models.CompanySetting.setting_key == "ip_whitelist_enforced").first()
+    if not s:
+        s = models.CompanySetting(setting_key="ip_whitelist_enforced", setting_value=val, category="security")
+        db.add(s)
+    else:
+        s.setting_value = val
+    db.commit()
+
+    log_audit_event(
+        db=db,
+        actor=user,
+        action="IP_WHITELIST_TOGGLE",
+        resource_type="CompanySetting",
+        resource_id="ip_whitelist_enforced",
+        details=f"Admin {user.name} set IP Whitelisting security enforcement to {val}."
+    )
+
+    return RedirectResponse(
+        url=f"/admin/settings?alert_msg=IP+Whitelisting+Security+is+now+{val}!&alert_type=success",
+        status_code=302
+    )
+
+@app.post("/admin/ip-whitelist/add")
+def add_ip_whitelist(
+    ip_address: str = Form(...),
+    description: Optional[str] = Form(None),
+    user: models.User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    clean_ip = ip_address.strip()
+    existing = db.query(models.AllowedIpWhitelist).filter(models.AllowedIpWhitelist.ip_address == clean_ip).first()
+    if existing:
+        existing.is_active = True
+        existing.description = description.strip() if description else existing.description
+    else:
+        entry = models.AllowedIpWhitelist(
+            ip_address=clean_ip,
+            description=description.strip() if description else "Corporate Office / VPN",
+            is_active=True,
+            created_by_user_id=user.id
+        )
+        db.add(entry)
+    db.commit()
+
+    log_audit_event(
+        db=db,
+        actor=user,
+        action="IP_WHITELIST_ADD",
+        resource_type="AllowedIpWhitelist",
+        resource_id=clean_ip,
+        details=f"Admin {user.name} added IP {clean_ip} to allowed website whitelist."
+    )
+
+    return RedirectResponse(
+        url=f"/admin/settings?alert_msg=IP+{clean_ip}+added+to+whitelist+successfully!&alert_type=success",
+        status_code=302
+    )
+
+@app.post("/admin/ip-whitelist/delete")
+def delete_ip_whitelist(
+    ip_id: int = Form(...),
+    user: models.User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    entry = db.query(models.AllowedIpWhitelist).filter(models.AllowedIpWhitelist.id == ip_id).first()
+    if entry:
+        del_ip = entry.ip_address
+        db.delete(entry)
+        db.commit()
+        return RedirectResponse(
+            url=f"/admin/settings?alert_msg=IP+{del_ip}+removed+from+whitelist.&alert_type=success",
+            status_code=302
+        )
+    return RedirectResponse(url="/admin/settings?alert_msg=IP+not+found&alert_type=error", status_code=302)
+
 
 
 @app.post("/admin/add-shift")
