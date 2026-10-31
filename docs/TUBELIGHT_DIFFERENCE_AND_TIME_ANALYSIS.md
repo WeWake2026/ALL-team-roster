@@ -84,3 +84,4 @@ By pairing ShiftFlow's 24/7 workforce schedule with Tubelight's real-time teleph
 - Punctuality is tracked in true IST.
 - Total break times cannot exceed 1 hour without management notification.
 - Staff can restart split/overtime sessions without admin intervention.
+
