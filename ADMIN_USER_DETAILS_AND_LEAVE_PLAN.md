@@ -69,3 +69,4 @@ flowchart TD
 3. **Leave Excel Ingestion**: Ensure the Excel upload button on `/admin/leave-master` and `/admin/sync` binds properly to `excel_service.py`.
 4. **Testing & Verification**: Test clicking user ID, editing fields, updating branch, and verifying that the count on the login and dashboard screens updates accurately.
 5. **Git Commit & Push**: Commit all updates and push to GitHub repository.
+

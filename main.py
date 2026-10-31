@@ -1213,12 +1213,26 @@ def quick_assign_shift(
     user: models.User = Depends(require_admin_or_manager),
     db: Session = Depends(get_db)
 ):
-    target_date_str = roster_date or date
+    raw_target_date = roster_date if roster_date is not None else date
+    if raw_target_date is not None and not str(type(raw_target_date)).startswith("<class 'fastapi.params"):
+        target_date_str = str(raw_target_date).strip()
+    elif date is not None and not str(type(date)).startswith("<class 'fastapi.params"):
+        target_date_str = str(date).strip()
+    else:
+        target_date_str = ""
+
     if not target_date_str:
         raise HTTPException(status_code=400, detail="Date is required")
-    t_date = datetime.strptime(target_date_str.strip(), "%Y-%m-%d").date()
+    t_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
 
-    assigned_shift = shift_name or shift_code
+    raw_shift = shift_name if shift_name is not None else shift_code
+    if raw_shift is not None and not str(type(raw_shift)).startswith("<class 'fastapi.params"):
+        assigned_shift = str(raw_shift).strip()
+    elif shift_code is not None and not str(type(shift_code)).startswith("<class 'fastapi.params"):
+        assigned_shift = str(shift_code).strip()
+    else:
+        assigned_shift = ""
+
     if not assigned_shift:
         raise HTTPException(status_code=400, detail="Shift is required")
 
@@ -1290,7 +1304,8 @@ def quick_assign_shift(
         db.add(entry)
 
     # Record Shift Change History Audit Trail (Section H):
-    final_reason = reason if reason else f"Shift updated from Roster desk by {user.name}{warning_note}"
+    safe_reason = str(reason).strip() if (reason is not None and not str(type(reason)).startswith("<class 'fastapi.params")) else None
+    final_reason = safe_reason if safe_reason else f"Shift updated from Roster desk by {user.name}{warning_note}"
     history_record = models.ShiftChangeHistory(
         user_id=user_id,
         roster_date=t_date,
@@ -1315,7 +1330,8 @@ def quick_assign_shift(
     db.add(notif)
     db.commit()
 
-    redirect_target = return_url if return_url else "/roster"
+    safe_return_url = str(return_url).strip() if (return_url is not None and not str(type(return_url)).startswith("<class 'fastapi.params")) else None
+    redirect_target = safe_return_url if safe_return_url else "/roster"
     delimiter = "&" if "?" in redirect_target else "?"
     return RedirectResponse(url=f"{redirect_target}{delimiter}alert_msg=Shift+updated+successfully+and+logged+to+history!&alert_type=success", status_code=302)
 

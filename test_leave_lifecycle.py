@@ -152,7 +152,10 @@ def test_leave_management_lifecycle():
 
     # 5. IDOR & Access Control: Another employee cannot access evidence or details
     print("[TEST 5] Testing RBAC & IDOR Protection on Evidence Access...")
-    other_emp = db.query(models.User).filter(models.User.email == "poonam.gaikwad@arceus.in").first()
+    other_emp = db.query(models.User).filter(
+        models.User.email != emp.email,
+        models.User.access_level == "Employee"
+    ).first()
     assert other_emp is not None
     other_perms = resolve_user_permissions(other_emp, db)
 
