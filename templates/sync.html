@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block title %}Bulk Excel / CSV Sync - ShiftFlow Pro{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                <span>Operations Lead</span>
+                <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                <span class="text-slate-800 dark:text-slate-200 font-semibold">Bulk Operations Import</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                <span>Bulk Roster Import & Sync</span>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                    .xlsx & .csv Engine
+                </span>
+            </h1>
+        </div>
+
+        <a href="/admin/sample-roster" class="px-4 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white text-xs font-semibold transition flex items-center gap-2">
+            <i data-lucide="file-down" class="w-4 h-4"></i>
+            <span>Download Sample Operations Template</span>
+        </a>
+    </div>
+
+    <!-- Upload Box & Instructions -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Upload Form (2 cols) -->
+        <div class="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                <i data-lucide="upload-cloud" class="w-5 h-5 text-blue-600"></i>
+                <span>Upload Weekly / Monthly Roster Spreadsheet</span>
+            </h2>
+            <p class="text-xs text-slate-500 mb-6">
+                Directly updates employee shifts, preserves existing user records, and dynamically parses any date header format.
+            </p>
+
+            <form action="/admin/upload-roster" method="POST" enctype="multipart/form-data" class="space-y-4">
+                <div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-8 text-center hover:border-blue-500 dark:hover:border-blue-500 transition cursor-pointer relative bg-slate-50/50 dark:bg-slate-800/30">
+                    <input type="file" name="file" id="roster_file" required accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileName(this)">
+                    <div class="space-y-2 pointer-events-none">
+                        <div class="w-12 h-12 mx-auto rounded-full bg-blue-50 dark:bg-blue-950 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <i data-lucide="file-spreadsheet" class="w-6 h-6"></i>
+                        </div>
+                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            Drag & drop your Excel (.xlsx) or CSV roster file here
+                        </p>
+                        <p class="text-xs text-slate-400">
+                            Or browse from your computer
+                        </p>
+                        <p id="file-name-display" class="text-xs font-bold text-blue-600 dark:text-blue-400 mt-2"></p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs text-amber-800 dark:text-amber-300">
+                    <input type="checkbox" name="clear_existing" id="clear_existing" value="true" class="rounded border-amber-400 text-blue-600 focus:ring-blue-500">
+                    <label for="clear_existing" class="cursor-pointer select-none">
+                        <strong>Replace All Roster Records:</strong> Purge prior roster entries before ingesting this new file (recommended when uploading a fresh weekly/monthly schedule).
+                    </label>
+                </div>
+
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                    <div class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                        <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-500"></i>
+                        <span>Auto-creates missing employees & assigns default credentials</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md transition flex items-center gap-2">
+                            <i data-lucide="play" class="w-4 h-4"></i>
+                            <span>Ingest & Sync Database</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Standalone Clear Roster Option -->
+            <div class="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                <div>
+                    <span class="font-bold text-slate-700 dark:text-slate-300 block">Need a clean slate?</span>
+                    <span class="text-slate-400 text-[11px]">Wipe out all previous roster shifts without affecting employee accounts or leave records.</span>
+                </div>
+                <form action="/admin/roster/clear" method="POST" onsubmit="return confirm('Are you sure you want to delete all current roster shift entries?');">
+                    <input type="hidden" name="return_url" value="/admin/sync">
+                    <button type="submit" class="px-3.5 py-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50 font-semibold text-xs transition flex items-center gap-1.5">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-600"></i>
+                        <span>Clear All Roster Data</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Format Rules Card (1 col) -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                <i data-lucide="info" class="w-4 h-4 text-blue-600"></i>
+                <span>Accepted Format Standards</span>
+            </h3>
+            <div class="space-y-3 text-xs text-slate-600 dark:text-slate-400">
+                <p>The parser dynamically checks standard operations headers:</p>
+                <ul class="list-disc pl-4 space-y-1 text-[11px]">
+                    <li><code class="text-blue-500">SR NO.</code> or <code class="text-blue-500">SR NO</code></li>
+                    <li><code class="text-blue-500">EMPLOYEE NAME</code></li>
+                    <li><code class="text-blue-500">UNIQUE ID</code> (e.g. AIPLCC222)</li>
+                    <li><code class="text-blue-500">CRM ID</code>, <code class="text-blue-500">BM ID</code>, <code class="text-blue-500">ECN</code></li>
+                    <li><code class="text-blue-500">ROLE</code> & <code class="text-blue-500">LOCATION</code></li>
+                    <li><code class="text-blue-500">YYYY-MM-DD</code> or date header columns</li>
+                </ul>
+
+                <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-[11px]">
+                    <span class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Supported Shift Codes:</span>
+                    <span>• 07:00 To 16:00 (Morning)</span><br>
+                    <span>• 09:00 To 18:00 (General)</span><br>
+                    <span>• 13:00 To 22:00 (Afternoon)</span><br>
+                    <span>• 22:00 To 07:00 (Night)</span><br>
+                    <span>• WO (Week Off) | CO (Comp-Off)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Leave Statement Upload & Sync Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Leave Statement Form (2 cols) -->
+        <div class="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="file-check" class="w-5 h-5 text-indigo-600"></i>
+                    <span>Upload Monthly Leave Balance Statement (PDF / Excel / CSV)</span>
+                </h2>
+                <a href="/admin/leave-master" class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline flex items-center gap-1">
+                    <span>View Leave Audit Table</span>
+                    <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                </a>
+            </div>
+            <p class="text-xs text-slate-500 mb-6">
+                Ingests official Monthly Leave Balance reports (e.g., <em>Leave Balance - IB Mumbai Oct-26.pdf</em>), automatically maps columns to the database, updates fractional CL/SL balances, and auto-provisions missing employees.
+            </p>
+
+            <form action="/admin/upload-leave-statement" method="POST" enctype="multipart/form-data" class="space-y-4">
+                <div class="w-full sm:w-64">
+                    <label class="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                        Report Month / Cycle
+                    </label>
+                    <input type="text" name="month_year" value="Oct-26" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-mono">
+                </div>
+
+                <div class="border-2 border-dashed border-indigo-300 dark:border-indigo-700 rounded-2xl p-8 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition cursor-pointer relative bg-indigo-50/20 dark:bg-indigo-950/10">
+                    <input type="file" name="file" required accept=".pdf, .xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateLeaveFileName(this)">
+                    <div class="space-y-2 pointer-events-none">
+                        <div class="w-12 h-12 mx-auto rounded-full bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                            <i data-lucide="file-text" class="w-6 h-6"></i>
+                        </div>
+                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            Drag & drop your Monthly Leave Statement (.pdf, .xlsx, or .csv) here
+                        </p>
+                        <p class="text-xs text-slate-400">
+                            Matches against UNIQUE CODE (e.g. AIPLCC222) or ECN (e.g. MAH0297)
+                        </p>
+                        <p id="leave-file-name-display" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-2"></p>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-2">
+                    <div class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                        <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-500"></i>
+                        <span>Supports fractional ledger values: 0.25, 0.5, 0.75, 1.5, 2.75</span>
+                    </div>
+
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md transition flex items-center gap-2">
+                        <i data-lucide="play" class="w-4 h-4"></i>
+                        <span>Reconcile & Ingest Statement</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Leave Ledger Standards (1 col) -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-indigo-600"></i>
+                <span>Statement Schema Mapping</span>
+            </h3>
+            <div class="space-y-3 text-xs text-slate-600 dark:text-slate-400">
+                <p>Parser binds official Leave Balance report columns:</p>
+                <div class="divide-y divide-slate-100 dark:divide-slate-800 text-[11px]">
+                    <div class="py-1 flex justify-between"><span class="text-slate-500">UNIQUE CODE:</span><code class="text-blue-500">unique_id</code></div>
+                    <div class="py-1 flex justify-between"><span class="text-slate-500">ECN:</span><code class="text-blue-500">ecn</code></div>
+                    <div class="py-1 flex justify-between"><span class="text-slate-500">BIOMETRIC ID:</span><code class="text-blue-500">bm_id</code></div>
+                    <div class="py-1 flex justify-between"><span class="text-slate-500">DATE OF JOINING:</span><code class="text-blue-500">doj</code></div>
+                    <div class="py-1 flex justify-between"><span class="text-slate-500">EOD:</span><code class="text-blue-500">eod</code></div>
+                    <div class="py-1 flex justify-between"><span class="text-slate-500">Eligible (CL / SL):</span><code class="text-blue-500">eligible_cl/sl</code></div>
+                    <div class="py-1 flex justify-between"><span class="text-slate-500">Taken (CL / SL):</span><code class="text-blue-500">taken_cl/sl</code></div>
+                    <div class="py-1 flex justify-between"><span class="text-slate-500">Balance (CL / SL):</span><code class="text-blue-500">balance_cl/sl</code></div>
+                </div>
+
+                <div class="pt-2">
+                    <a href="/admin/leave-master/export" class="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        <span>Export Current Leave Master</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateFileName(input) {
+        const display = document.getElementById('file-name-display');
+        if (input.files && input.files[0]) {
+            display.innerText = 'Selected: ' + input.files[0].name;
+        }
+    }
+
+    function updateLeaveFileName(input) {
+        const display = document.getElementById('leave-file-name-display');
+        if (input.files && input.files[0]) {
+            display.innerText = 'Selected: ' + input.files[0].name;
+        }
+    }
+</script>
+{% endblock %}

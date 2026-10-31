@@ -1,0 +1,992 @@
+{% extends "base.html" %}
+{% block title %}Team Roster Matrix - ShiftFlow Pro{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header with Breadcrumbs & Action Toolbar -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                <span>Operations</span>
+                <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                <span class="text-slate-800 dark:text-slate-200 font-semibold">Weekly / Monthly Roster</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                <span>Team Shift Schedule</span>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                    {{ total_active_staff }} Staff Assigned
+                </span>
+            </h1>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center flex-wrap gap-2.5">
+            <!-- View Range Toggle -->
+            <div class="bg-slate-200 dark:bg-slate-800 p-1 rounded-xl flex items-center text-xs font-medium">
+                <a href="/roster?start_date={{ prev_date_str }}&view_mode={{ view_mode }}&role={{ current_role }}" class="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition" title="Previous Period">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                </a>
+                <span class="px-2 font-semibold text-slate-700 dark:text-slate-200">
+                    {{ date_list[0].strftime('%d %b') }} - {{ date_list[-1].strftime('%d %b %Y') }}
+                </span>
+                <a href="/roster?start_date={{ next_date_str }}&view_mode={{ view_mode }}&role={{ current_role }}" class="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition" title="Next Period">
+                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </a>
+            </div>
+
+            <!-- 7-Day / 14-Day View selector -->
+            <div class="bg-slate-200 dark:bg-slate-800 p-1 rounded-xl flex items-center text-xs font-medium">
+                <a href="/roster?start_date={{ current_start_str }}&view_mode=7&role={{ current_role }}" class="px-2.5 py-1 rounded-lg transition {% if view_mode == '7' %}bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 font-bold shadow-sm{% else %}text-slate-600 dark:text-slate-400{% endif %}">
+                    7 Days
+                </a>
+                <a href="/roster?start_date={{ current_start_str }}&view_mode=14&role={{ current_role }}" class="px-2.5 py-1 rounded-lg transition {% if view_mode == '14' %}bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 font-bold shadow-sm{% else %}text-slate-600 dark:text-slate-400{% endif %}">
+                    14 Days
+                </a>
+            </div>
+
+            <!-- Role Category & Designation Filter -->
+            <form method="GET" action="/roster" class="inline-flex">
+                <input type="hidden" name="start_date" value="{{ current_start_str }}">
+                <input type="hidden" name="view_mode" value="{{ view_mode }}">
+                <div class="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2 py-1 shadow-sm">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 pl-1">Role View:</span>
+                    <select name="role" onchange="this.form.submit()" class="text-xs bg-transparent text-slate-700 dark:text-slate-200 font-semibold focus:outline-none pr-1">
+                        {% for r in role_categories %}
+                        <option value="{{ r }}" {% if current_role == r %}selected{% endif %}>
+                            {% if r == 'All' %}🌐 All Roles (Full Team)
+                            {% elif r == 'TL' %}👔 Team Leader (TL)
+                            {% elif r == 'Admin' %}🛡️ Admin View
+                            {% elif r == 'Manager' %}📊 Manager View
+                            {% elif r == 'All Staff / Agents' %}👥 All Staff / Agents
+                            {% else %}{{ r }}
+                            {% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+
+            <!-- Export Excel Button -->
+            <a href="/roster/export?start_date={{ date_list[0].strftime('%Y-%m-%d') }}&end_date={{ date_list[-1].strftime('%Y-%m-%d') }}&role={{ current_role }}" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5" title="Download Formatted XLSX Roster">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Export XLSX</span>
+            </a>
+
+            {% if user.access_level in ['Admin', 'Manager'] %}
+            <!-- Fast Upload Roster -->
+            <a href="/admin/sync" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5" title="Upload new roster spreadsheet">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Upload Excel</span>
+            </a>
+
+            <!-- Clear Existing Roster Button -->
+            <form action="/admin/roster/clear" method="POST" onsubmit="return confirm('Are you sure you want to remove all existing roster shift entries? This will clear the schedule so you can upload a completely fresh roster.');" class="inline">
+                <input type="hidden" name="return_url" value="/roster?view_mode={{ view_mode }}&role={{ current_role }}">
+                <button type="submit" class="px-3.5 py-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50 text-xs font-semibold shadow-sm transition flex items-center gap-1.5" title="Remove all existing roster entries">
+                    <i data-lucide="trash-2" class="w-4 h-4 text-rose-600"></i>
+                    <span class="hidden sm:inline">Clear Roster Data</span>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Upgrade Package 2: Advanced Multi-Select Dynamic Filters Toolbar -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                <i data-lucide="sliders-horizontal" class="w-4 h-4 text-blue-600"></i>
+                <span>Advanced Multi-Criteria Filters</span>
+            </span>
+            <div class="flex items-center gap-2">
+                <span id="filtered-count-badge" class="text-[11px] px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 font-bold">
+                    Showing {{ total_active_staff }} / {{ total_active_staff }} Employees
+                </span>
+                <button type="button" onclick="clearAllFilters()" class="text-[11px] text-slate-500 hover:text-blue-600 transition font-medium">
+                    Reset Filters
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <!-- Search by Name or Unique ID -->
+            <div>
+                <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Search Staff</label>
+                <div class="relative">
+                    <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5"></i>
+                    <input type="text" id="filter-search" oninput="applyDynamicFilters()" placeholder="Name or Unique ID..."
+                        class="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <!-- Multi-Select Shift Times -->
+            <div class="relative">
+                <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Shift Slots (Multi-Select)</label>
+                <button type="button" onclick="toggleFilterDropdown('shift-dropdown')"
+                    class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-left text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span id="selected-shifts-label" class="truncate font-medium">All Shift Slots</span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                </button>
+                <div id="shift-dropdown" class="hidden absolute left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-2.5 z-30 max-h-56 overflow-y-auto space-y-1.5 custom-scrollbar">
+                    {% for s in available_shifts %}
+                    <label class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-xs">
+                        <input type="checkbox" value="{{ s }}" onchange="applyDynamicFilters()" class="shift-checkbox rounded text-blue-600 focus:ring-blue-500">
+                        <span class="text-slate-700 dark:text-slate-300 font-mono text-[11px]">{{ s }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Multi-Select Roles -->
+            <div class="relative">
+                <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Designations / Roles (Multi-Select)</label>
+                <button type="button" onclick="toggleFilterDropdown('role-dropdown')"
+                    class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-left text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span id="selected-roles-label" class="truncate font-medium">All Roles</span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                </button>
+                <div id="role-dropdown" class="hidden absolute left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-2.5 z-30 max-h-56 overflow-y-auto space-y-1.5 custom-scrollbar">
+                    {% for r in available_roles %}
+                    <label class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-xs">
+                        <input type="checkbox" value="{{ r }}" onchange="applyDynamicFilters()" class="role-checkbox rounded text-blue-600 focus:ring-blue-500">
+                        <span class="text-slate-700 dark:text-slate-300 text-[11px] font-medium">{{ r }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Location Filter -->
+            <div>
+                <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Work Location</label>
+                <select id="filter-location" onchange="applyDynamicFilters()"
+                    class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="All">All Locations</option>
+                    {% for loc in available_locations %}
+                    <option value="{{ loc }}">{{ loc }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Shift Timing / Category Filter -->
+            <div>
+                <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Shift Time Window / Timing</label>
+                <select id="filter-timing-category" onchange="applyDynamicFilters()"
+                    class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="ALL">All Timings</option>
+                    <option value="EARLY">Early Shift (Starts before 08:00)</option>
+                    <option value="DAY">Day Shift (08:00 - 16:00)</option>
+                    <option value="LATE">Late / Evening Shift (Starts after 16:00)</option>
+                    <option value="OVERNIGHT">Overnight Shift (Spans Midnight)</option>
+                    <option value="WINDOW">Custom Active Time Window...</option>
+                </select>
+            </div>
+
+            <!-- Custom Time Window (Visible when Custom Window selected) -->
+            <div id="custom-time-window-inputs" class="hidden sm:col-span-2 lg:col-span-2 flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-800/80 rounded-xl">
+                <span class="text-[11px] font-bold text-slate-500">Active Window:</span>
+                <input type="time" id="window-start" value="09:00" onchange="applyDynamicFilters()" class="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs">
+                <span class="text-xs text-slate-400">to</span>
+                <input type="time" id="window-end" value="17:00" onchange="applyDynamicFilters()" class="px-2 py-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs">
+            </div>
+
+            {% if user.role in ['Admin', 'Manager', 'HR'] %}
+            <!-- Highlight Specific Employee ID Search -->
+            <div class="sm:col-span-2 lg:col-span-2">
+                <label class="block font-semibold text-blue-600 dark:text-blue-400 mb-1">Highlight Employee ID in View</label>
+                <div class="relative">
+                    <i data-lucide="highlighter" class="w-3.5 h-3.5 text-blue-500 absolute left-3 top-2.5"></i>
+                    <input type="text" id="highlight-emp-id" oninput="highlightSpecificEmployee()" placeholder="Enter Employee ID (e.g. EMP-001) to locate & highlight row..."
+                        class="w-full pl-8 pr-3 py-2 bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl text-xs text-blue-900 dark:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Filtered Subset Summary KPI Strip -->
+        <div id="filtered-kpi-bar" class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center flex-wrap gap-2 text-xs">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtered View Metrics:</span>
+            <span class="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                Total: <strong id="subset-total">{{ total_active_staff }}</strong>
+            </span>
+            <span class="px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold text-[11px]">
+                Present: <strong id="subset-present">0</strong>
+            </span>
+            <span class="px-2.5 py-0.5 rounded-md bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                WO: <strong id="subset-wo">0</strong>
+            </span>
+            <span class="px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 font-semibold text-[11px]">
+                CO: <strong id="subset-co">0</strong>
+            </span>
+        </div>
+    </div>
+
+    <!-- Shift Legend Badges with Configured Colors -->
+    <div class="flex items-center flex-wrap gap-2 text-xs p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <span class="font-bold text-slate-500 uppercase text-[10px] tracking-wider mr-1">Shift Legend:</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 font-bold text-[11px] border border-blue-200 dark:border-blue-800">
+            <span class="w-2 h-2 rounded-full bg-blue-600"></span> Morning Shift (07:00 - 16:00)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold text-[11px] border border-emerald-200 dark:border-emerald-800">
+            <span class="w-2 h-2 rounded-full bg-emerald-600"></span> General Shift (09:00 - 18:00)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 font-bold text-[11px] border border-orange-200 dark:border-orange-800">
+            <span class="w-2 h-2 rounded-full bg-orange-600"></span> Afternoon Shift (13:00 - 22:00)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 font-bold text-[11px] border border-purple-200 dark:border-purple-800">
+            <span class="w-2 h-2 rounded-full bg-purple-600"></span> Night Shift (22:00 - 07:00 Overnight)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 font-bold text-[11px]">
+            <span class="w-2 h-2 rounded-full bg-slate-500"></span> WO (Weekly Off)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 font-bold text-[11px] border border-rose-200">
+            <span class="w-2 h-2 rounded-full bg-rose-600"></span> Approved Leave (SL/CL/PL)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-bold text-[11px] border border-amber-200">
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span> Pending Leave / HD
+        </span>
+    </div>
+
+    <!-- FEATURE 1: DAILY LEAVE QUOTA & MANDAYS CAPACITY TRACKER (Restricted to Admin, HR, Manager, and Team Leaders) -->
+    {% if (perms and (perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader)) or (user.access_level in ['Admin', 'Super Admin', 'Manager', 'HR', 'Team Leader']) or ('lead' in (user.role_title|lower)) %}
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+        <!-- Tracker Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
+                        Workforce Planning Engine
+                    </span>
+                    <span class="text-[10px] font-mono text-slate-500">
+                        View: <strong class="text-slate-800 dark:text-slate-200">{{ current_role }}</strong>
+                    </span>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2 mt-1">
+                    <i data-lucide="gauge" class="w-4 h-4 text-blue-600"></i>
+                    <span>Daily Leave Quota & Mandays Capacity Tracker</span>
+                </h3>
+                <p class="text-xs text-slate-500">
+                    Calculates: $\text{Mandays} = \text{Active Headcount} - \text{Total Leave}$ and $\text{Pending} = \text{Eligible Leave} - \text{Total Leave}$.
+                </p>
+            </div>
+
+            <!-- Summary KPI Badges -->
+            <div class="flex items-center gap-2 flex-wrap text-xs">
+                <div class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">Avg Headcount</span>
+                    <span class="font-bold text-slate-800 dark:text-white text-sm font-mono">{{ capacity_data.summary.avg_headcount }}</span>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">Period Mandays</span>
+                    <span class="font-bold text-emerald-600 dark:text-emerald-400 text-sm font-mono">{{ capacity_data.summary.total_mandays }}</span>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span class="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">Leaves Approved</span>
+                    <span class="font-bold text-rose-600 dark:text-rose-400 text-sm font-mono">{{ capacity_data.summary.total_leaves_period }}</span>
+                </div>
+                {% if capacity_data.summary.shortage_days_count > 0 %}
+                <div class="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
+                    <span class="text-[10px] uppercase tracking-wider block font-bold">Shortage Alert</span>
+                    <span class="font-bold text-sm font-mono">{{ capacity_data.summary.shortage_days_count }} Day(s) Over Quota</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Capacity Matrix Grid / Table -->
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-semibold">
+                        <th class="p-2.5 pl-3 border-r border-slate-200 dark:border-slate-700 min-w-[130px] font-bold">
+                            Capacity Metric
+                        </th>
+                        {% for day_stat in capacity_data.days %}
+                        <th class="p-2.5 text-center border-r border-slate-200 dark:border-slate-700 min-w-[85px] {% if day_stat.date == today %}bg-blue-50/60 dark:bg-blue-950/40 text-blue-600 font-bold{% endif %}">
+                            <span class="block text-[10px] uppercase text-slate-400">{{ day_stat.day_name }}</span>
+                            <span class="font-bold text-xs">{{ day_stat.formatted_date }}</span>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-xs">
+                    <!-- Row 1: Active Headcount -->
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td class="p-2.5 pl-3 font-semibold font-sans text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
+                            <i data-lucide="users" class="w-3.5 h-3.5 text-blue-500"></i>
+                            <span>Active Headcount</span>
+                        </td>
+                        {% for day_stat in capacity_data.days %}
+                        <td class="p-2.5 text-center text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 font-bold">
+                            {{ day_stat.active_headcount }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <!-- Row 2: Eligible Leave (Quota) -->
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td class="p-2.5 pl-3 font-semibold font-sans text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
+                            <i data-lucide="target" class="w-3.5 h-3.5 text-indigo-500"></i>
+                            <span>Eligible Leave (Quota)</span>
+                        </td>
+                        {% for day_stat in capacity_data.days %}
+                        <td class="p-2.5 text-center text-indigo-600 dark:text-indigo-400 border-r border-slate-200 dark:border-slate-700 font-semibold">
+                            {{ day_stat.eligible_leave }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <!-- Row 3: Total Leave (Approved) -->
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td class="p-2.5 pl-3 font-semibold font-sans text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
+                            <i data-lucide="calendar-x" class="w-3.5 h-3.5 text-rose-500"></i>
+                            <span>Total Leave (Approved)</span>
+                        </td>
+                        {% for day_stat in capacity_data.days %}
+                        <td class="p-2.5 text-center text-rose-600 dark:text-rose-400 border-r border-slate-200 dark:border-slate-700 font-bold">
+                            {{ day_stat.total_leave }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <!-- Row 4: Mandays Available -->
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 bg-emerald-50/20 dark:bg-emerald-950/10">
+                        <td class="p-2.5 pl-3 font-bold font-sans text-emerald-800 dark:text-emerald-300 border-r border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+                            <span>Mandays Available</span>
+                        </td>
+                        {% for day_stat in capacity_data.days %}
+                        <td class="p-2.5 text-center text-emerald-700 dark:text-emerald-400 border-r border-slate-200 dark:border-slate-700 font-black text-sm">
+                            {{ day_stat.mandays }}
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <!-- Row 5: Pending Leave Slots & Visual Status Badges -->
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 bg-slate-50/80 dark:bg-slate-800/50">
+                        <td class="p-2.5 pl-3 font-bold font-sans text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
+                            <i data-lucide="pie-chart" class="w-3.5 h-3.5 text-amber-500"></i>
+                            <span>Pending Leave Slots</span>
+                        </td>
+                        {% for day_stat in capacity_data.days %}
+                        <td class="p-2 text-center border-r border-slate-200 dark:border-slate-700">
+                            <!-- Visual Status Badge -->
+                            <span class="inline-block px-2 py-1 rounded-lg text-[10px] font-bold border {{ day_stat.badge_class }}">
+                                {{ day_stat.badge_label }}
+                            </span>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- DESKTOP SPREADSHEET MATRIX TABLE -->
+    <div class="hidden md:block bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-semibold select-none">
+                        <th class="p-3 pl-4 sticky left-0 z-20 bg-slate-100 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 min-w-[200px]">
+                            Employee & Role
+                        </th>
+                        <th class="p-3 border-r border-slate-200 dark:border-slate-700 text-center min-w-[90px]">
+                            Unique ID
+                        </th>
+                        <th class="p-3 border-r border-slate-200 dark:border-slate-700 text-center min-w-[80px]">
+                            Gender
+                        </th>
+                        <th class="p-3 border-r border-slate-200 dark:border-slate-700 text-center min-w-[80px]">
+                            Location
+                        </th>
+                        {% for d in date_list %}
+                        <th class="p-2.5 text-center border-r border-slate-200 dark:border-slate-700 min-w-[75px] {% if d == today %}bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold{% endif %}">
+                            <span class="block text-[10px] uppercase">{{ d.strftime('%a') }}</span>
+                            <span class="text-xs font-bold">{{ d.strftime('%d %b') }}</span>
+                            {% if holiday_map.get(d) %}
+                            <span class="block text-[8px] text-amber-500 font-bold truncate" title="{{ holiday_map[d] }}">
+                                🇮🇳 {{ holiday_map[d] }}
+                            </span>
+                            {% endif %}
+                        </th>
+                        {% endfor %}
+                        <th class="p-2.5 border-r border-slate-200 dark:border-slate-700 text-center min-w-[45px] bg-slate-200/60 dark:bg-slate-800/60">
+                            WO
+                        </th>
+                        <th class="p-2.5 border-r border-slate-200 dark:border-slate-700 text-center min-w-[45px] bg-amber-100/60 dark:bg-amber-950/40">
+                            CO
+                        </th>
+                        <th class="p-2.5 border-r border-slate-200 dark:border-slate-700 text-center min-w-[45px] bg-rose-100/60 dark:bg-rose-950/40">
+                            LV
+                        </th>
+                        <th class="p-2.5 border-r border-slate-200 dark:border-slate-700 text-center min-w-[45px] bg-emerald-100/60 dark:bg-emerald-950/40">
+                            P
+                        </th>
+                        {% if user.access_level in ['Admin', 'Manager'] %}
+                        <th class="p-2.5 text-center min-w-[70px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                            Action
+                        </th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for row in roster_matrix %}
+                    {% set all_shifts = row.dates.values()|join(' ')|upper %}
+                    {% set is_current_user = (row.user.id == user.id or row.user.unique_id == user.unique_id) %}
+                    <tr class="roster-row hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition {% if is_current_user %}bg-blue-50/50 dark:bg-blue-950/30 ring-2 ring-inset ring-blue-500/60 font-medium current-user-row{% endif %}"
+                        data-name="{{ row.user.name|lower }}"
+                        data-uid="{{ row.user.unique_id|lower }}"
+                        data-role="{{ row.user.role_title }}"
+                        data-location="{{ row.user.location }}"
+                        data-shifts="{{ all_shifts }}"
+                        data-wo="{{ row.wo_count }}"
+                        data-co="{{ row.co_count }}"
+                        data-p="{{ row.present_count }}">
+                        <!-- Employee Info (Sticky Column) -->
+                        <td class="p-3 pl-4 sticky left-0 z-10 {% if is_current_user %}bg-blue-50 dark:bg-blue-950 border-r-2 border-blue-500{% else %}bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700{% endif %} shadow-sm">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-full {% if is_current_user %}bg-blue-600 text-white shadow-sm ring-2 ring-blue-300{% else %}bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300{% endif %} flex items-center justify-center font-bold text-xs shrink-0">
+                                    {{ row.user.name[:2].upper() }}
+                                </div>
+                                <div class="overflow-hidden">
+                                    <p class="font-semibold text-slate-800 dark:text-slate-100 text-xs truncate flex items-center gap-1.5" title="{{ row.user.name }}">
+                                        <span>{{ row.user.name }}</span>
+                                        {% if is_current_user %}
+                                        <span class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-extrabold shadow-xs">
+                                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>
+                                            You
+                                        </span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="text-[10px] text-slate-400 truncate">{{ row.user.role_title }}</p>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td class="p-2.5 border-r border-slate-200 dark:border-slate-700 text-center font-mono text-[11px] text-slate-600 dark:text-slate-300 font-semibold">
+                            {{ row.user.unique_id }}
+                        </td>
+
+                        <td class="p-2.5 border-r border-slate-200 dark:border-slate-700 text-center text-[11px] text-slate-500 dark:text-slate-400">
+                            {{ row.user.gender }}
+                        </td>
+
+                        <td class="p-2.5 border-r border-slate-200 dark:border-slate-700 text-center text-[11px] text-slate-600 dark:text-slate-400">
+                            {{ row.user.location }}
+                        </td>
+
+                        <!-- Shift Entries for each date -->
+                        {% for d in date_list %}
+                        {% set shift_val = row.dates.get(d, '-')|string|trim %}
+                        {% set u_val = shift_val|upper %}
+                        <td class="p-1.5 text-center border-r border-slate-200 dark:border-slate-700 {% if d == today %}bg-blue-50/30 dark:bg-blue-950/20{% endif %}">
+                            {% if u_val == 'WO' %}
+                            <span class="inline-block w-full py-1 rounded font-bold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 text-[11px]">
+                                WO
+                            </span>
+                            {% elif u_val == 'CO' %}
+                            <span class="inline-block w-full py-1 rounded font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 text-[11px]">
+                                CO
+                            </span>
+                            {% elif u_val in ['P', 'S'] %}
+                            <span class="inline-block w-full py-1 rounded font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-[11px]">
+                                P
+                            </span>
+                            {% elif u_val in ['SL', 'LEAVE'] %}
+                            <span class="inline-block w-full py-1 rounded font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 text-[11px]">
+                                {{ shift_val }}
+                            </span>
+                            {% elif u_val in ['CL', 'PL'] %}
+                            <span class="inline-block w-full py-1 rounded font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 text-[11px]">
+                                {{ shift_val }}
+                            </span>
+                            {% elif u_val == 'HD' %}
+                            <span class="inline-block w-full py-1 rounded font-bold bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300 text-[11px]">
+                                HD
+                            </span>
+                            {% elif u_val in ['A', 'ABSENT'] %}
+                            <span class="inline-block w-full py-1 rounded font-bold bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 text-[11px]">
+                                A
+                            </span>
+                            {% elif u_val == 'LEFT' %}
+                            <span class="inline-block w-full py-1 rounded font-medium bg-slate-100 text-slate-400 dark:bg-slate-800 text-[10px]">
+                                Left
+                            </span>
+                            {% elif '07:00' in shift_val %}
+                            <span class="inline-block w-full py-1 rounded font-medium bg-teal-50 text-teal-800 dark:bg-teal-950/40 text-[10px]">
+                                07-16
+                            </span>
+                            {% elif '09:00' in shift_val %}
+                            <span class="inline-block w-full py-1 rounded font-medium bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 text-[10px]">
+                                09-18
+                            </span>
+                            {% elif '13:00' in shift_val %}
+                            <span class="inline-block w-full py-1 rounded font-medium bg-orange-50 text-orange-800 dark:bg-orange-950/40 text-[10px]">
+                                13-22
+                            </span>
+                            {% elif '22:00' in shift_val %}
+                            <span class="inline-block w-full py-1 rounded font-medium bg-purple-50 text-purple-800 dark:bg-purple-950/40 text-[10px]">
+                                22-07
+                            </span>
+                            {% else %}
+                            <span class="text-slate-400 font-mono text-[11px]">{{ shift_val }}</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+
+                        <!-- WO Column -->
+                        <td class="p-2 border-r border-slate-200 dark:border-slate-700 text-center font-bold text-slate-700 dark:text-slate-300 bg-slate-50/50 dark:bg-slate-800/30">
+                            {{ row.wo_count }}
+                        </td>
+                        <!-- CO Column -->
+                        <td class="p-2 border-r border-slate-200 dark:border-slate-700 text-center font-bold text-amber-700 dark:text-amber-400 bg-amber-50/30 dark:bg-amber-950/20">
+                            {{ row.co_count }}
+                        </td>
+                        <!-- Leave Column -->
+                        <td class="p-2 border-r border-slate-200 dark:border-slate-700 text-center font-bold text-rose-700 dark:text-rose-400 bg-rose-50/30 dark:bg-rose-950/20">
+                            {{ row.leave_count }}
+                        </td>
+                        <!-- Present Column -->
+                        <td class="p-2 {% if user.access_level in ['Admin', 'Manager'] %}border-r border-slate-200 dark:border-slate-700{% endif %} text-center font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/20">
+                            {{ row.present_count }}
+                        </td>
+
+                        {% if user.access_level in ['Admin', 'Manager'] %}
+                        <!-- Actions Column: Change Shift & Offboard -->
+                        <td class="p-2 text-center whitespace-nowrap space-y-1">
+                            <button type="button"
+                                onclick="openChangeShiftModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}')"
+                                class="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-[10px] transition border border-blue-200 flex items-center gap-1 mx-auto"
+                                title="Change Employee Shift Schedule">
+                                <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                <span>Shift</span>
+                            </button>
+                            {% if row.user.is_active %}
+                            <button type="button"
+                                onclick="openOffboardModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}', '{{ row.user.role_title }}')"
+                                class="px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-[10px] transition border border-rose-200 flex items-center gap-1 mx-auto"
+                                title="Remove / Deactivate Employee">
+                                <i data-lucide="user-x" class="w-3 h-3 text-rose-500"></i>
+                                <span>Remove</span>
+                            </button>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500">
+                                <span>Offboarded</span>
+                            </span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MOBILE CARD ACCORDION VIEW -->
+    <div class="md:hidden space-y-4">
+        {% for row in roster_matrix %}
+        {% set all_shifts = row.dates.values()|join(' ')|upper %}
+        <div class="roster-mobile-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm"
+            data-name="{{ row.user.name|lower }}"
+            data-uid="{{ row.user.unique_id|lower }}"
+            data-role="{{ row.user.role_title }}"
+            data-location="{{ row.user.location }}"
+            data-shifts="{{ all_shifts }}"
+            data-wo="{{ row.wo_count }}"
+            data-co="{{ row.co_count }}"
+            data-p="{{ row.present_count }}">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-full bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
+                        {{ row.user.name[:2].upper() }}
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm text-slate-900 dark:text-white">
+                            {{ row.user.name }}
+                            {% if row.user.id == user.id %}
+                            <span class="text-[10px] px-1.5 py-0.2 rounded bg-blue-100 text-blue-700 font-bold">You</span>
+                            {% endif %}
+                        </h4>
+                        <p class="text-[11px] text-slate-400">{{ row.user.role_title }} • {{ row.user.location }}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="font-mono text-xs text-slate-500 font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                        {{ row.user.unique_id }}
+                    </span>
+                    <div class="text-[10px] text-slate-400 mt-1">
+                        P: <span class="font-bold text-emerald-600">{{ row.present_count }}</span> | WO: <span class="font-bold text-slate-600">{{ row.wo_count }}</span> | CO: <span class="font-bold text-amber-600">{{ row.co_count }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shifts mini list for this employee -->
+            <div class="grid grid-cols-2 gap-2 mt-3 text-xs">
+                {% for d in date_list %}
+                {% set shift_val = row.dates.get(d, '-')|string|trim %}
+                {% set u_val = shift_val|upper %}
+                <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between {% if d == today %}ring-1 ring-blue-500{% endif %}">
+                    <div>
+                        <span class="block text-[10px] font-bold text-slate-400 uppercase">{{ d.strftime('%a, %d %b') }}</span>
+                    </div>
+                    <div>
+                        <span class="text-[11px] font-bold {% if u_val == 'WO' %}text-slate-500{% elif u_val == 'CO' %}text-amber-600{% elif u_val in ['P', 'S'] %}text-emerald-600{% elif u_val in ['SL', 'CL', 'LEAVE'] %}text-rose-600{% elif u_val == 'HD' %}text-orange-600{% elif u_val in ['A', 'ABSENT'] %}text-red-600{% else %}text-blue-600 dark:text-blue-400{% endif %}">
+                            {{ shift_val }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- FEATURE 2: OFFBOARD / DEACTIVATE EMPLOYEE MODAL -->
+{% if user.access_level in ['Admin', 'Manager'] %}
+<div id="offboard-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md shadow-2xl p-6 sm:p-7">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="user-minus" class="w-5 h-5 text-rose-600"></i>
+                    <span>Remove / Deactivate Employee</span>
+                </h3>
+                <p class="text-xs text-slate-400">Soft-delete offboarding with automatic quota & roster reconciliation</p>
+            </div>
+            <button onclick="closeOffboardModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form action="/admin/employees/offboard" method="POST" class="mt-5 space-y-4 text-xs">
+            <input type="hidden" id="offboard-user-id" name="user_id">
+
+            <!-- Employee Target Card -->
+            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Employee</span>
+                    <span id="offboard-employee-name" class="font-bold text-sm text-slate-900 dark:text-white"></span>
+                    <span id="offboard-employee-role" class="text-xs text-slate-500 block"></span>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Unique ID</span>
+                    <span id="offboard-employee-uid" class="font-mono font-bold text-xs text-blue-600 dark:text-blue-400"></span>
+                </div>
+            </div>
+
+            <!-- Exit Date -->
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Separation / Exit Date *
+                </label>
+                <input type="date" id="offboard-exit-date" name="exit_date" required value="{{ today.strftime('%Y-%m-%d') }}"
+                    class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-rose-500 font-mono">
+                <p class="text-[11px] text-slate-400 mt-1">Starting from this date onward, employee is excluded from the active headcount and future mandays calculations.</p>
+            </div>
+
+            <!-- Reason -->
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Reason for Separation / Removal *
+                </label>
+                <select name="exit_reason" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs mb-2 focus:ring-2 focus:ring-rose-500">
+                    <option value="Resigned / Left Company">Resigned / Left Company</option>
+                    <option value="Contract Ended">Contract Ended / Project Completion</option>
+                    <option value="Transferred to Other Circle">Transferred to Other Circle / Branch</option>
+                    <option value="Terminated">Terminated / Service Discontinued</option>
+                    <option value="Retirement">Retirement</option>
+                    <option value="Other">Other (Specify in remarks below)</option>
+                </select>
+                <textarea name="remarks" rows="2" placeholder="Optional audit handover notes or remarks..."
+                    class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-rose-500"></textarea>
+            </div>
+
+            <!-- Automated Adjustments Info Box -->
+            <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 text-[11px] text-amber-800 dark:text-amber-300 space-y-1">
+                <p class="font-bold flex items-center gap-1.5">
+                    <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-600"></i>
+                    <span>Automatic System Adjustments:</span>
+                </p>
+                <p>• Employee status will be switched to <strong>Inactive</strong> (Soft Delete).</p>
+                <p>• Automatically cancels all pending and approved leaves on or after the Exit Date.</p>
+                <p>• Updates future shift schedule slots from Exit Date onward to <strong>Left</strong>.</p>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="pt-2 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="closeOffboardModal()" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow transition flex items-center gap-2">
+                    <i data-lucide="user-x" class="w-4 h-4"></i>
+                    <span>Confirm Offboarding</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- MODAL: CHANGE SHIFT (ADMIN) -->
+{% if user.access_level in ['Admin', 'Manager'] %}
+<div id="change-shift-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md shadow-2xl p-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div class="flex items-center gap-2 text-blue-600 font-bold text-base">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>Change Employee Shift Schedule</span>
+            </div>
+            <button type="button" onclick="closeChangeShiftModal()" class="text-slate-400 hover:text-slate-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form action="/roster/quick-assign" method="POST" class="space-y-4 pt-3">
+            <input type="hidden" name="user_id" id="modal-shift-user-id">
+            
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Selected Employee</span>
+                    <span id="modal-shift-user-name" class="font-bold text-sm text-slate-800 dark:text-white"></span>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Unique ID</span>
+                    <span id="modal-shift-user-uid" class="font-mono font-bold text-xs text-blue-600"></span>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Roster Date *</label>
+                <input type="date" name="roster_date" id="modal-shift-date" required value="{{ today.strftime('%Y-%m-%d') }}" class="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg dark:bg-slate-800">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">New Shift Schedule *</label>
+                <select name="shift_name" required class="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg dark:bg-slate-800">
+                    <option value="Morning Shift (07:00 To 16:00)">Morning Shift (07:00 To 16:00)</option>
+                    <option value="General Shift (09:00 To 18:00)">General Shift (09:00 To 18:00)</option>
+                    <option value="Afternoon Shift (13:00 To 22:00)">Afternoon Shift (13:00 To 22:00)</option>
+                    <option value="Night Shift (22:00 To 07:00)">Night Shift (22:00 To 07:00 - Overnight)</option>
+                    <option value="WO">Weekly Off (WO)</option>
+                    <option value="CO">Comp-Off (CO)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Reason for Schedule Change *</label>
+                <input type="text" name="reason" required placeholder="e.g. Operational requirement, swapped with peer" class="w-full px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-lg dark:bg-slate-800">
+            </div>
+
+            <div class="flex items-center gap-2 p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg text-xs text-amber-800 dark:text-amber-300">
+                <input type="checkbox" name="override_leave" id="modal-override-leave" value="true" class="rounded border-amber-400 text-blue-600 focus:ring-blue-500">
+                <label for="modal-override-leave" class="cursor-pointer select-none">
+                    <strong>Override Approved Leave:</strong> If employee has approved leave on this date, automatically cancel the leave and apply this shift.
+                </label>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" onclick="closeChangeShiftModal()" class="px-3.5 py-1.5 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 rounded-lg">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm">Save & Audit Change</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleFilterDropdown(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const isHidden = el.classList.contains('hidden');
+    document.querySelectorAll('#shift-dropdown, #role-dropdown').forEach(d => d.classList.add('hidden'));
+    if (isHidden) {
+        el.classList.remove('hidden');
+    }
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#shift-dropdown') && !e.target.closest('#role-dropdown') && !e.target.closest('button[onclick*="toggleFilterDropdown"]')) {
+        document.querySelectorAll('#shift-dropdown, #role-dropdown').forEach(d => d.classList.add('hidden'));
+    }
+});
+
+function getSelectedCheckboxes(className) {
+    const checked = Array.from(document.querySelectorAll(`.${className}:checked`));
+    return checked.map(c => c.value.trim().toUpperCase());
+}
+
+function highlightSpecificEmployee() {
+    const query = (document.getElementById('highlight-emp-id')?.value || '').toLowerCase().trim();
+    const rows = document.querySelectorAll('.roster-row');
+    
+    rows.forEach(r => {
+        const uid = (r.getAttribute('data-uid') || '').toLowerCase();
+        const isSelf = r.classList.contains('current-user-row');
+        if (query && uid.includes(query)) {
+            r.classList.add('bg-amber-100/70', 'ring-2', 'ring-amber-500');
+            r.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (!isSelf) {
+            r.classList.remove('bg-amber-100/70', 'ring-2', 'ring-amber-500');
+        }
+    });
+}
+
+function applyDynamicFilters() {
+    const searchVal = (document.getElementById('filter-search')?.value || '').toLowerCase().trim();
+    const locationVal = document.getElementById('filter-location')?.value || 'All';
+    const timingCategory = document.getElementById('filter-timing-category')?.value || 'ALL';
+    const selectedShifts = getSelectedCheckboxes('shift-checkbox');
+    const selectedRoles = Array.from(document.querySelectorAll('.role-checkbox:checked')).map(c => c.value.trim());
+
+    // Show/hide custom window input
+    const windowInputs = document.getElementById('custom-time-window-inputs');
+    if (windowInputs) {
+        if (timingCategory === 'WINDOW') {
+            windowInputs.classList.remove('hidden');
+        } else {
+            windowInputs.classList.add('hidden');
+        }
+    }
+
+    const shiftLabel = document.getElementById('selected-shifts-label');
+    if (shiftLabel) {
+        shiftLabel.textContent = selectedShifts.length === 0 ? 'All Shift Slots' : `${selectedShifts.length} Shift(s) Selected`;
+    }
+    const roleLabel = document.getElementById('selected-roles-label');
+    if (roleLabel) {
+        roleLabel.textContent = selectedRoles.length === 0 ? 'All Roles' : `${selectedRoles.length} Role(s) Selected`;
+    }
+
+    let visibleCount = 0;
+    let sumPresent = 0;
+    let sumWo = 0;
+    let sumCo = 0;
+
+    const rows = document.querySelectorAll('.roster-row');
+    const mobileCards = document.querySelectorAll('.roster-mobile-card');
+
+    function checkItem(el) {
+        const name = el.getAttribute('data-name') || '';
+        const uid = el.getAttribute('data-uid') || '';
+        const role = el.getAttribute('data-role') || '';
+        const loc = el.getAttribute('data-location') || '';
+        const shifts = el.getAttribute('data-shifts') || '';
+
+        if (searchVal && !name.includes(searchVal) && !uid.includes(searchVal)) {
+            return false;
+        }
+
+        if (locationVal !== 'All' && loc !== locationVal) {
+            return false;
+        }
+
+        if (selectedRoles.length > 0 && !selectedRoles.includes(role)) {
+            return false;
+        }
+
+        if (selectedShifts.length > 0) {
+            const hasShift = selectedShifts.some(s => shifts.includes(s));
+            if (!hasShift) return false;
+        }
+
+        // Timing category filters
+        if (timingCategory === 'EARLY') {
+            if (!shifts.includes('07:00') && !shifts.includes('06:00')) return false;
+        } else if (timingCategory === 'DAY') {
+            if (!shifts.includes('09:00') && !shifts.includes('10:00')) return false;
+        } else if (timingCategory === 'LATE') {
+            if (!shifts.includes('13:00') && !shifts.includes('14:00') && !shifts.includes('16:00')) return false;
+        } else if (timingCategory === 'OVERNIGHT') {
+            if (!shifts.includes('22:00') && !shifts.includes('23:00') && !shifts.includes('00:00')) return false;
+        } else if (timingCategory === 'WINDOW') {
+            const wStart = document.getElementById('window-start')?.value || '09:00';
+            const wEnd = document.getElementById('window-end')?.value || '17:00';
+            // Interval overlap logic
+            const hasOverlap = shifts.includes(wStart.slice(0, 2)) || shifts.includes(wEnd.slice(0, 2));
+            if (!hasOverlap && !shifts.includes('09:00')) return false;
+        }
+
+        return true;
+    }
+
+    rows.forEach(r => {
+        const matches = checkItem(r);
+        r.style.display = matches ? '' : 'none';
+        if (matches) {
+            visibleCount++;
+            sumPresent += parseInt(r.getAttribute('data-p') || '0', 10);
+            sumWo += parseInt(r.getAttribute('data-wo') || '0', 10);
+            sumCo += parseInt(r.getAttribute('data-co') || '0', 10);
+        }
+    });
+
+    mobileCards.forEach(c => {
+        const matches = checkItem(c);
+        c.style.display = matches ? '' : 'none';
+    });
+
+    const badge = document.getElementById('filtered-count-badge');
+    if (badge) {
+        badge.textContent = `Showing ${visibleCount} / {{ total_active_staff }} Employees`;
+    }
+    const sTotal = document.getElementById('subset-total');
+    if (sTotal) sTotal.textContent = visibleCount;
+    const sPresent = document.getElementById('subset-present');
+    if (sPresent) sPresent.textContent = sumPresent;
+    const sWo = document.getElementById('subset-wo');
+    if (sWo) sWo.textContent = sumWo;
+    const sCo = document.getElementById('subset-co');
+    if (sCo) sCo.textContent = sumCo;
+}
+
+function clearAllFilters() {
+    const sInput = document.getElementById('filter-search');
+    if (sInput) sInput.value = '';
+    const locInput = document.getElementById('filter-location');
+    if (locInput) locInput.value = 'All';
+    const catInput = document.getElementById('filter-timing-category');
+    if (catInput) catInput.value = 'ALL';
+    const hInput = document.getElementById('highlight-emp-id');
+    if (hInput) { hInput.value = ''; highlightSpecificEmployee(); }
+    document.querySelectorAll('.shift-checkbox, .role-checkbox').forEach(c => c.checked = false);
+    applyDynamicFilters();
+}
+
+function openChangeShiftModal(userId, userName, uniqueId) {
+    const modal = document.getElementById('change-shift-modal');
+    if (!modal) return;
+    document.getElementById('modal-shift-user-id').value = userId;
+    document.getElementById('modal-shift-user-name').textContent = userName;
+    document.getElementById('modal-shift-user-uid').textContent = uniqueId;
+    modal.classList.remove('hidden');
+}
+
+function closeChangeShiftModal() {
+    const modal = document.getElementById('change-shift-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function openOffboardModal(userId, userName, uniqueId, roleTitle) {
+    const modal = document.getElementById('offboard-modal');
+    if (!modal) return;
+    document.getElementById('offboard-user-id').value = userId;
+    document.getElementById('offboard-employee-name').textContent = userName;
+    document.getElementById('offboard-employee-uid').textContent = uniqueId;
+    document.getElementById('offboard-employee-role').textContent = roleTitle || 'Employee';
+    modal.classList.remove('hidden');
+}
+
+function closeOffboardModal() {
+    const modal = document.getElementById('offboard-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    applyDynamicFilters();
+});
+</script>
+{% endblock %}

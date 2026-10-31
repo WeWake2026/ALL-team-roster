@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ShiftFlow Pro - Operations Workforce & Leave Management{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        },
+                        msedcl: {
+                            blue: '#0284c7',
+                            dark: '#0f172a',
+                            accent: '#38bdf8'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Custom scrollbar for grid */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .dark .glass-card {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col md:flex-row antialiased selection:bg-blue-500 selection:text-white transition-colors duration-200">
+
+    {% if user %}
+    <!-- DESKTOP STICKY SIDEBAR -->
+    <aside class="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-300 select-none shrink-0 z-30">
+        <!-- Brand Header -->
+        <div class="h-16 flex items-center px-6 border-b border-slate-800 gap-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                <i data-lucide="calendar-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <span class="font-bold text-white text-base tracking-tight flex items-center gap-1.5">
+                    ShiftFlow <span class="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-semibold border border-blue-500/30">MSEDCL</span>
+                </span>
+                <p class="text-[10px] text-slate-400">Workforce & Leave ERP</p>
+            </div>
+        </div>
+
+        <!-- User Brief Profile -->
+        <div class="p-4 mx-3 my-3 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow">
+                {{ user.name[:2].upper() }}
+            </div>
+            <div class="overflow-hidden">
+                <p class="text-xs font-semibold text-white truncate" title="{{ user.name }}">{{ user.name }}</p>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span class="text-[11px] text-slate-400 truncate">{{ user.role_title }}</span>
+                </div>
+                <span class="inline-block mt-1 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded {% if user.access_level == 'Admin' %}bg-rose-500/20 text-rose-300 border border-rose-500/30{% elif user.access_level == 'Manager' %}bg-amber-500/20 text-amber-300 border border-amber-500/30{% else %}bg-blue-500/20 text-blue-300 border border-blue-500/30{% endif %}">
+                    {{ user.access_level }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
+            <a href="/dashboard" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'dashboard' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                <span>My Dashboard</span>
+            </a>
+
+            <!-- Read-Only "My Team Roster" for Agents/Advisors/Employees, or "Team Roster" for Authorized Staff -->
+            <a href="/roster" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'roster' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="calendar" class="w-4 h-4"></i>
+                <span>{% if user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader'] %}Team Roster{% else %}My Team Roster{% endif %}</span>
+            </a>
+
+            <!-- Dedicated Location-Wise Roster (Restricted to Admin, HR, Manager, Team Leader) -->
+            {% if (perms and (perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader)) or (user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader']) or ('lead' in (user.role_title|lower)) %}
+            <a href="/roster/location" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'location_roster' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="map-pin" class="w-4 h-4 text-cyan-400"></i>
+                <span>Location-Wise Roster</span>
+            </a>
+            {% endif %}
+
+            <!-- Dedicated Consolidated Combined Roster (Restricted to Admin and HR) -->
+            {% if (perms and (perms.is_admin or perms.is_hr)) or (user.access_level in ['Admin', 'Super Admin', 'HR']) %}
+            <a href="/roster/combined" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'combined_roster' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="layers" class="w-4 h-4 text-purple-400"></i>
+                <span>Combined Roster</span>
+            </a>
+            {% endif %}
+
+            <a href="/leaves" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'leaves' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <div class="flex items-center gap-3">
+                    <i data-lucide="plane" class="w-4 h-4"></i>
+                    <span>Leave Portal</span>
+                </div>
+                {% if user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR'] and pending_leave_count and pending_leave_count > 0 %}
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-900 animate-pulse">
+                    {{ pending_leave_count }}
+                </span>
+                {% endif %}
+            </a>
+
+            <!-- Reports and Analytics -->
+            <a href="/reports" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'reports' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-400"></i>
+                <span>Workforce Reports</span>
+            </a>
+
+            {% if user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR'] %}
+            <div class="pt-4 pb-1 px-3">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Operations Control</p>
+            </div>
+
+            <!-- Admin Dedicated Shift Management Tab -->
+            <a href="/admin/shifts" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'shifts' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="clock" class="w-4 h-4 text-indigo-400"></i>
+                <span>Shift Management</span>
+            </a>
+
+            <!-- Shift & Roster Change History -->
+            <a href="/roster/history" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'shift_history' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="history" class="w-4 h-4 text-cyan-400"></i>
+                <span>Roster Change History</span>
+            </a>
+
+            <a href="/roster/manage" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'manage_roster' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="sliders" class="w-4 h-4"></i>
+                <span>Quick Assign Desk</span>
+            </a>
+
+            <a href="/admin/sync" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'sync' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                <span>Bulk Excel / CSV Sync</span>
+            </a>
+
+            <a href="/admin/leave-master" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'leave_master' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="scale" class="w-4 h-4 text-emerald-400"></i>
+                <span>Leave Audit Master</span>
+            </a>
+            {% endif %}
+
+            {% if user.access_level in ['Admin', 'Super Admin'] %}
+            <div class="pt-4 pb-1 px-3">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Centralized Administration</p>
+            </div>
+
+            <!-- Dedicated User & Data Assignment -->
+            <a href="/admin/assignments" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'assignments' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="shield-check" class="w-4 h-4 text-blue-400"></i>
+                <span>User & Data Assignment</span>
+            </a>
+
+            <a href="/admin/users" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'users' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="users" class="w-4 h-4"></i>
+                <span>User Accounts & Credentials</span>
+            </a>
+
+            <a href="/audit-logs" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'audit_logs' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="file-text" class="w-4 h-4 text-amber-400"></i>
+                <span>Audit & Security Logs</span>
+            </a>
+
+            <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'settings' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
+                <i data-lucide="building" class="w-4 h-4"></i>
+                <span>Holidays & Company Rules</span>
+            </a>
+            {% endif %}
+        </nav>
+
+        <!-- Sidebar Footer -->
+        <div class="p-4 border-t border-slate-800 flex items-center justify-between">
+            <button onclick="toggleDarkMode()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" title="Toggle Dark/Light Mode">
+                <i data-lucide="moon" id="theme-icon-desktop" class="w-4 h-4"></i>
+            </button>
+            <a href="/logout" class="flex items-center gap-2 text-xs font-medium text-rose-400 hover:text-rose-300 py-1.5 px-2.5 rounded-lg hover:bg-rose-500/10 transition">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+                <span>Sign Out</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- MOBILE TOP HEADER -->
+    <header class="md:hidden flex items-center justify-between h-14 px-4 bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40">
+        <div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center text-white">
+                <i data-lucide="calendar-check" class="w-4 h-4"></i>
+            </div>
+            <span class="font-bold text-sm tracking-tight">ShiftFlow Pro</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="toggleDarkMode()" class="p-2 text-slate-300 hover:text-white">
+                <i data-lucide="moon" id="theme-icon-mobile" class="w-4 h-4"></i>
+            </button>
+            <button onclick="toggleMobileMenu()" class="p-2 text-slate-300 hover:text-white">
+                <i data-lucide="menu" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MOBILE SLIDE-OUT DRAWER -->
+    <div id="mobile-menu" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden md:hidden">
+        <div class="w-72 bg-slate-900 h-full p-4 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+                    <span class="font-bold text-white text-base">Menu</span>
+                    <button onclick="toggleMobileMenu()" class="text-slate-400 hover:text-white">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="py-3 border-b border-slate-800">
+                    <p class="text-sm font-semibold text-white">{{ user.name }}</p>
+                    <p class="text-xs text-slate-400">{{ user.role_title }} • <span class="text-blue-400">{{ user.access_level }}</span></p>
+                </div>
+                <nav class="mt-4 space-y-1">
+                    <a href="/dashboard" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="/roster" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
+                        <i data-lucide="calendar" class="w-4 h-4"></i>
+                        <span>{% if user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader'] %}Team Roster{% else %}My Team Roster{% endif %}</span>
+                    </a>
+                    {% if (perms and (perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader)) or (user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader']) %}
+                    <a href="/roster/location" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-cyan-400"></i>
+                        <span>Location Roster</span>
+                    </a>
+                    {% endif %}
+                    {% if (perms and (perms.is_admin or perms.is_hr)) or (user.access_level in ['Admin', 'Super Admin', 'HR']) %}
+                    <a href="/roster/combined" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
+                        <i data-lucide="layers" class="w-4 h-4 text-purple-400"></i>
+                        <span>Combined Roster</span>
+                    </a>
+                    {% endif %}
+                    <a href="/leaves" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
+                        <i data-lucide="plane" class="w-4 h-4"></i>
+                        <span>Leave Portal</span>
+                    </a>
+                    {% if user.access_level in ['Admin', 'Manager', 'HR'] %}
+                    <a href="/admin/shifts" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
+                        <i data-lucide="clock" class="w-4 h-4 text-indigo-400"></i>
+                        <span>Shift Management</span>
+                    </a>
+                    <a href="/roster/history" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
+                        <i data-lucide="history" class="w-4 h-4 text-cyan-400"></i>
+                        <span>Roster History</span>
+                    </a>
+                    <a href="/roster/manage" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
+                        <i data-lucide="sliders" class="w-4 h-4"></i>
+                        <span>Quick Assign Desk</span>
+                    </a>
+                    <a href="/admin/sync" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                        <span>Bulk Sync</span>
+                    </a>
+                    <a href="/admin/leave-master" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
+                        <i data-lucide="scale" class="w-4 h-4 text-emerald-400"></i>
+                        <span>Leave Audit Master</span>
+                    </a>
+                    <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
+                        <i data-lucide="building" class="w-4 h-4"></i>
+                        <span>Settings</span>
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+            <div class="pt-4 border-t border-slate-800">
+                <a href="/logout" class="flex items-center gap-2 text-rose-400 text-sm font-medium">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    <span>Sign Out</span>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- MAIN APP CANVAS -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-y-auto min-h-screen">
+        <!-- Optional Top Banner / Flash Messages -->
+        {% if alert_msg %}
+        <div class="m-4 mb-0 p-3 rounded-lg flex items-center justify-between text-sm {% if alert_type == 'error' %}bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-900{% else %}bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-900{% endif %}">
+            <div class="flex items-center gap-2">
+                <i data-lucide="info" class="w-4 h-4"></i>
+                <span>{{ alert_msg }}</span>
+            </div>
+            <button onclick="this.parentElement.remove()" class="opacity-60 hover:opacity-100">&times;</button>
+        </div>
+        {% endif %}
+
+        <!-- Content Injection -->
+        <div class="flex-1 p-4 md:p-8">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- MOBILE FLOATING ACTION BAR FOR EMPLOYEES -->
+    {% if user %}
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-2 flex items-center justify-around z-40 shadow-lg">
+        <a href="/dashboard" class="flex flex-col items-center gap-1 text-[11px] font-medium {% if active_page == 'dashboard' %}text-blue-600 dark:text-blue-400{% else %}text-slate-500 dark:text-slate-400{% endif %}">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            <span>Home</span>
+        </a>
+        <a href="/roster" class="flex flex-col items-center gap-1 text-[11px] font-medium {% if active_page == 'roster' %}text-blue-600 dark:text-blue-400{% else %}text-slate-500 dark:text-slate-400{% endif %}">
+            <i data-lucide="calendar" class="w-5 h-5"></i>
+            <span>Roster</span>
+        </a>
+        <a href="/leaves" class="flex flex-col items-center gap-1 text-[11px] font-medium {% if active_page == 'leaves' %}text-blue-600 dark:text-blue-400{% else %}text-slate-500 dark:text-slate-400{% endif %}">
+            <i data-lucide="plane" class="w-5 h-5"></i>
+            <span>Leaves</span>
+        </a>
+        {% if user.access_level in ['Admin', 'Manager'] %}
+        <a href="/admin/sync" class="flex flex-col items-center gap-1 text-[11px] font-medium {% if active_page == 'sync' %}text-blue-600 dark:text-blue-400{% else %}text-slate-500 dark:text-slate-400{% endif %}">
+            <i data-lucide="upload" class="w-5 h-5"></i>
+            <span>Sync</span>
+        </a>
+        {% endif %}
+    </nav>
+    {% endif %}
+
+    <script>
+        // Init Lucide Icons
+        lucide.createIcons();
+
+        // Dark Mode Logic
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            updateThemeIcons();
+        }
+
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+            updateThemeIcons();
+        }
+
+        function updateThemeIcons() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const dIcon = document.getElementById('theme-icon-desktop');
+            const mIcon = document.getElementById('theme-icon-mobile');
+            if (dIcon) dIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            if (mIcon) mIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+        }
+
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        initTheme();
+    </script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+{% block title %}Location Roster Matrix - ShiftFlow Pro{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header with Breadcrumbs & Action Toolbar -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                <span>Location Operations</span>
+                <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                <span class="text-blue-600 dark:text-blue-400 font-semibold">{{ current_location.name if current_location else 'All Authorized Locations' }}</span>
+                <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                <span class="text-slate-800 dark:text-slate-200 font-semibold">Location Roster Desk</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                <span>{{ current_location.name if current_location else 'Location' }} Shift Schedule</span>
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                    {{ total_active_staff }} Staff Available
+                </span>
+            </h1>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center flex-wrap gap-2.5">
+            <!-- Location Switcher Dropdown -->
+            <form method="GET" action="/roster/location" class="inline-flex">
+                <input type="hidden" name="start_date" value="{{ current_start_str }}">
+                <input type="hidden" name="view_mode" value="{{ view_mode }}">
+                <div class="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 shadow-sm">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5 text-blue-600"></i>
+                    <span class="text-[10px] uppercase font-bold text-slate-400">Location:</span>
+                    <select name="location_id" onchange="this.form.submit()" class="text-xs bg-transparent text-slate-800 dark:text-slate-200 font-bold focus:outline-none pr-1">
+                        {% for loc in authorized_locations %}
+                        <option value="{{ loc.id }}" {% if current_location and current_location.id == loc.id %}selected{% endif %}>
+                            {{ loc.name }} ({{ loc.code }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+
+            <!-- View Range Toggle -->
+            <div class="bg-slate-200 dark:bg-slate-800 p-1 rounded-xl flex items-center text-xs font-medium">
+                <a href="/roster/location?location_id={{ current_location.id if current_location else '' }}&start_date={{ prev_date_str }}&view_mode={{ view_mode }}&department_id={{ selected_dept_id }}&team_id={{ selected_team_id }}" class="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition" title="Previous Period">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                </a>
+                <span class="px-2 font-semibold text-slate-700 dark:text-slate-200">
+                    {{ date_list[0].strftime('%d %b') }} - {{ date_list[-1].strftime('%d %b %Y') }}
+                </span>
+                <a href="/roster/location?location_id={{ current_location.id if current_location else '' }}&start_date={{ next_date_str }}&view_mode={{ view_mode }}&department_id={{ selected_dept_id }}&team_id={{ selected_team_id }}" class="p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition" title="Next Period">
+                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </a>
+            </div>
+
+            <!-- 7-Day / 14-Day View selector -->
+            <div class="bg-slate-200 dark:bg-slate-800 p-1 rounded-xl flex items-center text-xs font-medium">
+                <a href="/roster/location?location_id={{ current_location.id if current_location else '' }}&start_date={{ current_start_str }}&view_mode=7&department_id={{ selected_dept_id }}&team_id={{ selected_team_id }}" class="px-2.5 py-1 rounded-lg transition {% if view_mode == '7' %}bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 font-bold shadow-sm{% else %}text-slate-600 dark:text-slate-400{% endif %}">
+                    7 Days
+                </a>
+                <a href="/roster/location?location_id={{ current_location.id if current_location else '' }}&start_date={{ current_start_str }}&view_mode=14&department_id={{ selected_dept_id }}&team_id={{ selected_team_id }}" class="px-2.5 py-1 rounded-lg transition {% if view_mode == '14' %}bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 font-bold shadow-sm{% else %}text-slate-600 dark:text-slate-400{% endif %}">
+                    14 Days
+                </a>
+            </div>
+
+            <!-- Export XLSX -->
+            {% if perms.can_export or perms.is_admin %}
+            <a href="/roster/export?location_id={{ current_location.id if current_location else '' }}&start_date={{ date_list[0].strftime('%Y-%m-%d') }}&end_date={{ date_list[-1].strftime('%Y-%m-%d') }}" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5" title="Export Location Roster to Excel">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Export Excel</span>
+            </a>
+            {% endif %}
+
+            <!-- Switch to Combined Roster -->
+            <a href="/roster/combined" class="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5" title="View Combined Enterprise Roster">
+                <i data-lucide="layers" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Combined View</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Staffing Health & Shortage Alert Banner -->
+    {% if staffing_shortages and staffing_shortages|length > 0 %}
+    <div class="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-between text-xs text-amber-900 dark:text-amber-200">
+        <div class="flex items-center gap-2.5">
+            <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0"></i>
+            <div>
+                <span class="font-bold">Staffing Notice:</span>
+                <span>{{ staffing_shortages|length }} day(s) have low staffing / shortage in this operational period.</span>
+            </div>
+        </div>
+        <span class="text-[11px] font-semibold text-amber-700 dark:text-amber-300">Min. required threshold: 5 Staff/Day</span>
+    </div>
+    {% endif %}
+
+    <!-- Advanced Multi-Criteria Filters Toolbar -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+                <i data-lucide="sliders-horizontal" class="w-4 h-4 text-blue-600"></i>
+                <span>Location Filters & Scopes</span>
+            </span>
+            <div class="flex items-center gap-2">
+                <span id="filtered-count-badge" class="text-[11px] px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 font-bold">
+                    Showing {{ total_active_staff }} Employees
+                </span>
+                <button type="button" onclick="clearLocationFilters()" class="text-[11px] text-slate-500 hover:text-blue-600 transition font-medium">
+                    Reset
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+            <!-- Search by Name or ID -->
+            <div>
+                <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Search Staff / ID</label>
+                <div class="relative">
+                    <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5"></i>
+                    <input type="text" id="filter-search" oninput="applyLocationTableFilters()" placeholder="Name or Unique ID..."
+                        class="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <!-- Department Filter -->
+            <div>
+                <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Department</label>
+                <select id="filter-dept" onchange="applyLocationTableFilters()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300 focus:outline-none">
+                    <option value="ALL">All Departments</option>
+                    {% for d in departments %}
+                    <option value="{{ d.name }}">{{ d.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Team Filter -->
+            <div>
+                <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Team / Squad</label>
+                <select id="filter-team" onchange="applyLocationTableFilters()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300 focus:outline-none">
+                    <option value="ALL">All Teams</option>
+                    {% for t in teams %}
+                    <option value="{{ t.name }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Shift Filter -->
+            <div>
+                <label class="block font-semibold text-slate-600 dark:text-slate-400 mb-1">Shift Slot</label>
+                <select id="filter-shift" onchange="applyLocationTableFilters()" class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-700 dark:text-slate-300 focus:outline-none">
+                    <option value="ALL">All Shift Timings</option>
+                    <option value="07:00">Morning (07:00)</option>
+                    <option value="09:00">General (09:00)</option>
+                    <option value="13:00">Afternoon (13:00)</option>
+                    <option value="22:00">Night (22:00)</option>
+                    <option value="WO">Week Off (WO)</option>
+                    <option value="CO">Comp-Off (CO)</option>
+                    <option value="LEAVE">Leave / Absence</option>
+                </select>
+            </div>
+        </div>
+    <!-- Shift Legend Badges with Configured Colors -->
+    <div class="flex items-center flex-wrap gap-2 text-xs p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        <span class="font-bold text-slate-500 uppercase text-[10px] tracking-wider mr-1">Shift Legend:</span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-100 text-blue-800 font-bold text-[11px] border border-blue-200">
+            <span class="w-2 h-2 rounded-full bg-blue-600"></span> Morning (07:00 - 16:00)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[11px] border border-emerald-200">
+            <span class="w-2 h-2 rounded-full bg-emerald-600"></span> General (09:00 - 18:00)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-100 text-orange-800 font-bold text-[11px] border border-orange-200">
+            <span class="w-2 h-2 rounded-full bg-orange-600"></span> Afternoon (13:00 - 22:00)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-100 text-purple-800 font-bold text-[11px] border border-purple-200">
+            <span class="w-2 h-2 rounded-full bg-purple-600"></span> Night (22:00 - 07:00 Overnight)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-200 text-slate-700 font-bold text-[11px]">
+            <span class="w-2 h-2 rounded-full bg-slate-500"></span> WO (Weekly Off)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-100 text-rose-800 font-bold text-[11px] border border-rose-200">
+            <span class="w-2 h-2 rounded-full bg-rose-600"></span> Leave (Approved)
+        </span>
+    </div>
+
+    <!-- Roster Grid Matrix -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="w-full text-left text-xs border-collapse" id="roster-matrix-table">
+                <thead>
+                    <tr class="bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-semibold select-none">
+                        <th class="p-3 pl-4 sticky left-0 bg-slate-100 dark:bg-slate-800 z-20 min-w-[200px] border-r border-slate-200 dark:border-slate-700">
+                            Employee
+                        </th>
+                        <th class="p-3 text-center min-w-[80px]">Role / TL</th>
+                        {% for d in date_list %}
+                        <th class="p-2 text-center min-w-[95px] {% if d == today %}bg-blue-50/80 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-x border-blue-200 dark:border-blue-800{% endif %}">
+                            <div class="font-bold">{{ d.strftime('%a') }}</div>
+                            <div class="text-[10px] text-slate-400">{{ d.strftime('%d %b') }}</div>
+                            {% if holiday_map.get(d) %}
+                            <div class="text-[9px] text-rose-500 font-bold truncate max-w-[85px] mx-auto" title="{{ holiday_map.get(d) }}">
+                                🚩 {{ holiday_map.get(d) }}
+                            </div>
+                            {% endif %}
+                        </th>
+                        {% endfor %}
+                        <th class="p-2 text-center min-w-[50px] bg-slate-50 dark:bg-slate-800/40 border-l border-slate-200 dark:border-slate-700">WO</th>
+                        <th class="p-2 text-center min-w-[50px] bg-slate-50 dark:bg-slate-800/40">CO</th>
+                        <th class="p-2 text-center min-w-[50px] bg-slate-50 dark:bg-slate-800/40">Leave</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for row in roster_matrix %}
+                    {% set is_current_user = (row.user.id == user.id or row.user.unique_id == user.unique_id) %}
+                    <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition roster-row {% if is_current_user %}bg-blue-50/50 dark:bg-blue-950/30 ring-2 ring-inset ring-blue-500 font-medium{% endif %}"
+                        data-name="{{ row.user.name|lower }}"
+                        data-uid="{{ row.user.unique_id|lower }}"
+                        data-dept="{{ row.user.department|default('')|lower }}"
+                        data-shifts="{{ row.dates.values()|join(' ')|lower }}">
+                        <td class="p-3 pl-4 sticky left-0 {% if is_current_user %}bg-blue-50 dark:bg-blue-950 border-r-2 border-blue-500{% else %}bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700{% endif %} z-10">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-full {% if is_current_user %}bg-blue-600 text-white shadow-sm ring-2 ring-blue-300{% else %}bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300{% endif %} font-bold flex items-center justify-center text-[10px] shrink-0">
+                                    {{ row.user.name[:2].upper() }}
+                                </div>
+                                <div class="truncate">
+                                    <p class="font-semibold text-slate-800 dark:text-slate-100 truncate flex items-center gap-1.5" title="{{ row.user.name }}">
+                                        <span>{{ row.user.name }}</span>
+                                        {% if is_current_user %}
+                                        <span class="inline-flex items-center gap-1 text-[10px] px-2 py-0.2 rounded-full bg-blue-600 text-white font-extrabold shadow-xs">You</span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="text-[10px] font-mono text-slate-400">{{ row.user.unique_id }}</p>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td class="p-2 text-center text-[11px] text-slate-500">
+                            <p class="truncate max-w-[90px] mx-auto font-medium" title="{{ row.user.role_title }}">{{ row.user.role_title }}</p>
+                        </td>
+
+                        {% for d in date_list %}
+                        {% set shift = row.dates.get(d, '09:00 To 18:00') %}
+                        <td class="p-1.5 text-center {% if d == today %}bg-blue-50/30 dark:bg-blue-950/20 border-x border-blue-100 dark:border-blue-900/40{% endif %}">
+                            {% if perms.can_edit or perms.is_admin %}
+                            <!-- Interactive Shift Cell -->
+                            <button type="button"
+                                data-user-id="{{ row.user.id }}"
+                                data-user-name="{{ row.user.name|e }}"
+                                data-date="{{ d.strftime('%Y-%m-%d') }}"
+                                data-shift="{{ shift|e }}"
+                                onclick="openCellEditModal(this.dataset.userId, this.dataset.userName, this.dataset.date, this.dataset.shift)"
+                                class="w-full py-1.5 px-1 rounded-lg text-[10px] font-bold font-mono transition shadow-xs hover:scale-105
+                                {% if shift in ['WO'] %}bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700
+                                {% elif shift in ['CO'] %}bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800
+                                {% elif shift in ['CL', 'SL', 'Leave', 'PL'] %}bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800
+                                {% elif '07:00' in shift %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800
+                                {% elif '13:00' in shift %}bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800
+                                {% elif '22:00' in shift %}bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800
+                                {% else %}bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}" title="Click to edit shift for {{ d.strftime('%d %b') }}">
+                                {{ shift }}
+                            </button>
+                            {% else %}
+                            <span class="inline-block w-full py-1.5 px-1 rounded-lg text-[10px] font-bold font-mono
+                                {% if shift in ['WO'] %}bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400
+                                {% elif shift in ['CO'] %}bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300
+                                {% elif shift in ['CL', 'SL', 'Leave', 'PL'] %}bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300
+                                {% else %}bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300{% endif %}">
+                                {{ shift }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+
+                        <td class="p-2 text-center font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 border-l border-slate-200 dark:border-slate-700">
+                            {{ row.wo_count }}
+                        </td>
+                        <td class="p-2 text-center font-bold text-purple-600 dark:text-purple-400 bg-slate-50 dark:bg-slate-800/40">
+                            {{ row.co_count }}
+                        </td>
+                        <td class="p-2 text-center font-bold text-amber-600 dark:text-amber-400 bg-slate-50 dark:bg-slate-800/40">
+                            {{ row.leave_count }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- INLINE CELL EDIT MODAL -->
+<div id="cell-edit-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md shadow-2xl p-6">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">Modify Shift Assignment</h3>
+                <p class="text-xs text-slate-400" id="modal-emp-info"></p>
+            </div>
+            <button onclick="closeCellEditModal()" class="text-slate-400 hover:text-slate-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form action="/roster/quick-assign" method="POST" class="mt-4 space-y-4 text-xs">
+            <input type="hidden" name="user_id" id="modal-user-id">
+            <input type="hidden" name="date" id="modal-date">
+            <input type="hidden" name="return_url" value="/roster/location?location_id={{ current_location.id if current_location else '' }}&start_date={{ current_start_str }}&view_mode={{ view_mode }}">
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Shift / Status</label>
+                <select name="shift_code" id="modal-shift-select" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 font-semibold">
+                    <option value="07:00 To 16:00">07:00 To 16:00 (Morning)</option>
+                    <option value="09:00 To 18:00">09:00 To 18:00 (General)</option>
+                    <option value="11:00 To 20:00">11:00 To 20:00 (Mid-Day)</option>
+                    <option value="13:00 To 22:00">13:00 To 22:00 (Afternoon)</option>
+                    <option value="22:00 To 07:00">22:00 To 07:00 (Night)</option>
+                    <option value="WO">WO (Week Off)</option>
+                    <option value="CO">CO (Comp-Off)</option>
+                    <option value="CL">CL (Casual Leave)</option>
+                    <option value="SL">SL (Sick Leave)</option>
+                    <option value="Leave">On Leave</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg text-xs text-amber-800 dark:text-amber-300">
+                <input type="checkbox" name="override_leave" id="loc-override-leave" value="true" class="rounded border-amber-400 text-blue-600 focus:ring-blue-500">
+                <label for="loc-override-leave" class="cursor-pointer select-none">
+                    <strong>Override Approved Leave</strong> if present
+                </label>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" onclick="closeCellEditModal()" class="px-4 py-2 rounded-xl text-slate-500 hover:text-slate-700 font-semibold">Cancel</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md">Save Shift</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openCellEditModal(userId, userName, dateStr, currentShift) {
+        document.getElementById('modal-user-id').value = userId;
+        document.getElementById('modal-date').value = dateStr;
+        document.getElementById('modal-emp-info').innerText = `${userName} • ${dateStr}`;
+        const sel = document.getElementById('modal-shift-select');
+        let matched = false;
+        for (let i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === currentShift) {
+                sel.selectedIndex = i;
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) sel.value = "09:00 To 18:00";
+        document.getElementById('cell-edit-modal').classList.remove('hidden');
+    }
+
+    function closeCellEditModal() {
+        document.getElementById('cell-edit-modal').classList.add('hidden');
+    }
+
+    function applyLocationTableFilters() {
+        const query = document.getElementById('filter-search').value.toLowerCase().trim();
+        const dept = document.getElementById('filter-dept').value.toLowerCase();
+        const shift = document.getElementById('filter-shift').value.toLowerCase();
+        const rows = document.querySelectorAll('.roster-row');
+        let visible = 0;
+
+        rows.forEach(r => {
+            const name = r.getAttribute('data-name') || '';
+            const uid = r.getAttribute('data-uid') || '';
+            const rowDept = r.getAttribute('data-dept') || '';
+            const shifts = r.getAttribute('data-shifts') || '';
+
+            const matchQuery = !query || name.includes(query) || uid.includes(query);
+            const matchDept = (dept === 'all') || rowDept.includes(dept);
+            const matchShift = (shift === 'all') || shifts.includes(shift);
+
+            if (matchQuery && matchDept && matchShift) {
+                r.style.display = '';
+                visible++;
+            } else {
+                r.style.display = 'none';
+            }
+        });
+
+        document.getElementById('filtered-count-badge').innerText = `Showing ${visible} Employees`;
+    }
+
+    function clearLocationFilters() {
+        document.getElementById('filter-search').value = '';
+        document.getElementById('filter-dept').value = 'ALL';
+        document.getElementById('filter-shift').value = 'ALL';
+        applyLocationTableFilters();
+    }
+</script>
+{% endblock %}

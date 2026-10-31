@@ -1,0 +1,1049 @@
+{% extends "base.html" %}
+{% block title %}Leave Management Portal - ShiftFlow Pro{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header with Quick Action -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                <span>Workforce</span>
+                <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                <span class="text-slate-800 dark:text-slate-200 font-semibold">Leave Portal</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                <span>Leave Management & Approvals</span>
+                {% if user.access_level in ['Admin', 'Manager'] and pending_approval_count > 0 %}
+                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                    {{ pending_approval_count }} Awaiting Review
+                </span>
+                {% endif %}
+            </h1>
+        </div>
+
+        <div class="flex items-center gap-2.5 flex-wrap">
+            {% if user.access_level in ['Admin', 'Manager'] %}
+            <a href="/admin/leave-master" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs md:text-sm font-semibold shadow-sm transition flex items-center gap-2 border border-slate-700">
+                <i data-lucide="table" class="w-4 h-4 text-cyan-400"></i>
+                <span>Leave Audit Master Table</span>
+            </a>
+            <button onclick="document.getElementById('upload-statement-modal').classList.remove('hidden')" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm font-semibold shadow-md shadow-indigo-600/30 transition flex items-center gap-2">
+                <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                <span>Upload Leave Statement</span>
+            </button>
+            {% endif %}
+            <button onclick="document.getElementById('apply-leave-modal').classList.remove('hidden')" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-semibold shadow-md shadow-blue-600/30 transition flex items-center gap-2">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                <span>Apply For Leave</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Official Monthly Leave Balance Ledger Card (Fractional Reconciliation Engine) -->
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 text-white shadow-xl border border-indigo-900/50">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-300 bg-indigo-950/80 px-2 py-0.5 rounded border border-indigo-700/50">
+                        Official Monthly Leave Ledger • Oct 2026
+                    </span>
+                    <span class="text-[10px] text-slate-300 font-mono bg-white/10 px-2 py-0.5 rounded">
+                        ID: {{ user.unique_id }} | ECN: {{ user.ecn or 'N/A' }} | BM: {{ user.bm_id or 'N/A' }}
+                    </span>
+                </div>
+                <h3 class="text-base font-bold text-white flex items-center gap-2 mt-1">
+                    <i data-lucide="scale" class="w-4 h-4 text-emerald-400"></i>
+                    <span>Synchronized Monthly Ledger (Fractional & Half-Day Support)</span>
+                </h3>
+            </div>
+            <div class="text-xs text-indigo-200 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2">
+                <span>Active Available (CL + SL):</span>
+                <span class="text-base font-black text-emerald-400 font-mono">
+                    {{ ((user.balance_cl if user.balance_cl is not none else user.cl_balance or 0.0) + (user.balance_sl if user.balance_sl is not none else user.sl_balance or 0.0))|round(2) }}
+                </span>
+                <span class="text-[10px] text-indigo-300">Days</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4 text-slate-900 dark:text-white">
+            <!-- Casual Leave (CL) Card -->
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-900/60 shadow-md relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl pointer-events-none"></div>
+                <div class="flex items-center justify-between">
+                    <span class="block text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                        <span>Casual Leave (CL)</span>
+                    </span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 font-bold font-mono">
+                        Available
+                    </span>
+                </div>
+
+                <div class="flex items-baseline gap-1 my-2">
+                    <span class="text-3xl font-black text-blue-600 dark:text-blue-400 font-mono">
+                        {{ (user.balance_cl if user.balance_cl is not none else user.cl_balance or 0.0)|round(2) }}
+                    </span>
+                    <span class="text-xs font-semibold text-slate-400">Days</span>
+                </div>
+
+                <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mb-2">
+                    {% set cl_elig = user.eligible_cl or 10.0 %}
+                    {% set cl_bal = user.balance_cl if user.balance_cl is not none else user.cl_balance or 0.0 %}
+                    <div class="bg-blue-600 h-2 rounded-full" style="width: {{ [100, (((cl_bal / (cl_elig if cl_elig > 0 else 10)) * 100)|round)]|min }}%"></div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800 font-mono">
+                    <span>Taken: <strong class="text-slate-800 dark:text-slate-200">{{ (user.taken_cl or 0.0)|round(2) }}</strong></span>
+                    <span>Total Eligible: <strong class="text-slate-800 dark:text-slate-200">{{ (user.eligible_cl or 10.0)|round(2) }}</strong></span>
+                </div>
+            </div>
+
+            <!-- Sick Leave (SL) Card -->
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/60 shadow-md relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-xl pointer-events-none"></div>
+                <div class="flex items-center justify-between">
+                    <span class="block text-xs font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="heart-pulse" class="w-3.5 h-3.5"></i>
+                        <span>Sick Leave (SL)</span>
+                    </span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300 font-bold font-mono">
+                        Available
+                    </span>
+                </div>
+
+                <div class="flex items-baseline gap-1 my-2">
+                    <span class="text-3xl font-black text-rose-600 dark:text-rose-400 font-mono">
+                        {{ (user.balance_sl if user.balance_sl is not none else user.sl_balance or 0.0)|round(2) }}
+                    </span>
+                    <span class="text-xs font-semibold text-slate-400">Days</span>
+                </div>
+
+                <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mb-2">
+                    {% set sl_elig = user.eligible_sl or 7.5 %}
+                    {% set sl_bal = user.balance_sl if user.balance_sl is not none else user.sl_balance or 0.0 %}
+                    <div class="bg-rose-600 h-2 rounded-full" style="width: {{ [100, (((sl_bal / (sl_elig if sl_elig > 0 else 7.5)) * 100)|round)]|min }}%"></div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800 font-mono">
+                    <span>Taken: <strong class="text-slate-800 dark:text-slate-200">{{ (user.taken_sl or 0.0)|round(2) }}</strong></span>
+                    <span>Total Eligible: <strong class="text-slate-800 dark:text-slate-200">{{ (user.eligible_sl or 7.5)|round(2) }}</strong></span>
+                </div>
+            </div>
+
+            <!-- Comp-Off (CO) Card -->
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/60 shadow-md relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-xl pointer-events-none"></div>
+                <div class="flex items-center justify-between">
+                    <span class="block text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="award" class="w-3.5 h-3.5"></i>
+                        <span>Comp-Off Balance</span>
+                    </span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 font-bold font-mono">
+                        Earned
+                    </span>
+                </div>
+
+                <div class="flex items-baseline gap-1 my-2">
+                    <span class="text-3xl font-black text-amber-600 dark:text-amber-400 font-mono">
+                        {{ (user.balance_co if user.balance_co is not none else user.co_balance or 0.0)|round(2) }}
+                    </span>
+                    <span class="text-xs font-semibold text-slate-400">Days</span>
+                </div>
+
+                <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2 mb-2">
+                    <div class="bg-amber-500 h-2 rounded-full" style="width: {% if (user.balance_co or user.co_balance or 0) > 0 %}100%{% else %}0%{% endif %}"></div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <span>Overtime Credits</span>
+                    <span class="text-[11px] font-semibold text-amber-600 dark:text-amber-400">Compensatory Rest</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN / MANAGER / TL / HR SECTION: PENDING APPROVAL QUEUE -->
+    {% if user.access_level in ['Admin', 'Manager', 'HR'] or perms.is_team_leader %}
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="clipboard-check" class="w-5 h-5 text-amber-500"></i>
+                    <span>Team Leave Approval & Cancellation Queue</span>
+                </h2>
+                <p class="text-xs text-slate-500">Review pending leave applications and cancellation requests. Conflict checking and roster synchronization applied automatically.</p>
+            </div>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                Authorized Review Desk
+            </span>
+        </div>
+
+        {% if all_pending_requests %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-700">
+                        <th class="p-3">App ID</th>
+                        <th class="p-3">Staff Member</th>
+                        <th class="p-3">Leave Type</th>
+                        <th class="p-3">Dates & Days</th>
+                        <th class="p-3">Reason / Details</th>
+                        <th class="p-3">Evidence</th>
+                        <th class="p-3">Status</th>
+                        <th class="p-3 text-right">Review Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for req in all_pending_requests %}
+                    <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                        <td class="p-3 font-mono font-bold text-blue-600 dark:text-blue-400">
+                            {{ req.application_number or ('LA-' ~ req.id) }}
+                        </td>
+                        <td class="p-3">
+                            <p class="font-semibold text-slate-900 dark:text-white">{{ req.user.name }}</p>
+                            <p class="text-[11px] text-slate-400 font-mono">{{ req.user.unique_id }} • {{ req.user.role_title }}</p>
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded font-bold text-[11px] {% if req.leave_type == 'PL' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300{% elif req.leave_type == 'SL' %}bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300{% else %}bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300{% endif %}">
+                                {{ req.leave_type }}
+                            </span>
+                            <span class="block text-[10px] text-slate-400 font-medium">{% if req.day_part and req.day_part != 'full' %}Half Day{% else %}Full Day{% endif %}</span>
+                        </td>
+                        <td class="p-3">
+                            <p class="font-medium text-slate-800 dark:text-slate-200">
+                                {{ req.start_date.strftime('%d %b %Y') }} {% if req.start_date != req.end_date %}to {{ req.end_date.strftime('%d %b %Y') }}{% endif %}
+                            </p>
+                            <span class="text-[11px] text-slate-400 font-semibold">{{ req.duration_days }} Day(s)</span>
+                        </td>
+                        <td class="p-3 max-w-xs">
+                            <p class="text-slate-700 dark:text-slate-300 line-clamp-2">{{ req.reason }}</p>
+                            {% if req.cancellation_reason %}
+                            <p class="text-rose-600 dark:text-rose-400 font-semibold text-[10px] mt-1">Cancellation Note: {{ req.cancellation_reason }}</p>
+                            {% endif %}
+                        </td>
+                        <td class="p-3">
+                            {% set active_att = req.attachments|selectattr('is_active')|list %}
+                            {% if active_att %}
+                            <button onclick="viewEvidenceModal({{ req.id }})" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold border border-indigo-200 dark:border-indigo-800 transition">
+                                <i data-lucide="paperclip" class="w-3.5 h-3.5"></i>
+                                <span>{{ active_att|length }} File(s)</span>
+                            </button>
+                            {% else %}
+                            <span class="text-slate-400 text-[11px] italic">None</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {% if req.status == 'Cancellation Requested' %}bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300{% elif req.status in ['Pending Approval', 'Pending'] %}bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300{% else %}bg-slate-100 text-slate-700{% endif %}">
+                                {{ req.status }}
+                            </span>
+                        </td>
+                        <td class="p-3 text-right space-x-1.5 whitespace-nowrap">
+                            <button onclick="viewHistoryModal({{ req.id }})" title="View Audit Trail" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition inline-flex items-center">
+                                <i data-lucide="history" class="w-3.5 h-3.5"></i>
+                            </button>
+                            {% if req.status == 'Cancellation Requested' %}
+                            <form action="/leaves/review" method="POST" class="inline" onsubmit="return confirm('Approve this leave cancellation? Leave balance will be re-credited and roster restored.');">
+                                <input type="hidden" name="request_id" value="{{ req.id }}">
+                                <input type="hidden" name="action" value="Approve Cancellation">
+                                <button type="submit" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition">
+                                    Approve Cancellation
+                                </button>
+                            </form>
+                            <form action="/leaves/review" method="POST" class="inline" onsubmit="return confirm('Reject this leave cancellation request?');">
+                                <input type="hidden" name="request_id" value="{{ req.id }}">
+                                <input type="hidden" name="action" value="Reject Cancellation">
+                                <input type="hidden" name="comment" value="Cancellation rejected by supervisor.">
+                                <button type="submit" class="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-sm transition">
+                                    Reject Cancellation
+                                </button>
+                            </form>
+                            {% else %}
+                            <form action="/leaves/review" method="POST" class="inline" onsubmit="return confirm('Approve leave for {{ req.user.name }}? Roster slot will update to Leave.');">
+                                <input type="hidden" name="request_id" value="{{ req.id }}">
+                                <input type="hidden" name="action" value="Approve">
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition">
+                                    Approve
+                                </button>
+                            </form>
+                            <form action="/leaves/review" method="POST" class="inline" onsubmit="return confirm('Reject leave request?');">
+                                <input type="hidden" name="request_id" value="{{ req.id }}">
+                                <input type="hidden" name="action" value="Reject">
+                                <input type="hidden" name="comment" value="Operational coverage shortage.">
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs shadow-sm transition">
+                                    Reject
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="py-6 text-center text-slate-400 text-xs">
+            <i data-lucide="check-circle" class="w-7 h-7 mx-auto mb-1 text-emerald-500 opacity-60"></i>
+            All pending leave and cancellation requests have been reviewed. Queue is clear!
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- EMPLOYEE PERSONAL LEAVE HISTORY (Strict Privacy Guarded) -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="user-check" class="w-5 h-5 text-blue-600"></i>
+                    <span>My Leave Applications & History</span>
+                </h2>
+                <p class="text-xs text-slate-500">Track application status, upload supporting evidence, edit details, or request cancellations.</p>
+            </div>
+            <span class="text-xs text-slate-400 font-mono">
+                Total Applications: {{ my_requests|length }}
+            </span>
+        </div>
+
+        {% if my_requests %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-700">
+                        <th class="p-3">App ID</th>
+                        <th class="p-3">Leave Type</th>
+                        <th class="p-3">Period</th>
+                        <th class="p-3">Duration</th>
+                        <th class="p-3">Reason</th>
+                        <th class="p-3">Evidence</th>
+                        <th class="p-3">Status</th>
+                        <th class="p-3">Reviewer Remarks</th>
+                        <th class="p-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for req in my_requests %}
+                    <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                        <td class="p-3 font-mono font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
+                            {{ req.application_number or ('LA-' ~ req.id) }}
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded font-bold text-[11px] {% if req.leave_type == 'PL' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300{% elif req.leave_type == 'SL' %}bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300{% else %}bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300{% endif %}">
+                                {{ req.leave_type }}
+                            </span>
+                            <span class="block text-[10px] text-slate-400 font-medium">{% if req.day_part and req.day_part != 'full' %}Half Day{% else %}Full Day{% endif %}</span>
+                        </td>
+                        <td class="p-3 font-medium text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                            {{ req.start_date.strftime('%d %b %Y') }} {% if req.start_date != req.end_date %}to {{ req.end_date.strftime('%d %b %Y') }}{% endif %}
+                        </td>
+                        <td class="p-3 text-slate-600 dark:text-slate-400 font-semibold whitespace-nowrap">
+                            {{ req.duration_days }} Day(s)
+                        </td>
+                        <td class="p-3 text-slate-600 dark:text-slate-300 max-w-xs">
+                            <span class="line-clamp-2">{{ req.reason }}</span>
+                            {% if req.cancellation_reason %}
+                            <span class="block text-[10px] text-rose-500 font-medium mt-0.5">Cancellation Reason: {{ req.cancellation_reason }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3 whitespace-nowrap">
+                            {% set active_att = req.attachments|selectattr('is_active')|list %}
+                            {% if active_att %}
+                            <button onclick="viewEvidenceModal({{ req.id }})" class="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-[10px] font-semibold border border-indigo-200 dark:border-indigo-800">
+                                <i data-lucide="file-check" class="w-3 h-3"></i>
+                                <span>{{ active_att|length }} File(s)</span>
+                            </button>
+                            {% else %}
+                            <span class="text-slate-400 text-[11px] italic">None</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3 whitespace-nowrap">
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold 
+                                {% if req.status == 'Approved' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300
+                                {% elif req.status == 'Rejected' %}bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300
+                                {% elif req.status == 'Cancellation Requested' %}bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300
+                                {% elif req.status in ['Cancelled', 'Withdrawn'] %}bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400
+                                {% else %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300{% endif %}">
+                                {{ req.status }}
+                            </span>
+                        </td>
+                        <td class="p-3 text-slate-500 dark:text-slate-400 text-[11px] max-w-xs">
+                            {% if req.reviewer_comment %}
+                            <span>{{ req.reviewer_comment }} <span class="text-slate-400">({{ req.reviewed_by }})</span></span>
+                            {% else %}
+                            <span class="text-slate-400 italic">Pending review</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3 text-right whitespace-nowrap space-x-1">
+                            <!-- View Details & History -->
+                            <button onclick="viewHistoryModal({{ req.id }})" title="View Audit History" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition inline-flex items-center">
+                                <i data-lucide="history" class="w-3.5 h-3.5"></i>
+                            </button>
+
+                            <!-- Edit Button -->
+                            {% if req.status in ['Draft', 'Pending Approval', 'Pending', 'Rejected'] %}
+                            <button onclick="openEditModal({{ req.id }})" title="Edit Application" class="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950 dark:hover:bg-blue-900 text-blue-600 dark:text-blue-300 transition inline-flex items-center">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                            </button>
+                            {% elif req.status == 'Approved' and (user.access_level in ['Admin', 'Manager', 'HR']) %}
+                            <button onclick="openEditModal({{ req.id }})" title="Authorized Amendment" class="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950 dark:hover:bg-blue-900 text-blue-600 dark:text-blue-300 transition inline-flex items-center">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                            </button>
+                            {% endif %}
+
+                            <!-- Cancel / Withdraw Button -->
+                            {% if req.status in ['Pending Approval', 'Pending', 'Draft', 'Under Review'] %}
+                            <button onclick="openCancelModal({{ req.id }}, '{{ req.application_number or ('LA-' ~ req.id) }}', '{{ req.start_date }}', '{{ req.end_date }}', '{{ req.status }}')" title="Withdraw Request" class="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950 dark:hover:bg-amber-900 text-amber-600 dark:text-amber-300 transition inline-flex items-center">
+                                <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>
+                            </button>
+                            {% elif req.status == 'Approved' %}
+                            <button onclick="openCancelModal({{ req.id }}, '{{ req.application_number or ('LA-' ~ req.id) }}', '{{ req.start_date }}', '{{ req.end_date }}', '{{ req.status }}')" title="Request Cancellation" class="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950 dark:hover:bg-rose-900 text-rose-600 dark:text-rose-300 transition inline-flex items-center">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="py-8 text-center text-slate-400 text-xs">
+            <i data-lucide="plane" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
+            You haven't submitted any leave requests yet.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- APPLY LEAVE MODAL -->
+<div id="apply-leave-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6 sm:p-7">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="calendar-plus" class="w-5 h-5 text-blue-600"></i>
+                    <span>Apply for Leave</span>
+                </h3>
+                <p class="text-xs text-slate-500">Submit full day or half day leave for operations approval</p>
+            </div>
+            <button onclick="document.getElementById('apply-leave-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form id="apply-leave-form" action="/leaves/apply" method="POST" enctype="multipart/form-data" class="mt-5 space-y-4 text-xs" onsubmit="return validateLeaveForm()">
+            <!-- Day Part Selector: Full Day (1.0) vs Half Day (0.5) -->
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Leave Duration Type
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition bg-blue-50/40 dark:bg-blue-950/20 border-blue-300 dark:border-blue-800" id="label-full-day">
+                        <input type="radio" name="day_part" value="full" checked class="text-blue-600 focus:ring-blue-500" onchange="handleDayPartChange(this.value)">
+                        <div>
+                            <span class="font-bold text-slate-800 dark:text-slate-100 block">Full Day (1.0 Day)</span>
+                            <span class="text-[10px] text-slate-500">Regular multi-day or single day</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition" id="label-half-day">
+                        <input type="radio" name="day_part" value="half" class="text-blue-600 focus:ring-blue-500" onchange="handleDayPartChange(this.value)">
+                        <div>
+                            <span class="font-bold text-slate-800 dark:text-slate-100 block">Half Day (0.5 Day)</span>
+                            <span class="text-[10px] text-slate-500">First / Second half shift</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Leave Category -->
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Leave Category
+                </label>
+                {% set cur_cl = (user.balance_cl if user.balance_cl is not none else user.cl_balance or 0.0)|round(2) %}
+                {% set cur_sl = (user.balance_sl if user.balance_sl is not none else user.sl_balance or 0.0)|round(2) %}
+                {% set cur_co = (user.balance_co if user.balance_co is not none else user.co_balance or 0.0)|round(2) %}
+                <select id="leave_type_select" name="leave_type" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500" onchange="updateBalanceHint()">
+                    <option value="CL" data-balance="{{ cur_cl }}">Casual Leave (CL) • Available Balance: {{ cur_cl }} Days</option>
+                    <option value="SL" data-balance="{{ cur_sl }}">Sick Leave (SL) • Available Balance: {{ cur_sl }} Days</option>
+                    <option value="Comp-Off" data-balance="{{ cur_co }}">Compensatory Off (CO) • Available Balance: {{ cur_co }} Days</option>
+                    <option value="PL" data-balance="{{ user.pl_balance or 0 }}">Paid Leave (PL) • Available Balance: {{ user.pl_balance or 0 }} Days</option>
+                    <option value="Unpaid" data-balance="999">Leave Without Pay (Unpaid LWP)</option>
+                </select>
+                <p id="balance-warning" class="text-[11px] font-semibold text-rose-500 mt-1 hidden flex items-center gap-1">
+                    <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                    <span id="balance-warning-text">Requested duration exceeds available balance!</span>
+                </p>
+            </div>
+
+            <!-- Date Range -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        Start Date
+                    </label>
+                    <input type="date" id="start_date" name="start_date" required value="{{ today.strftime('%Y-%m-%d') }}" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500" onchange="calculateDuration()">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        End Date
+                    </label>
+                    <input type="date" id="end_date" name="end_date" required value="{{ today.strftime('%Y-%m-%d') }}" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500" onchange="calculateDuration()">
+                </div>
+            </div>
+
+            <div class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+                <span class="text-slate-500">Calculated Deductible Duration:</span>
+                <span id="calculated-days" class="font-extrabold text-blue-600 dark:text-blue-400 font-mono text-sm">1.0 Day</span>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Reason & Escalation Handover
+                </label>
+                <textarea name="reason" rows="2" required placeholder="Specify reason and teammate covering urgent tickets..." class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <!-- Supporting Evidence (Multi-Document Upload) -->
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div class="flex items-center justify-between">
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                        Supporting Evidence & Attachments
+                    </label>
+                    <span class="text-[10px] text-slate-400">PDF, JPG, JPEG, PNG (Max 5MB each)</span>
+                </div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[11px] text-slate-500 mb-1">Document Category</label>
+                        <select name="doc_category" class="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 text-xs">
+                            <option value="Medical Certificate / Doctor Note">Medical Certificate / Doctor Note</option>
+                            <option value="Medical Bill / Prescription">Medical Bill / Prescription</option>
+                            <option value="Hospital Discharge Summary">Hospital Discharge Summary</option>
+                            <option value="Invitation / Marriage Card">Invitation / Marriage Card</option>
+                            <option value="Official Travel / Academic Notice">Official Travel / Academic Notice</option>
+                            <option value="Other Supporting Document">Other Supporting Document</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-500 mb-1">Select File(s)</label>
+                        <input type="file" name="evidence_files" multiple accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-950 dark:file:text-blue-300 hover:file:bg-blue-100">
+                    </div>
+                </div>
+                <p class="text-[10px] text-slate-400">Multiple files can be attached. Uploaded documents are encrypted and only visible to authorized reviewers.</p>
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="document.getElementById('apply-leave-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    Cancel
+                </button>
+                <button type="submit" id="submit-leave-btn" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow transition flex items-center gap-2">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                    <span>Submit Request</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- UPLOAD LEAVE STATEMENT MODAL -->
+{% if user.access_level in ['Admin', 'Manager'] %}
+<div id="upload-statement-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6 sm:p-7">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="file-up" class="w-5 h-5 text-indigo-600"></i>
+                    <span>Upload Monthly Leave Statement</span>
+                </h3>
+                <p class="text-xs text-slate-500">Supports company official PDF, Excel (.xlsx), or CSV reports</p>
+            </div>
+            <button onclick="document.getElementById('upload-statement-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form action="/admin/upload-leave-statement" method="POST" enctype="multipart/form-data" class="mt-5 space-y-4 text-xs">
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Statement Cycle / Month
+                </label>
+                <input type="text" name="month_year" value="Oct-26" placeholder="e.g. Oct-26" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
+            </div>
+
+            <div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 text-center hover:border-indigo-500 dark:hover:border-indigo-500 transition cursor-pointer relative bg-slate-50/50 dark:bg-slate-800/30">
+                <input type="file" name="file" required accept=".pdf, .xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateStatementFileName(this)">
+                <div class="space-y-2 pointer-events-none">
+                    <div class="w-10 h-10 mx-auto rounded-full bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                        <i data-lucide="file-text" class="w-5 h-5"></i>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        Drag & drop "Leave Balance - IB Mumbai" report (.pdf, .xlsx, .csv)
+                    </p>
+                    <p id="statement-file-name" class="text-xs font-bold text-indigo-600 dark:text-indigo-400"></p>
+                </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 space-y-1">
+                <p class="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-500"></i>
+                    <span>Automatic Matching & Binding</span>
+                </p>
+                <p>• Matches existing staff using <strong>UNIQUE CODE</strong> or <strong>ECN</strong>.</p>
+                <p>• Synchronizes fractional balances (e.g. 0.5, 0.75, 1.5, 2.75).</p>
+                <p>• Auto-provisions new profiles if employee is missing from database.</p>
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="document.getElementById('upload-statement-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow transition flex items-center gap-2">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                    <span>Ingest Statement</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- EDIT LEAVE MODAL -->
+<div id="edit-leave-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6 sm:p-7 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="edit-3" class="w-5 h-5 text-blue-600"></i>
+                    <span>Edit Leave Application</span>
+                </h3>
+                <p id="edit-app-subhead" class="text-xs text-slate-500 font-mono">Modifying Application</p>
+            </div>
+            <button onclick="document.getElementById('edit-leave-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form id="edit-leave-form" action="/leaves/edit" method="POST" enctype="multipart/form-data" class="mt-5 space-y-4 text-xs" onsubmit="return confirm('Save modifications to this leave application? If previously pending, reviewers will be re-notified.');">
+            <input type="hidden" id="edit_request_id" name="request_id" value="">
+
+            <!-- Day Part Selector -->
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Leave Duration Type
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition" id="edit-label-full-day">
+                        <input type="radio" name="day_part" id="edit_day_part_full" value="full" checked class="text-blue-600 focus:ring-blue-500" onchange="handleEditDayPartChange(this.value)">
+                        <span class="font-bold text-slate-800 dark:text-slate-100">Full Day (1.0)</span>
+                    </label>
+
+                    <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition" id="edit-label-half-day">
+                        <input type="radio" name="day_part" id="edit_day_part_half" value="half" class="text-blue-600 focus:ring-blue-500" onchange="handleEditDayPartChange(this.value)">
+                        <span class="font-bold text-slate-800 dark:text-slate-100">Half Day (0.5)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Leave Category -->
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Leave Category
+                </label>
+                <select id="edit_leave_type" name="leave_type" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
+                    <option value="CL">Casual Leave (CL)</option>
+                    <option value="SL">Sick Leave (SL)</option>
+                    <option value="Comp-Off">Compensatory Off (CO)</option>
+                    <option value="PL">Paid Leave (PL)</option>
+                    <option value="Unpaid">Leave Without Pay (Unpaid LWP)</option>
+                </select>
+            </div>
+
+            <!-- Date Range -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        Start Date
+                    </label>
+                    <input type="date" id="edit_start_date" name="start_date" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                        End Date
+                    </label>
+                    <input type="date" id="edit_end_date" name="end_date" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Revised Reason
+                </label>
+                <textarea id="edit_reason" name="reason" rows="2" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Amendment Comments / Justification
+                </label>
+                <input type="text" name="additional_comments" placeholder="e.g. Rescheduled medical checkup appointment" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
+            </div>
+
+            <!-- Additional Supporting Evidence -->
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    Add New Supporting Evidence (Optional)
+                </label>
+                <input type="file" name="evidence_files" multiple accept=".pdf,.jpg,.jpeg,.png" class="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-950 dark:file:text-blue-300">
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="document.getElementById('edit-leave-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    Discard
+                </button>
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow transition flex items-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    <span>Save & Update</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- CANCEL LEAVE MODAL -->
+<div id="cancel-leave-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md shadow-2xl p-6 sm:p-7">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="alert-octagon" class="w-5 h-5 text-rose-600"></i>
+                    <span id="cancel-modal-title">Cancel Leave Application</span>
+                </h3>
+                <p id="cancel-app-id-label" class="text-xs text-slate-500 font-mono mt-0.5">Application ID</p>
+            </div>
+            <button onclick="document.getElementById('cancel-leave-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form id="cancel-leave-form" action="/leaves/cancel" method="POST" class="mt-5 space-y-4 text-xs">
+            <input type="hidden" id="cancel_request_id" name="request_id" value="">
+
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1 text-slate-700 dark:text-slate-300">
+                <p><strong>Covered Dates:</strong> <span id="cancel-dates-display" class="font-mono"></span></p>
+                <p><strong>Current Status:</strong> <span id="cancel-status-display" class="font-bold"></span></p>
+                <p id="cancel-workflow-hint" class="text-[11px] text-slate-500 pt-1 border-t border-slate-200 dark:border-slate-700">
+                    Draft or Pending applications can be directly withdrawn. Approved leave will submit a formal cancellation request to Manager / HR.
+                </p>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Cancellation Reason <span class="text-rose-500">*</span>
+                </label>
+                <textarea name="cancellation_reason" rows="3" required placeholder="Please state why you are cancelling or withdrawing this leave..." class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-rose-500"></textarea>
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-2.5">
+                <button type="button" onclick="document.getElementById('cancel-leave-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    Keep Leave
+                </button>
+                <button type="submit" id="cancel-submit-btn" class="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold shadow transition flex items-center gap-2">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Confirm Cancellation</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- VIEW EVIDENCE MODAL -->
+<div id="evidence-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6 sm:p-7 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="paperclip" class="w-5 h-5 text-indigo-600"></i>
+                    <span>Supporting Evidence Documents</span>
+                </h3>
+                <p id="evidence-app-id-label" class="text-xs text-slate-500 font-mono">Confidential Document Vault</p>
+            </div>
+            <button onclick="document.getElementById('evidence-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div id="evidence-list-container" class="mt-5 space-y-3">
+            <p class="text-xs text-slate-400 text-center py-4">Loading evidence documents...</p>
+        </div>
+
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+            <button type="button" onclick="document.getElementById('evidence-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- VIEW LEAVE AUDIT HISTORY MODAL -->
+<div id="history-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-xl shadow-2xl p-6 sm:p-7 max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="history" class="w-5 h-5 text-blue-600"></i>
+                    <span>Leave Audit Trail & Change History</span>
+                </h3>
+                <p id="history-app-id-label" class="text-xs text-slate-500 font-mono">Immutable Compliance Log</p>
+            </div>
+            <button onclick="document.getElementById('history-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div id="history-timeline-container" class="mt-5 space-y-3">
+            <p class="text-xs text-slate-400 text-center py-4">Loading historical audit events...</p>
+        </div>
+
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+            <button type="button" onclick="document.getElementById('history-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateStatementFileName(input) {
+        const display = document.getElementById('statement-file-name');
+        if (input.files && input.files[0]) {
+            display.innerText = 'Selected: ' + input.files[0].name;
+        }
+    }
+
+    function handleDayPartChange(val) {
+        const fullLabel = document.getElementById('label-full-day');
+        const halfLabel = document.getElementById('label-half-day');
+        const endDateInput = document.getElementById('end_date');
+        const startDateInput = document.getElementById('start_date');
+
+        if (val === 'half') {
+            halfLabel.classList.add('bg-blue-50/40', 'dark:bg-blue-950/20', 'border-blue-300', 'dark:border-blue-800');
+            fullLabel.classList.remove('bg-blue-50/40', 'dark:bg-blue-950/20', 'border-blue-300', 'dark:border-blue-800');
+            endDateInput.value = startDateInput.value;
+            endDateInput.disabled = true;
+        } else {
+            fullLabel.classList.add('bg-blue-50/40', 'dark:bg-blue-950/20', 'border-blue-300', 'dark:border-blue-800');
+            halfLabel.classList.remove('bg-blue-50/40', 'dark:bg-blue-950/20', 'border-blue-300', 'dark:border-blue-800');
+            endDateInput.disabled = false;
+        }
+        calculateDuration();
+    }
+
+    function handleEditDayPartChange(val) {
+        const endInput = document.getElementById('edit_end_date');
+        const startInput = document.getElementById('edit_start_date');
+        if (val === 'half') {
+            endInput.value = startInput.value;
+            endInput.disabled = true;
+        } else {
+            endInput.disabled = false;
+        }
+    }
+
+    function calculateDuration() {
+        const dayPartEl = document.querySelector('input[name="day_part"]:checked');
+        const dayPart = dayPartEl ? dayPartEl.value : 'full';
+        const startInput = document.getElementById('start_date').value;
+        const endInput = document.getElementById('end_date').value;
+        const daysDisplay = document.getElementById('calculated-days');
+
+        let duration = 1.0;
+        if (dayPart === 'half') {
+            duration = 0.5;
+        } else if (startInput && endInput) {
+            const s = new Date(startInput);
+            const e = new Date(endInput);
+            const diffTime = e - s;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            duration = Math.max(0, diffDays);
+        }
+
+        daysDisplay.innerText = duration.toFixed(1) + ' Day(s)';
+        checkBalanceExceeded(duration);
+        return duration;
+    }
+
+    function checkBalanceExceeded(duration) {
+        const select = document.getElementById('leave_type_select');
+        const opt = select.options[select.selectedIndex];
+        const balance = parseFloat(opt.getAttribute('data-balance') || '0');
+        const warning = document.getElementById('balance-warning');
+        const warningText = document.getElementById('balance-warning-text');
+        const submitBtn = document.getElementById('submit-leave-btn');
+
+        if (opt.value === 'CL' || opt.value === 'SL' || opt.value === 'Comp-Off') {
+            if (duration > balance) {
+                warning.classList.remove('hidden');
+                warningText.innerText = `Insufficient balance: requested ${duration.toFixed(1)} day(s), available ${balance.toFixed(2)} day(s).`;
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                return false;
+            }
+        }
+        warning.classList.add('hidden');
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        return true;
+    }
+
+    function updateBalanceHint() {
+        calculateDuration();
+    }
+
+    function validateLeaveForm() {
+        const duration = calculateDuration();
+        const isValid = checkBalanceExceeded(duration);
+        if (!isValid) {
+            alert('Cannot submit leave request: Requested duration exceeds your available balance.');
+            return false;
+        }
+        document.getElementById('end_date').disabled = false;
+        return true;
+    }
+
+    // Modal Handlers for Edit, Cancel, Evidence, History
+    async function openEditModal(requestId) {
+        try {
+            const res = await fetch(`/leaves/${requestId}/details`);
+            if (!res.ok) throw new Error('Failed to load leave details');
+            const data = await res.json();
+
+            document.getElementById('edit_request_id').value = data.id;
+            document.getElementById('edit-app-subhead').innerText = `Editing: ${data.application_number} (${data.employee_name})`;
+            document.getElementById('edit_leave_type').value = data.leave_type;
+            document.getElementById('edit_start_date').value = data.start_date;
+            document.getElementById('edit_end_date').value = data.end_date;
+            document.getElementById('edit_reason').value = data.reason;
+
+            if (data.day_part === 'half' || data.duration_days === 0.5) {
+                document.getElementById('edit_day_part_half').checked = true;
+                handleEditDayPartChange('half');
+            } else {
+                document.getElementById('edit_day_part_full').checked = true;
+                handleEditDayPartChange('full');
+            }
+
+            document.getElementById('edit-leave-modal').classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        } catch (err) {
+            alert('Error loading application details: ' + err.message);
+        }
+    }
+
+    function openCancelModal(requestId, appNumber, startDate, endDate, status) {
+        document.getElementById('cancel_request_id').value = requestId;
+        document.getElementById('cancel-app-id-label').innerText = `Application: ${appNumber}`;
+        document.getElementById('cancel-dates-display').innerText = `${startDate} to ${endDate}`;
+        document.getElementById('cancel-status-display').innerText = status;
+
+        const submitBtn = document.getElementById('cancel-submit-btn');
+        if (status === 'Approved') {
+            submitBtn.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i><span>Submit Cancellation Request</span>';
+        } else {
+            submitBtn.innerHTML = '<i data-lucide="x-circle" class="w-4 h-4"></i><span>Withdraw Application</span>';
+        }
+
+        document.getElementById('cancel-leave-modal').classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    async function viewEvidenceModal(requestId) {
+        const modal = document.getElementById('evidence-modal');
+        const container = document.getElementById('evidence-list-container');
+        modal.classList.remove('hidden');
+        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">Fetching secure evidence attachments...</p>';
+
+        try {
+            const res = await fetch(`/leaves/${requestId}/details`);
+            if (!res.ok) throw new Error('Unable to access evidence.');
+            const data = await res.json();
+            document.getElementById('evidence-app-id-label').innerText = `Application: ${data.application_number} (${data.employee_name})`;
+
+            if (!data.attachments || data.attachments.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">No supporting evidence attached to this application.</p>';
+                return;
+            }
+
+            let html = '';
+            data.attachments.forEach(att => {
+                const sizeKb = (att.file_size_bytes / 1024).toFixed(1);
+                html += `
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-[10px] uppercase">
+                                ${att.file_type}
+                            </div>
+                            <div>
+                                <p class="font-semibold text-slate-800 dark:text-slate-200 text-xs">${att.file_name}</p>
+                                <p class="text-[10px] text-slate-400">${att.doc_category} • ${sizeKb} KB • ${att.uploaded_at}</p>
+                            </div>
+                        </div>
+                        <a href="/leaves/evidence/${att.id}" target="_blank" download class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center gap-1 shadow-sm transition">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span>View/Download</span>
+                        </a>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            if (window.lucide) lucide.createIcons();
+        } catch (err) {
+            container.innerHTML = `<p class="text-xs text-rose-500 text-center py-4">Error loading evidence: ${err.message}</p>`;
+        }
+    }
+
+    async function viewHistoryModal(requestId) {
+        const modal = document.getElementById('history-modal');
+        const container = document.getElementById('history-timeline-container');
+        modal.classList.remove('hidden');
+        container.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">Fetching audit events...</p>';
+
+        try {
+            const res = await fetch(`/leaves/${requestId}/details`);
+            if (!res.ok) throw new Error('Unable to access history records.');
+            const data = await res.json();
+            document.getElementById('history-app-id-label').innerText = `Application: ${data.application_number} • Status: ${data.status}`;
+
+            if (!data.history || data.history.length === 0) {
+                container.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">No audit records recorded yet.</p>';
+                return;
+            }
+
+            let html = '<div class="space-y-3 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-700">';
+            data.history.forEach(item => {
+                html += `
+                    <div class="relative flex items-start gap-3 pl-1">
+                        <div class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold z-10 flex-shrink-0">
+                            •
+                        </div>
+                        <div class="flex-1 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-xs text-slate-900 dark:text-white uppercase tracking-wider">${item.action}</span>
+                                <span class="text-[10px] text-slate-400 font-mono">${item.timestamp}</span>
+                            </div>
+                            <p class="text-xs text-slate-600 dark:text-slate-300 mt-0.5">By: <strong>${item.actor_name || 'System'}</strong></p>
+                            ${item.remarks ? `<p class="text-xs text-slate-500 italic mt-1 bg-white dark:bg-slate-900/60 p-2 rounded border border-slate-100 dark:border-slate-800">"${item.remarks}"</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+            if (window.lucide) lucide.createIcons();
+        } catch (err) {
+            container.innerHTML = `<p class="text-xs text-rose-500 text-center py-4">Error loading audit history: ${err.message}</p>`;
+        }
+    }
+</script>
+{% endblock %}

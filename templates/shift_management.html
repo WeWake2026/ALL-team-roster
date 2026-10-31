@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}Shift Management Console - ShiftFlow Pro{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div>
+            <div class="flex items-center gap-3">
+                <span class="p-2 bg-blue-100 text-blue-700 rounded-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </span>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">Shift Configuration & Staff Coverage</h1>
+                    <p class="text-sm text-slate-500">Configure shifts, timings, break durations, color codes, and review operational coverage</p>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="/roster/history" class="px-3.5 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition shadow-sm flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Shift Change History
+            </a>
+            <button onclick="document.getElementById('createShiftModal').classList.remove('hidden')" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition shadow-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Add New Shift
+            </button>
+        </div>
+    </div>
+
+    <!-- Coverage Metric Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {% for item in shift_coverage %}
+        {% set shift = item.shift %}
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1.5" style="background-color: {{ shift.color_code or '#64748b' }};"></div>
+            <div class="flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ shift.name }}</span>
+                    <div class="text-2xl font-bold text-slate-800 mt-1">{{ item.assigned_count }} <span class="text-xs font-normal text-slate-500">Staff Assigned</span></div>
+                </div>
+                <span class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-sm" style="background-color: {{ shift.color_code or '#64748b' }};">
+                    {{ shift.name[0] }}
+                </span>
+            </div>
+            <div class="mt-3 flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+                <span>{{ shift.start_time or '--:--' }} - {{ shift.end_time or '--:--' }}</span>
+                {% if shift.is_overnight %}
+                <span class="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-medium">Overnight</span>
+                {% else %}
+                <span class="text-slate-400">Standard</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Shifts Configuration Table -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+            <div>
+                <h2 class="text-base font-bold text-slate-800">Configured Shifts</h2>
+                <p class="text-xs text-slate-500">Manage shift parameters, break rules, and location applicability</p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 bg-slate-200 text-slate-700 rounded-full">
+                {{ shifts|length }} Total Shifts
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-100/75 text-xs uppercase font-semibold text-slate-600 border-b border-slate-200">
+                    <tr>
+                        <th class="px-4 py-3">Shift ID</th>
+                        <th class="px-4 py-3">Shift Name</th>
+                        <th class="px-4 py-3">Start Time</th>
+                        <th class="px-4 py-3">End Time</th>
+                        <th class="px-4 py-3">Overnight</th>
+                        <th class="px-4 py-3">Break</th>
+                        <th class="px-4 py-3">Color</th>
+                        <th class="px-4 py-3">Applicable Locations</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Effective From</th>
+                        <th class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for shift in shifts %}
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="px-4 py-3.5 font-mono text-xs font-semibold text-slate-500">SH-{{ "%03d"|format(shift.id) }}</td>
+                        <td class="px-4 py-3.5">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3.5 h-3.5 rounded-full inline-block shadow-sm" style="background-color: {{ shift.color_code or '#64748b' }};"></span>
+                                <span class="font-bold text-slate-800">{{ shift.name }}</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3.5 font-medium text-slate-700">
+                            {{ shift.start_time or '--:--' }}
+                        </td>
+                        <td class="px-4 py-3.5 font-medium text-slate-700">
+                            {{ shift.end_time or '--:--' }}
+                        </td>
+                        <td class="px-4 py-3.5">
+                            {% if shift.is_overnight %}
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                Yes (Spans Midnight)
+                            </span>
+                            {% else %}
+                            <span class="text-xs text-slate-400 font-medium">No</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5 text-xs text-slate-600">
+                            {{ shift.break_duration_mins or 45 }} mins
+                        </td>
+                        <td class="px-4 py-3.5">
+                            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium border border-slate-200 bg-white shadow-xs">
+                                <span class="w-2.5 h-2.5 rounded-full" style="background-color: {{ shift.color_code or '#64748b' }};"></span>
+                                {{ shift.color_code or '#64748b' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3.5 text-xs text-slate-600">
+                            {{ shift.applicable_locations or 'All Locations' }}
+                        </td>
+                        <td class="px-4 py-3.5">
+                            {% if shift.is_active %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Active
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Inactive
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3.5 text-xs text-slate-500">
+                            {{ shift.effective_from.strftime('%d-%b-%Y') if shift.effective_from else 'Immediate' }}
+                        </td>
+                        <td class="px-4 py-3.5 text-right space-x-2">
+                            <button onclick='openEditShiftModal({{ shift.id }}, {{ shift.name|tojson }}, "{{ shift.start_time or '' }}", "{{ shift.end_time or '' }}", {{ 1 if shift.is_overnight else 0 }}, {{ shift.break_duration_mins or 45 }}, "{{ shift.color_code or '#2563eb' }}", "{{ shift.applicable_locations or 'All Locations' }}", "{{ shift.effective_from.strftime('%Y-%m-%d') if shift.effective_from else '' }}")' class="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition">
+                                Edit Shift
+                            </button>
+                            <form action="/admin/shifts/toggle" method="POST" class="inline" onsubmit="return confirm('Change status of shift {{ shift.name }}?')">
+                                <input type="hidden" name="shift_id" value="{{ shift.id }}">
+                                <button type="submit" class="px-2 py-1 text-xs font-semibold {% if shift.is_active %}text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100{% else %}text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100{% endif %} rounded transition">
+                                    {{ 'Deactivate' if shift.is_active else 'Activate' }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Create Shift -->
+<div id="createShiftModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-lg font-bold text-slate-800">Create New Shift Schedule</h3>
+            <button onclick="document.getElementById('createShiftModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form action="/admin/shifts/create" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Shift Name *</label>
+                <input type="text" name="name" required placeholder="e.g. Dawn Early Shift, Weekend Twilight" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Start Time (24h) *</label>
+                    <input type="time" name="start_time" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">End Time (24h) *</label>
+                    <input type="time" name="end_time" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+            </div>
+            <div class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <input type="checkbox" name="is_overnight" id="create_overnight" class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
+                <label for="create_overnight" class="text-xs font-medium text-slate-700">
+                    <span class="font-bold">Overnight Shift</span> (Check if shift crosses midnight, e.g. 22:00 to 06:00)
+                </label>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Break Duration (Mins)</label>
+                    <input type="number" name="break_duration_mins" value="45" min="0" max="180" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Shift Color Code</label>
+                    <div class="flex items-center gap-2">
+                        <input type="color" id="create_color_picker" value="#2563eb" oninput="document.getElementById('create_color_text').value = this.value" class="h-9 w-12 rounded cursor-pointer border border-slate-300 p-0.5">
+                        <input type="text" name="color_code" id="create_color_text" value="#2563eb" class="flex-1 px-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Applicable Locations</label>
+                    <select name="applicable_locations" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option value="All Locations">All Locations</option>
+                        {% for loc in locations %}
+                        <option value="{{ loc.name }}">{{ loc.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Effective Date</label>
+                    <input type="date" name="effective_from" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('createShiftModal').classList.add('hidden')" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm">Save Shift</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Edit Shift -->
+<div id="editShiftModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-lg font-bold text-slate-800">Edit Shift Configuration</h3>
+            <button onclick="document.getElementById('editShiftModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form action="/admin/shifts/edit" method="POST" class="space-y-4">
+            <input type="hidden" name="shift_id" id="edit_shift_id">
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Shift Name *</label>
+                <input type="text" name="name" id="edit_name" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Start Time (24h) *</label>
+                    <input type="time" name="start_time" id="edit_start_time" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">End Time (24h) *</label>
+                    <input type="time" name="end_time" id="edit_end_time" required class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+            </div>
+            <div class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <input type="checkbox" name="is_overnight" id="edit_overnight" class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500">
+                <label for="edit_overnight" class="text-xs font-medium text-slate-700">
+                    <span class="font-bold">Overnight Shift</span> (Spans past midnight)
+                </label>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Break Duration (Mins)</label>
+                    <input type="number" name="break_duration_mins" id="edit_break" min="0" max="180" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Shift Color Code</label>
+                    <div class="flex items-center gap-2">
+                        <input type="color" id="edit_color_picker" oninput="document.getElementById('edit_color_text').value = this.value" class="h-9 w-12 rounded cursor-pointer border border-slate-300 p-0.5">
+                        <input type="text" name="color_code" id="edit_color_text" class="flex-1 px-3 py-2 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Applicable Locations</label>
+                    <select name="applicable_locations" id="edit_applicable_locations" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option value="All Locations">All Locations</option>
+                        {% for loc in locations %}
+                        <option value="{{ loc.name }}">{{ loc.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Effective Date</label>
+                    <input type="date" name="effective_from" id="edit_effective_from" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onclick="document.getElementById('editShiftModal').classList.add('hidden')" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-sm">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEditShiftModal(id, name, startTime, endTime, isOvernight, breakDuration, color, locs, effectiveDate) {
+    document.getElementById('edit_shift_id').value = id;
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_start_time').value = startTime;
+    document.getElementById('edit_end_time').value = endTime;
+    document.getElementById('edit_overnight').checked = Boolean(isOvernight);
+    document.getElementById('edit_break').value = breakDuration;
+    document.getElementById('edit_color_picker').value = color || '#2563eb';
+    document.getElementById('edit_color_text').value = color || '#2563eb';
+    document.getElementById('edit_applicable_locations').value = locs || 'All Locations';
+    document.getElementById('edit_effective_from').value = effectiveDate || '';
+    document.getElementById('editShiftModal').classList.remove('hidden');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Shift Master & Quick Edit - ShiftFlow Pro{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                <span>Operations Lead</span>
+                <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                <span class="text-slate-800 dark:text-slate-200 font-semibold">Shift Master & Quick Edit</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                <span>Interactive Shift Assignment Desk</span>
+            </h1>
+        </div>
+
+        <!-- Quick Form Modal Trigger -->
+        <button onclick="document.getElementById('quick-assign-modal').classList.remove('hidden')" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-semibold shadow-md transition flex items-center gap-2">
+            <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+            <span>Assign Single Shift</span>
+        </button>
+    </div>
+
+    <!-- Quick Assign Card -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+            <i data-lucide="sliders" class="w-5 h-5 text-blue-600"></i>
+            <span>Inline Shift Quick-Assigner</span>
+        </h2>
+        <p class="text-xs text-slate-500 mb-6">Select staff member and set their operational timing or mark Week Off / Comp-Off directly.</p>
+
+        <form action="/roster/quick-assign" method="POST" class="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Select Employee
+                </label>
+                <select name="user_id" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
+                    {% for u in users %}
+                    <option value="{{ u.id }}">{{ u.name }} ({{ u.unique_id }} - {{ u.role_title }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Target Date
+                </label>
+                <input type="date" name="date" required value="{{ today.strftime('%Y-%m-%d') }}" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                    Shift Timing / Status
+                </label>
+                <select name="shift_code" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
+                    <option value="07:00 To 16:00">07:00 To 16:00 (Morning)</option>
+                    <option value="09:00 To 18:00" selected>09:00 To 18:00 (General)</option>
+                    <option value="13:00 To 22:00">13:00 To 22:00 (Afternoon)</option>
+                    <option value="22:00 To 07:00">22:00 To 07:00 (Night)</option>
+                    <option value="WO">WO (Week Off)</option>
+                    <option value="CO">CO (Comp-Off)</option>
+                    <option value="Leave">On Leave</option>
+                </select>
+            </div>
+
+            <div class="flex items-end">
+                <button type="submit" class="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-blue-600 hover:bg-blue-700 shadow-md transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Apply Shift Update</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Active Shifts Reference List -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Defined Shift Templates -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <i data-lucide="clock" class="w-4 h-4 text-blue-600"></i>
+                <span>Company Shift Templates</span>
+            </h3>
+            <div class="space-y-3 text-xs">
+                {% for s in shifts %}
+                <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div>
+                        <p class="font-bold text-slate-800 dark:text-slate-100">{{ s.name }}</p>
+                        <p class="text-[11px] text-slate-400 font-mono">{{ s.start_time }} to {{ s.end_time }}</p>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                        {{ s.code }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Public Holidays Reference -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <i data-lucide="flag" class="w-4 h-4 text-emerald-600"></i>
+                <span>Declared State & National Holidays</span>
+            </h3>
+            <div class="space-y-3 text-xs">
+                {% for h in holidays %}
+                <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div>
+                        <p class="font-bold text-slate-800 dark:text-slate-100">{{ h.name }}</p>
+                        <p class="text-[11px] text-slate-400">{{ h.date.strftime('%A, %d %B %Y') }}</p>
+                    </div>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        Holiday
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
