@@ -16,8 +16,8 @@
             </h1>
         </div>
 
-        <!-- Quick Status Metrics Badges -->
-        <div class="flex items-center gap-2 text-xs">
+        <!-- Quick Status Metrics Badges & Add User Action -->
+        <div class="flex items-center flex-wrap gap-2 text-xs">
             <span class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700">
                 Total: <strong id="metric-total">{{ total_count }}</strong>
             </span>
@@ -27,6 +27,12 @@
             <span class="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-semibold border border-rose-200 dark:border-rose-800">
                 Offboarded: <strong id="metric-offboarded">{{ offboarded_count }}</strong>
             </span>
+            {% if can_manage_status %}
+            <button type="button" onclick="openAddUserModal()" class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm transition inline-flex items-center gap-1.5">
+                <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                <span>Add User</span>
+            </button>
+            {% endif %}
         </div>
     </div>
 
@@ -202,6 +208,15 @@
 
                         <!-- Actions Cell with Functional Active & Offboarded Buttons -->
                         <td class="p-3 text-right pr-4 space-x-1.5 whitespace-nowrap">
+                            {% if can_manage_status %}
+                            <!-- Edit User / Location -->
+                            <button type="button" onclick="openEditUserModal('{{ u.id }}', '{{ u.name|escape }}', '{{ u.unique_id }}', '{{ u.location_id or '' }}', '{{ u.access_level }}', '{{ u.role_title|escape }}')"
+                                class="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold text-[11px] transition inline-flex items-center gap-1 border border-blue-200 dark:border-blue-800" title="Edit User and Location">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5 text-blue-500"></i>
+                                <span>Edit</span>
+                            </button>
+                            {% endif %}
+
                             <!-- Password Reset -->
                             <button onclick="openResetModal('{{ u.id }}', '{{ u.name|escape }}', '{{ u.email }}', '{{ u.unique_id }}')" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-[11px] transition inline-flex items-center gap-1" title="Reset Password">
                                 <i data-lucide="key" class="w-3.5 h-3.5 text-blue-500"></i>
@@ -506,5 +521,269 @@
             btn.innerText = 'Save New Password';
         }
     }
+
+    // Modal Edit User Location & Role
+    function openEditUserModal(userId, userName, uniqueId, locationId, accessLevel, roleTitle) {
+        document.getElementById('edit-user-id').value = userId;
+        document.getElementById('edit-user-name').innerText = userName;
+        document.getElementById('edit-user-uid').innerText = uniqueId;
+        document.getElementById('edit-user-loc').value = locationId;
+        document.getElementById('edit-user-access').value = accessLevel;
+        document.getElementById('edit-user-role').value = roleTitle || '';
+        document.getElementById('edit-result').classList.add('hidden');
+        document.getElementById('edit-user-modal').classList.remove('hidden');
+    }
+
+    function closeEditUserModal() {
+        document.getElementById('edit-user-modal').classList.add('hidden');
+    }
+
+    async function handleEditUserSubmit(e) {
+        e.preventDefault();
+        const userId = document.getElementById('edit-user-id').value;
+        const locationId = document.getElementById('edit-user-loc').value;
+        const accessLevel = document.getElementById('edit-user-access').value;
+        const roleTitle = document.getElementById('edit-user-role').value;
+        const resBox = document.getElementById('edit-result');
+        const btn = document.getElementById('submit-edit-btn');
+
+        btn.disabled = true;
+        btn.innerText = 'Saving Changes...';
+
+        try {
+            const res = await fetch('/api/admin/users/edit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: parseInt(userId),
+                    location_id: parseInt(locationId),
+                    access_level: accessLevel,
+                    role_title: roleTitle
+                })
+            });
+            const data = await res.json();
+            resBox.classList.remove('hidden');
+            if (res.ok && data.status === 'success') {
+                resBox.className = 'text-xs font-semibold text-emerald-600 dark:text-emerald-400 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200';
+                resBox.innerText = data.message || 'Updated successfully! Reloading...';
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                resBox.className = 'text-xs font-semibold text-rose-600 dark:text-rose-400 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200';
+                resBox.innerText = data.detail || 'Failed to update user.';
+                btn.disabled = false;
+                btn.innerText = 'Save Changes';
+            }
+        } catch(err) {
+            resBox.classList.remove('hidden');
+            resBox.className = 'text-xs font-semibold text-rose-600 p-2.5 rounded-xl bg-rose-50';
+            resBox.innerText = 'Network error: ' + err.message;
+            btn.disabled = false;
+            btn.innerText = 'Save Changes';
+        }
+    }
+
+    // Modal Add New User
+    function openAddUserModal() {
+        document.getElementById('add-user-modal').classList.remove('hidden');
+        document.getElementById('add-result').classList.add('hidden');
+    }
+
+    function closeAddUserModal() {
+        document.getElementById('add-user-modal').classList.add('hidden');
+    }
+
+    async function handleAddUserSubmit(e) {
+        e.preventDefault();
+        const name = document.getElementById('add-name').value;
+        const email = document.getElementById('add-email').value;
+        const uniqueId = document.getElementById('add-uid').value;
+        const locationId = document.getElementById('add-loc').value;
+        const accessLevel = document.getElementById('add-access').value;
+        const roleTitle = document.getElementById('add-role').value;
+        const password = document.getElementById('add-password').value;
+        const resBox = document.getElementById('add-result');
+        const btn = document.getElementById('submit-add-btn');
+
+        btn.disabled = true;
+        btn.innerText = 'Creating Staff...';
+
+        try {
+            const res = await fetch('/api/admin/users/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    email: email,
+                    unique_id: uniqueId,
+                    location_id: parseInt(locationId),
+                    access_level: accessLevel,
+                    role_title: roleTitle,
+                    password: password
+                })
+            });
+            const data = await res.json();
+            resBox.classList.remove('hidden');
+            if (res.ok && data.status === 'success') {
+                resBox.className = 'text-xs font-semibold text-emerald-600 dark:text-emerald-400 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200';
+                resBox.innerText = data.message || 'User created successfully! Reloading...';
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                resBox.className = 'text-xs font-semibold text-rose-600 dark:text-rose-400 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200';
+                resBox.innerText = data.detail || 'Failed to create user.';
+                btn.disabled = false;
+                btn.innerText = 'Register Employee';
+            }
+        } catch(err) {
+            resBox.classList.remove('hidden');
+            resBox.className = 'text-xs font-semibold text-rose-600 p-2.5 rounded-xl bg-rose-50';
+            resBox.innerText = 'Network error: ' + err.message;
+            btn.disabled = false;
+            btn.innerText = 'Register Employee';
+        }
+    }
+</script>
+
+<!-- EDIT USER MODAL -->
+<div id="edit-user-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md shadow-2xl p-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="user-cog" class="w-5 h-5 text-blue-600"></i>
+                    <span>Edit Staff Details & Location</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Transfer branches or update access role.</p>
+            </div>
+            <button onclick="closeEditUserModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <form onsubmit="handleEditUserSubmit(event)" class="space-y-4 text-xs mt-4">
+            <input type="hidden" id="edit-user-id" value="">
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl flex items-center justify-between text-xs">
+                <div>
+                    <span class="font-bold text-slate-800 dark:text-slate-200" id="edit-user-name">Employee Name</span>
+                    <span class="block text-[11px] text-slate-500" id="edit-user-uid">AIPLCC000</span>
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                    Operational Location (Branch)
+                </label>
+                <select id="edit-user-loc" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500">
+                    {% for loc in locations %}
+                    <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.code }})</option>
+                    {% endfor %}
+                </select>
+                <p class="text-[11px] text-slate-400 mt-1">Changing this updates the user headcount for that branch.</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Role Title</label>
+                    <input type="text" id="edit-user-role" placeholder="e.g. Audit Lead / Agent" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Access Level</label>
+                    <select id="edit-user-access" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
+                        <option value="Employee">Employee</option>
+                        <option value="Team Leader">Team Leader</option>
+                        <option value="Location Manager">Location Manager</option>
+                        <option value="HR">HR</option>
+                        <option value="Admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="edit-result" class="hidden"></div>
+
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button" onclick="closeEditUserModal()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold transition">Cancel</button>
+                <button type="submit" id="submit-edit-btn" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ADD USER MODAL -->
+<div id="add-user-modal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="user-plus" class="w-5 h-5 text-blue-600"></i>
+                    <span>Register New Staff & Allocate Location</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Increases the user count for the selected station.</p>
+            </div>
+            <button onclick="closeAddUserModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <form onsubmit="handleAddUserSubmit(event)" class="space-y-3.5 text-xs mt-4">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Full Name</label>
+                    <input type="text" id="add-name" required placeholder="e.g. Ramesh Patil" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Work Email</label>
+                    <input type="email" id="add-email" required placeholder="ramesh.patil@msedcl.com" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Unique Staff ID</label>
+                    <input type="text" id="add-uid" required placeholder="e.g. AIPLCC990" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Station / Location</label>
+                    <select id="add-loc" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500">
+                        {% for loc in locations %}
+                        <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Role Title</label>
+                    <input type="text" id="add-role" value="Operational Staff" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Access Level</label>
+                    <select id="add-access" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
+                        <option value="Employee">Employee</option>
+                        <option value="Team Leader">Team Leader</option>
+                        <option value="Location Manager">Location Manager</option>
+                        <option value="HR">HR</option>
+                        <option value="Admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">Default Password</label>
+                <input type="text" id="add-password" value="Welcome@123" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
+            </div>
+
+            <div id="add-result" class="hidden"></div>
+
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button" onclick="closeAddUserModal()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold transition">Cancel</button>
+                <button type="submit" id="submit-add-btn" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition">Register Employee</button>
+            </div>
+        </form>
+    </div>
+</div>
 </script>
 {% endblock %}

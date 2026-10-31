@@ -1919,6 +1919,122 @@ def get_dashboard_metrics(
 class ResetPasswordPayload(models.Base.__class__):
     pass
 
+@app.post("/api/admin/users/edit")
+async def api_admin_edit_user(
+    request: Request,
+    user: models.User = Depends(require_admin_or_manager),
+    db: Session = Depends(get_db)
+):
+    try:
+        data = await request.json()
+        target_uid = int(data.get("user_id"))
+        target_user = db.query(models.User).filter(models.User.id == target_uid).first()
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found.")
+
+        # Fields allowed to edit
+        if "location_id" in data and data["location_id"]:
+            loc_id = int(data["location_id"])
+            loc_obj = db.query(models.Location).filter(models.Location.id == loc_id).first()
+            if loc_obj:
+                target_user.location_id = loc_obj.id
+                target_user.location = loc_obj.name
+
+        if "access_level" in data and data["access_level"]:
+            target_user.access_level = str(data["access_level"]).strip()
+
+        if "role_title" in data and data["role_title"]:
+            target_user.role_title = str(data["role_title"]).strip()
+
+        if "is_active" in data:
+            target_user.is_active = bool(data["is_active"])
+
+        if "department_id" in data and data["department_id"]:
+            dept_id = int(data["department_id"])
+            dept_obj = db.query(models.Department).filter(models.Department.id == dept_id).first()
+            if dept_obj:
+                target_user.department_id = dept_obj.id
+                target_user.department = dept_obj.name
+
+        db.commit()
+        return {
+            "status": "success",
+            "message": f"Updated profile for {target_user.name}.",
+            "user": {
+                "id": target_user.id,
+                "name": target_user.name,
+                "location_id": target_user.location_id,
+                "location_name": target_user.location,
+                "is_active": target_user.is_active,
+                "access_level": target_user.access_level
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/admin/users/create")
+async def api_admin_create_user(
+    request: Request,
+    user: models.User = Depends(require_admin_or_manager),
+    db: Session = Depends(get_db)
+):
+    try:
+        data = await request.json()
+        name = str(data.get("name", "")).strip()
+        email = str(data.get("email", "")).strip()
+        unique_id = str(data.get("unique_id", "")).strip()
+        location_id = int(data.get("location_id"))
+        role_title = str(data.get("role_title", "Operational Staff")).strip()
+        access_level = str(data.get("access_level", "Employee")).strip()
+        raw_pw = str(data.get("password", "Welcome@123")).strip()
+
+        if not name or not email or not unique_id:
+            raise HTTPException(status_code=400, detail="Name, email, and Unique ID are required.")
+
+        # Check existing
+        existing = db.query(models.User).filter(
+            (models.User.email == email) | (models.User.unique_id == unique_id)
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="User with this email or ID already exists.")
+
+        loc_obj = db.query(models.Location).filter(models.Location.id == location_id).first()
+        loc_name = loc_obj.name if loc_obj else "Mumbai"
+
+        from auth import get_password_hash
+        new_u = models.User(
+            name=name,
+            email=email,
+            unique_id=unique_id,
+            location_id=location_id,
+            location=loc_name,
+            role_title=role_title,
+            access_level=access_level,
+            hashed_password=get_password_hash(raw_pw),
+            is_active=True,
+            cl_balance=10.0,
+            sl_balance=8.0,
+            pl_balance=15.0,
+            co_balance=2.0
+        )
+        db.add(new_u)
+        db.commit()
+        db.refresh(new_u)
+
+        return {
+            "status": "success",
+            "message": f"Successfully registered {new_u.name} in {loc_name}.",
+            "user_id": new_u.id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.post("/api/admin/users/reset-password")
 async def api_reset_password(
     request: Request,
