@@ -72,11 +72,32 @@ def index(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
 @app.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, error: Optional[str] = None):
+def login_page(
+    request: Request,
+    error: Optional[str] = None,
+    location_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    locations = db.query(models.Location).filter(models.Location.is_active == True).order_by(models.Location.name.asc()).all()
+    # Calculate active staff counts per location
+    loc_stats = {}
+    for loc in locations:
+        staff_count = db.query(models.User).filter(
+            models.User.location_id == loc.id,
+            models.User.is_active == True
+        ).count()
+        loc_stats[loc.id] = staff_count
+
     return templates.TemplateResponse(
         request=request,
         name="login.html",
-        context={"user": None, "error": error}
+        context={
+            "user": None,
+            "error": error,
+            "locations": locations,
+            "loc_stats": loc_stats,
+            "preselected_location_id": location_id
+        }
     )
 
 @app.post("/login")
@@ -84,8 +105,15 @@ def login_action(
     request: Request,
     identifier: str = Form(...),
     password: str = Form(...),
+    location_id: Optional[int] = Form(None),
     db: Session = Depends(get_db)
 ):
+    locations = db.query(models.Location).filter(models.Location.is_active == True).order_by(models.Location.name.asc()).all()
+    loc_stats = {
+        loc.id: db.query(models.User).filter(models.User.location_id == loc.id, models.User.is_active == True).count()
+        for loc in locations
+    }
+
     clean_id = identifier.strip()
     user = db.query(models.User).filter(
         (models.User.email == clean_id) | (models.User.unique_id == clean_id)
@@ -95,7 +123,13 @@ def login_action(
         return templates.TemplateResponse(
             request=request,
             name="login.html",
-            context={"user": None, "error": "Invalid email/unique ID or password."}
+            context={
+                "user": None,
+                "error": "Invalid email/unique ID or password.",
+                "locations": locations,
+                "loc_stats": loc_stats,
+                "preselected_location_id": location_id
+            }
         )
 
     if not user.is_active:
@@ -104,11 +138,41 @@ def login_action(
             name="login.html",
             context={
                 "user": None,
-                "error": f"Account for {user.name} ({user.unique_id}) is deactivated/offboarded. Please contact your Administrator."
+                "error": f"Account for {user.name} ({user.unique_id}) is deactivated/offboarded. Please contact your Administrator.",
+                "locations": locations,
+                "loc_stats": loc_stats,
+                "preselected_location_id": location_id
             }
         )
 
-    response = RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+    # Permission check for location selection
+    perms = resolve_user_permissions(user, db)
+    target_loc_id = location_id
+
+    if location_id:
+        target_loc = db.query(models.Location).filter(models.Location.id == location_id).first()
+        if target_loc and not perms.can_access_location(target_loc.id):
+            return templates.TemplateResponse(
+                request=request,
+                name="login.html",
+                context={
+                    "user": None,
+                    "error": f"Access Restricted: Your profile ({user.access_level}) is not authorized for {target_loc.name}. Please select your assigned location.",
+                    "locations": locations,
+                    "loc_stats": loc_stats,
+                    "preselected_location_id": user.location_id
+                }
+            )
+
+    # Determine post-login destination
+    # If location is provided and authorized, send to Location Roster (or dashboard if employee without roster view rights)
+    is_mgmt = perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader or (user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader'])
+    if target_loc_id and is_mgmt:
+        redirect_url = f"/roster/location?location_id={target_loc_id}"
+    else:
+        redirect_url = "/dashboard"
+
+    response = RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
     # Set session cookie
     response.set_cookie(
         key="user_id",
@@ -118,6 +182,15 @@ def login_action(
         path="/",
         samesite="lax"
     )
+    if target_loc_id:
+        response.set_cookie(
+            key="active_location_id",
+            value=str(target_loc_id),
+            httponly=False,
+            max_age=86400 * 7,
+            path="/",
+            samesite="lax"
+        )
     return response
 
 @app.get("/logout")
@@ -2220,8 +2293,16 @@ def location_roster_view(
                 detail="Access denied: You are not authorized to view the requested location roster."
             )
     else:
-        # Default to first authorized location
-        target_loc = authorized_locations[0]
+        # Check if user has an active_location_id cookie set from login or selection
+        cookie_loc_id = request.cookies.get("active_location_id")
+        matched_loc = None
+        if cookie_loc_id:
+            try:
+                c_id = int(cookie_loc_id)
+                matched_loc = next((loc for loc in authorized_locations if loc.id == c_id), None)
+            except Exception:
+                pass
+        target_loc = matched_loc if matched_loc else authorized_locations[0]
 
     # Date range calculation
     if start_date:

@@ -34,7 +34,7 @@ flowchart TD
 
 ### A. Location-First Landing & Modal UI (`templates/login.html`)
 - **Step 1: Visual Location Selector**:
-  - Show active locations (e.g., Mumbai, Pune, Nagpur, Headquarters) as interactive cards with status indicators (e.g. "Active Operations", number of active staff or live status).
+  - Show active locations (e.g., Mumbai, Nagpur,) as interactive cards with status indicators (e.g. "Active Operations", number of active staff or live status).
   - Also include a searchable select box for scalability if more substations or zones are added.
 - **Step 2: Modal Dialog (Pop-up)**:
   - Clicking on a location opens a modal dialog with smooth animations.
@@ -67,3 +67,4 @@ flowchart TD
 2. **Remember Last Branch**: Store `last_selected_location` in `localStorage` so repeat visits automatically open the modal for their regular workplace.
 3. **Direct Station Portal**: Each location gets a direct URL (e.g. `/login?location_id=1` for Mumbai) that can be bookmarked by branch teams.
 4. **Audit Trail**: Record the login location in `RosterViewLog` or `AuditLog` to monitor from which branch users are accessing shift schedules.
+
