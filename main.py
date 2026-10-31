@@ -609,10 +609,25 @@ async def apply_leave(
         # Determine applicant: self or target staff member if Admin/Manager
         applicant = user
         is_admin_assign = False
-        if target_user_id and target_user_id != user.id:
-            if not (perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader):
+        parsed_target_id = None
+        if target_user_id is not None and not hasattr(target_user_id, "default"):
+            try:
+                parsed_target_id = int(target_user_id)
+            except (ValueError, TypeError):
+                parsed_target_id = None
+
+        if admin_notes is not None and hasattr(admin_notes, "default"):
+            admin_notes = None
+
+        user_is_senior = (
+            getattr(user, "is_admin", False) or 
+            getattr(user, "access_level", "") in ["Admin", "HR", "Manager", "Team Leader"] or
+            (hasattr(perms, "is_admin") and (perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader))
+        )
+        if parsed_target_id and parsed_target_id != user.id:
+            if not user_is_senior:
                 raise HTTPException(status_code=403, detail="Unauthorized to apply leave on behalf of other staff.")
-            target_user = db.query(models.User).filter(models.User.id == target_user_id).first()
+            target_user = db.query(models.User).filter(models.User.id == parsed_target_id).first()
             if not target_user:
                 return RedirectResponse(url="/leaves?alert_msg=Target+employee+not+found&alert_type=error", status_code=302)
             applicant = target_user

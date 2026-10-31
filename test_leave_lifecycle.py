@@ -24,10 +24,14 @@ def test_leave_management_lifecycle():
     emp = db.query(models.User).filter(models.User.email == "shashi.kurhade@arceus.in").first()
     assert emp is not None, "Employee user required"
     
-    # Ensure sufficient balance for testing
+    # Ensure sufficient balance for testing in both User and LeaveBalance table
     emp.balance_cl = 10.0
     emp.cl_balance = 10.0
     emp.taken_cl = 0.0
+    bal = db.query(models.LeaveBalance).filter(models.LeaveBalance.user_id == emp.id).first()
+    if bal:
+        bal.balance_cl = 10.0
+        bal.taken_cl = 0.0
     db.commit()
 
     print("[TEST 1] Testing Apply Leave with Supporting Evidence...")
