@@ -466,6 +466,24 @@ class SessionBreak(Base):
 
     session = relationship("WorkSession", back_populates="breaks")
 
+class AllowedIpWhitelist(Base):
+    """
+    IP Address Whitelisting configured by Admin.
+    When ip_whitelist_enabled is active, only client devices originating from
+    whitelisted IP addresses can access the application portal.
+    """
+    __tablename__ = "allowed_ip_whitelist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ip_address = Column(String(60), unique=True, nullable=False, index=True)
+    description = Column(String(200), nullable=True) # e.g. "HQ Office Subnet", "Vashi Call Center Router"
+    is_active = Column(Boolean, default=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    created_by = relationship("User")
+
+
 
 
 
