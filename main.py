@@ -286,7 +286,8 @@ def login_action(
 
     clean_id = identifier.strip()
     user = db.query(models.User).filter(
-        (models.User.email == clean_id) | (models.User.unique_id == clean_id)
+        (func.lower(models.User.email) == clean_id.lower()) | 
+        (func.upper(models.User.unique_id) == clean_id.upper())
     ).first()
 
     # Check IP Whitelist Enforcement before authenticating
