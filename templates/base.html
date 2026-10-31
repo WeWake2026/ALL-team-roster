@@ -655,37 +655,38 @@
         function toggleSidebarWidth() {
             const sb = document.getElementById('main-sidebar');
             const icon = document.getElementById('sidebar-toggle-icon');
-            const isExpanded = sb.classList.contains('w-80') || sb.classList.contains('w-72');
+            if (!sb) return;
+
+            const isCompact = sb.classList.contains('w-20');
             
-            if (isExpanded) {
+            if (!isCompact) {
                 // Collapse to compact size
-                sb.classList.remove('w-80', 'w-72');
+                sb.classList.remove('w-80', 'w-72', 'w-64');
                 sb.classList.add('w-20');
-                document.querySelectorAll('.sidebar-text').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = 'none');
                 if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
                 localStorage.setItem('sidebar_mode', 'compact');
             } else {
                 // Expand to large spacious width
                 sb.classList.remove('w-20');
                 sb.classList.add('w-72');
-                document.querySelectorAll('.sidebar-text').forEach(el => el.classList.remove('hidden'));
+                document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = '');
                 if (icon) icon.setAttribute('data-lucide', 'panel-left-close');
                 localStorage.setItem('sidebar_mode', 'expanded');
             }
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         function restoreSidebarState() {
             const mode = localStorage.getItem('sidebar_mode');
-            if (mode === 'compact') {
-                const sb = document.getElementById('main-sidebar');
-                const icon = document.getElementById('sidebar-toggle-icon');
-                if (sb) {
-                    sb.classList.remove('w-80', 'w-72');
-                    sb.classList.add('w-20');
-                    document.querySelectorAll('.sidebar-text').forEach(el => el.classList.add('hidden'));
-                    if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
-                }
+            const sb = document.getElementById('main-sidebar');
+            const icon = document.getElementById('sidebar-toggle-icon');
+            if (sb && mode === 'compact') {
+                sb.classList.remove('w-80', 'w-72', 'w-64');
+                sb.classList.add('w-20');
+                document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = 'none');
+                if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         }
 

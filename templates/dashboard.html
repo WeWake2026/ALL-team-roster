@@ -325,32 +325,147 @@
             {% endif %}
         </div>
 
-        <!-- In-app Alerts & Notifications (1 col) -->
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <i data-lucide="bell" class="w-5 h-5 text-blue-600"></i>
-                    <span>Activity & Alerts</span>
-                </h3>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
-                    {{ notifications|length }}
-                </span>
+        <!-- In-app Alerts & Notifications (Interactive with Filters & View All) -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <i data-lucide="bell" class="w-5 h-5 text-blue-600"></i>
+                        <span>Activity & Alerts</span>
+                    </h3>
+                    <p class="text-xs text-slate-500">Live operational events, roster updates & leave decisions</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="alerts-count-badge" class="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-900">
+                        {{ notifications|length }} Alerts
+                    </span>
+                    <button type="button" onclick="openAllAlertsModal()" class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-xs font-semibold transition flex items-center gap-1 border border-blue-200 dark:border-blue-900" title="Expand Full Alert History">
+                        <span>See All</span>
+                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
             </div>
 
-            <div class="space-y-3">
-                {% for n in notifications[:5] %}
-                <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-start gap-3">
-                    <span class="mt-0.5 p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
-                        <i data-lucide="info" class="w-3.5 h-3.5"></i>
-                    </span>
-                    <div>
-                        <p class="text-xs font-semibold text-slate-800 dark:text-white">{{ n.title }}</p>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{{ n.message }}</p>
-                        <span class="text-[10px] text-slate-400 mt-1 block">{{ n.created_at.strftime('%d %b, %H:%M') }}</span>
-                    </div>
-                </div>
-                {% endfor %}
+            <!-- Category Filter Buttons for Alerts -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                <button type="button" onclick="filterDashboardAlerts('ALL')" id="filter-btn-all" class="px-2.5 py-1 rounded-lg font-bold bg-blue-600 text-white shadow-xs transition text-[11px]">
+                    All ({{ notifications|length }})
+                </button>
+                <button type="button" onclick="filterDashboardAlerts('leave_status')" id="filter-btn-leave" class="px-2.5 py-1 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-[11px] flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>Leaves</span>
+                </button>
+                <button type="button" onclick="filterDashboardAlerts('shift_change')" id="filter-btn-shift" class="px-2.5 py-1 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-[11px] flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    <span>Roster Shifts</span>
+                </button>
+                <button type="button" onclick="filterDashboardAlerts('general')" id="filter-btn-general" class="px-2.5 py-1 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-[11px] flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                    <span>System</span>
+                </button>
             </div>
+
+            <!-- Alerts List with View More Toggle -->
+            <div class="space-y-2.5" id="alerts-container">
+                {% if notifications %}
+                    {% for n in notifications %}
+                    <div class="alert-item p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 hover:border-blue-500/30 transition flex items-start gap-3 {% if loop.index > 5 %}hidden extra-alert{% endif %}"
+                         data-category="{{ n.category }}">
+                        <span class="mt-0.5 p-1.5 rounded-lg shrink-0 {% if n.category == 'leave_status' %}bg-emerald-500/10 text-emerald-600 dark:text-emerald-400{% elif n.category == 'shift_change' %}bg-blue-500/10 text-blue-600 dark:text-blue-400{% else %}bg-purple-500/10 text-purple-600 dark:text-purple-400{% endif %}">
+                            {% if n.category == 'leave_status' %}
+                            <i data-lucide="plane" class="w-3.5 h-3.5"></i>
+                            {% elif n.category == 'shift_change' %}
+                            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                            {% else %}
+                            <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                            {% endif %}
+                        </span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-2">
+                                <p class="text-xs font-semibold text-slate-800 dark:text-white truncate">{{ n.title }}</p>
+                                <span class="text-[10px] text-slate-400 whitespace-nowrap">{{ n.created_at.strftime('%d %b, %H:%M') }}</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{{ n.message }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="py-6 text-center text-slate-400 text-xs">
+                    <i data-lucide="bell-off" class="w-6 h-6 mx-auto mb-1 opacity-50"></i>
+                    No alerts or notifications yet.
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- See More / Show Less Button -->
+            {% if notifications|length > 5 %}
+            <div class="pt-2 text-center border-t border-slate-100 dark:border-slate-800">
+                <button type="button" id="toggle-more-alerts-btn" onclick="toggleMoreAlerts()" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 inline-flex items-center gap-1.5 py-1 px-3 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 transition">
+                    <span id="toggle-more-text">See More Alerts ({{ notifications|length - 5 }} More)</span>
+                    <i data-lucide="chevron-down" id="toggle-more-icon" class="w-4 h-4"></i>
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ALL ALERTS EXPANDED MODAL -->
+<div id="all-alerts-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl shadow-2xl p-6 sm:p-7 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Activity & Notification Feed</h3>
+                    <p class="text-xs text-slate-500">Chronological stream of all system and operational events</p>
+                </div>
+            </div>
+            <button onclick="closeAllAlertsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Search inside notifications -->
+        <div class="py-3 shrink-0">
+            <div class="relative">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                <input type="text" id="modal-alert-search" oninput="filterModalAlerts()" placeholder="Search alert content, staff name, or ID..."
+                    class="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto space-y-2.5 pr-1" id="modal-alerts-list">
+            {% for n in notifications %}
+            <div class="modal-alert-item p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-start gap-3"
+                 data-category="{{ n.category }}"
+                 data-text="{{ (n.title ~ ' ' ~ n.message)|lower }}">
+                <span class="mt-0.5 p-2 rounded-xl shrink-0 {% if n.category == 'leave_status' %}bg-emerald-500/15 text-emerald-600 dark:text-emerald-400{% elif n.category == 'shift_change' %}bg-blue-500/15 text-blue-600 dark:text-blue-400{% else %}bg-purple-500/15 text-purple-600 dark:text-purple-400{% endif %}">
+                    {% if n.category == 'leave_status' %}
+                    <i data-lucide="plane" class="w-4 h-4"></i>
+                    {% elif n.category == 'shift_change' %}
+                    <i data-lucide="clock" class="w-4 h-4"></i>
+                    {% else %}
+                    <i data-lucide="info" class="w-4 h-4"></i>
+                    {% endif %}
+                </span>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-bold text-slate-900 dark:text-white">{{ n.title }}</span>
+                        <span class="text-[10px] text-slate-400 font-mono">{{ n.created_at.strftime('%d %b %Y, %H:%M') }}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">{{ n.message }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end shrink-0">
+            <button onclick="closeAllAlertsModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition">
+                Close
+            </button>
         </div>
     </div>
 </div>
@@ -385,5 +500,98 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchHeadcountMetrics();
     }
 });
+
+// Alerts Filtering & Show More Handlers
+let isAlertsExpanded = false;
+let currentAlertCategory = 'ALL';
+
+function toggleMoreAlerts() {
+    isAlertsExpanded = !isAlertsExpanded;
+    const extraAlerts = document.querySelectorAll('.extra-alert');
+    const textEl = document.getElementById('toggle-more-text');
+    const iconEl = document.getElementById('toggle-more-icon');
+
+    extraAlerts.forEach(el => {
+        if (isAlertsExpanded) {
+            // Check if matches active category
+            const cat = el.getAttribute('data-category');
+            if (currentAlertCategory === 'ALL' || cat === currentAlertCategory) {
+                el.classList.remove('hidden');
+            }
+        } else {
+            el.classList.add('hidden');
+        }
+    });
+
+    if (textEl) textEl.textContent = isAlertsExpanded ? 'Show Fewer Alerts' : 'See More Alerts';
+    if (iconEl) iconEl.setAttribute('data-lucide', isAlertsExpanded ? 'chevron-up' : 'chevron-down');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function filterDashboardAlerts(cat) {
+    currentAlertCategory = cat;
+    
+    // Update button styles
+    ['all', 'leave', 'shift', 'general'].forEach(c => {
+        const btn = document.getElementById(`filter-btn-${c}`);
+        if (!btn) return;
+        const matches = (c === 'all' && cat === 'ALL') || 
+                        (c === 'leave' && cat === 'leave_status') || 
+                        (c === 'shift' && cat === 'shift_change') || 
+                        (c === 'general' && cat === 'general');
+        if (matches) {
+            btn.className = 'px-2.5 py-1 rounded-lg font-bold bg-blue-600 text-white shadow-xs transition text-[11px]';
+        } else {
+            btn.className = 'px-2.5 py-1 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-[11px]';
+        }
+    });
+
+    const items = document.querySelectorAll('.alert-item');
+    let visibleCount = 0;
+
+    items.forEach(item => {
+        const itemCat = item.getAttribute('data-category');
+        const isMatch = (cat === 'ALL' || itemCat === cat);
+        const isExtra = item.classList.contains('extra-alert');
+
+        if (isMatch && (!isExtra || isAlertsExpanded)) {
+            item.classList.remove('hidden');
+            visibleCount++;
+        } else {
+            item.classList.add('hidden');
+        }
+    });
+
+    const badge = document.getElementById('alerts-count-badge');
+    if (badge) badge.textContent = `${visibleCount} Filtered`;
+}
+
+// All Alerts Modal Controls
+function openAllAlertsModal() {
+    const modal = document.getElementById('all-alerts-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+}
+
+function closeAllAlertsModal() {
+    const modal = document.getElementById('all-alerts-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function filterModalAlerts() {
+    const query = (document.getElementById('modal-alert-search')?.value || '').toLowerCase().trim();
+    const items = document.querySelectorAll('.modal-alert-item');
+
+    items.forEach(item => {
+        const text = item.getAttribute('data-text') || '';
+        if (!query || text.includes(query)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
 </script>
 {% endblock %}
