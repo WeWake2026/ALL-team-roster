@@ -136,14 +136,20 @@
                         <td class="px-4 py-3.5 text-xs text-slate-500">
                             {{ shift.effective_from.strftime('%d-%b-%Y') if shift.effective_from else 'Immediate' }}
                         </td>
-                        <td class="px-4 py-3.5 text-right space-x-2">
-                            <button onclick='openEditShiftModal({{ shift.id }}, {{ shift.name|tojson }}, "{{ shift.start_time or '' }}", "{{ shift.end_time or '' }}", {{ 1 if shift.is_overnight else 0 }}, {{ shift.break_duration_mins or 45 }}, "{{ shift.color_code or '#2563eb' }}", "{{ shift.applicable_locations or 'All Locations' }}", "{{ shift.effective_from.strftime('%Y-%m-%d') if shift.effective_from else '' }}")' class="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition">
-                                Edit Shift
+                        <td class="px-4 py-3.5 text-right space-x-1.5 whitespace-nowrap">
+                            <button onclick='openEditShiftModal({{ shift.id }}, {{ shift.name|tojson }}, "{{ shift.start_time or '' }}", "{{ shift.end_time or '' }}", {{ 1 if shift.is_overnight else 0 }}, {{ shift.break_duration_mins or 45 }}, "{{ shift.color_code or '#2563eb' }}", "{{ shift.applicable_locations or 'All Locations' }}", "{{ shift.effective_from.strftime('%Y-%m-%d') if shift.effective_from else '' }}")' class="px-2.5 py-1 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition">
+                                Edit
                             </button>
                             <form action="/admin/shifts/toggle" method="POST" class="inline" onsubmit="return confirm('Change status of shift {{ shift.name }}?')">
                                 <input type="hidden" name="shift_id" value="{{ shift.id }}">
-                                <button type="submit" class="px-2 py-1 text-xs font-semibold {% if shift.is_active %}text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100{% else %}text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100{% endif %} rounded transition">
+                                <button type="submit" class="px-2.5 py-1 text-xs font-semibold {% if shift.is_active %}text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100{% else %}text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100{% endif %} rounded-lg transition">
                                     {{ 'Deactivate' if shift.is_active else 'Activate' }}
+                                </button>
+                            </form>
+                            <form action="/admin/shifts/delete" method="POST" class="inline" onsubmit="return confirm('Permanently delete shift {{ shift.name }} ({{ shift.code }})?')">
+                                <input type="hidden" name="shift_id" value="{{ shift.id }}">
+                                <button type="submit" class="px-2.5 py-1 text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 hover:bg-rose-100 rounded-lg transition" title="Delete Shift">
+                                    Delete
                                 </button>
                             </form>
                         </td>

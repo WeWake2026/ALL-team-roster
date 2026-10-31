@@ -1491,6 +1491,29 @@ def admin_create_shift(
     if start_time > end_time:
         is_overnight = True
 
+    # Check for existing duplicate shift by name or code
+    existing_shift = db.query(models.Shift).filter(
+        (models.Shift.name.ilike(name.strip())) | (models.Shift.code == code)
+    ).first()
+
+    if existing_shift:
+        # Update existing shift attributes to avoid duplicate records
+        existing_shift.name = name.strip()
+        existing_shift.code = code
+        existing_shift.start_time = start_time.strip()
+        existing_shift.end_time = end_time.strip()
+        existing_shift.is_overnight = is_overnight
+        existing_shift.break_duration_mins = break_duration_mins or 60
+        existing_shift.color_code = color_code.strip().lower()
+        existing_shift.applicable_locations = applicable_locations or "All"
+        existing_shift.effective_from = eff_dt
+        existing_shift.is_active = True
+        db.commit()
+        return RedirectResponse(
+            url="/admin/shifts?alert_msg=Shift+already+exists.+Updated+configuration!&alert_type=success",
+            status_code=302
+        )
+
     new_shift = models.Shift(
         name=name.strip(),
         code=code,
@@ -1567,6 +1590,25 @@ def admin_toggle_shift(
         url=f"/admin/shifts?alert_msg=Shift+{state_str}+successfully!&alert_type=success",
         status_code=302
     )
+
+@app.post("/admin/shifts/delete")
+def admin_delete_shift(
+    shift_id: int = Form(...),
+    user: models.User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    shift = db.query(models.Shift).filter(models.Shift.id == shift_id).first()
+    if not shift:
+        raise HTTPException(status_code=404, detail="Shift not found.")
+
+    shift_name = shift.name
+    db.delete(shift)
+    db.commit()
+    return RedirectResponse(
+        url=f"/admin/shifts?alert_msg=Shift+{shift_name}+deleted+successfully!&alert_type=success",
+        status_code=302
+    )
+
 
 @app.get("/roster/history", response_class=HTMLResponse)
 def roster_change_history_page(
