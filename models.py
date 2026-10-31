@@ -368,3 +368,19 @@ class Notification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="notifications")
+
+class UserPreference(Base):
+    """
+    Per-user preferences including custom pinned navigation shortcuts,
+    theme settings, and sidebar configuration.
+    """
+    __tablename__ = "user_preferences"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    sidebar_pinned = Column(Text, nullable=True) # JSON list of module IDs: ["dashboard", "roster", "attendance_swaps", "leaves"]
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User")
+

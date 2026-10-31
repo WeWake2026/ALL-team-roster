@@ -77,10 +77,10 @@
 <body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col md:flex-row antialiased selection:bg-blue-500 selection:text-white transition-colors duration-200">
 
     {% if user %}
-    <!-- DESKTOP EXPANDABLE / COLLAPSIBLE SIDEBAR -->
-    <aside id="main-sidebar" class="hidden md:flex flex-col w-72 transition-all duration-300 bg-slate-900 border-r border-slate-800 text-slate-300 select-none shrink-0 z-30">
+    <!-- DESKTOP EXPANDABLE / COLLAPSIBLE SIDEBAR WITH ROLE-BASED DYNAMIC NAVIGATION -->
+    <aside id="main-sidebar" class="hidden md:flex flex-col w-72 transition-all duration-300 bg-[#0B1120] border-r border-slate-800 text-slate-300 select-none shrink-0 z-30">
         <!-- Brand Header with Sidebar Toggle -->
-        <div class="h-16 flex items-center justify-between px-5 border-b border-slate-800">
+        <div class="h-16 flex items-center justify-between px-5 border-b border-slate-800/80">
             <div class="flex items-center gap-3 overflow-hidden">
                 <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 shrink-0">
                     <i data-lucide="calendar-check" class="w-5 h-5"></i>
@@ -92,43 +92,13 @@
                     <p class="text-[10px] text-slate-400">Workforce & Leave ERP</p>
                 </div>
             </div>
-            <button type="button" onclick="toggleSidebarWidth()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" title="Toggle Sidebar Width">
+            <button type="button" onclick="toggleSidebarWidth()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition" title="Toggle Sidebar Width">
                 <i data-lucide="panel-left-close" id="sidebar-toggle-icon" class="w-4 h-4"></i>
             </button>
         </div>
 
-        <!-- Quick Launch Launcher Bar & Quick Option Trigger -->
-        <div class="px-3 pt-3">
-            <button type="button" onclick="openQuickOptionsModal()" class="w-full p-2.5 rounded-xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 border border-blue-500/30 text-cyan-300 flex items-center justify-between group transition">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-sm">
-                        <i data-lucide="layout-grid" class="w-4 h-4"></i>
-                    </div>
-                    <div class="text-left sidebar-text">
-                        <span class="block text-xs font-bold text-white group-hover:text-cyan-300">Quick Options</span>
-                        <span class="block text-[10px] text-slate-400">Launchpad & Pinned</span>
-                    </div>
-                </div>
-                <span class="text-[10px] bg-blue-500/30 px-1.5 py-0.5 rounded text-blue-300 font-mono sidebar-text">Ctrl+K</span>
-            </button>
-        </div>
-
-        <!-- Pinned Quick Shortcuts Bar -->
-        <div id="pinned-shortcuts-container" class="px-3 pt-2 pb-1 space-y-1">
-            <div class="flex items-center justify-between px-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 sidebar-text">
-                <span class="flex items-center gap-1">
-                    <i data-lucide="pin" class="w-3 h-3 text-amber-400"></i>
-                    <span>Pinned Quick Links</span>
-                </span>
-                <button type="button" onclick="openQuickOptionsModal()" class="text-cyan-400 hover:underline">Edit</button>
-            </div>
-            <div id="pinned-links-list" class="space-y-1">
-                <!-- Dynamically populated from localStorage -->
-            </div>
-        </div>
-
         <!-- User Brief Profile -->
-        <div class="sidebar-user-card p-3 mx-3 my-2 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center gap-3">
+        <div class="sidebar-user-card p-3 mx-3 mt-3 mb-2 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-center gap-3">
             <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs shadow shrink-0">
                 {{ user.name[:2].upper() }}
             </div>
@@ -144,123 +114,52 @@
             </div>
         </div>
 
-        <!-- Navigation Links -->
-        <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
-            <a href="/dashboard" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'dashboard' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-                <span>My Dashboard</span>
-            </a>
+        <!-- Navigation Container (No Internal Scrollbars, Smooth Transitions) -->
+        <nav class="flex-1 px-3 py-2 space-y-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" id="sidebar-nav-container">
+            
+            <!-- SECTION 1: PRIMARY PINNED ITEMS (4 to 5 core modules) -->
+            <div id="primary-pinned-nav" class="space-y-1">
+                <!-- Dynamically populated or server rendered -->
+            </div>
 
-            <!-- Read-Only "My Team Roster" for Agents/Advisors/Employees, or "Team Roster" for Authorized Staff -->
-            <a href="/roster" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'roster' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="calendar" class="w-4 h-4"></i>
-                <span>{% if user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader'] %}Team Roster{% else %}My Team Roster{% endif %}</span>
-            </a>
+            <!-- SECTION 2: MORE MODULES COLLAPSIBLE DRAWER -->
+            <div id="more-modules-wrapper" class="pt-2 border-t border-slate-800/80">
+                <button type="button" onclick="toggleMoreModulesDrawer()" id="more-modules-btn" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all group">
+                    <div class="flex items-center gap-3">
+                        <i data-lucide="more-horizontal" class="w-4 h-4 text-slate-400 group-hover:text-blue-400 shrink-0"></i>
+                        <span class="sidebar-text font-medium text-xs tracking-wide">More Modules (<span id="more-modules-count">0</span>)</span>
+                    </div>
+                    <i data-lucide="chevron-down" id="more-modules-chevron" class="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform sidebar-text"></i>
+                </button>
 
-            <!-- Dedicated Location-Wise Roster (Restricted to Admin, HR, Manager, Team Leader) -->
-            {% if (perms and (perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader)) or (user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader']) or ('lead' in (user.role_title|lower)) %}
-            <a href="/roster/location" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'location_roster' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="map-pin" class="w-4 h-4 text-cyan-400"></i>
-                <span>Location-Wise Roster</span>
-            </a>
-            {% endif %}
-
-            <!-- Dedicated Consolidated Combined Roster (Restricted to Admin and HR) -->
-            {% if (perms and (perms.is_admin or perms.is_hr)) or (user.access_level in ['Admin', 'Super Admin', 'HR']) %}
-            <a href="/roster/combined" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'combined_roster' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="layers" class="w-4 h-4 text-purple-400"></i>
-                <span>Combined Roster</span>
-            </a>
-            {% endif %}
-
-            <a href="/leaves" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'leaves' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <div class="flex items-center gap-3">
-                    <i data-lucide="plane" class="w-4 h-4"></i>
-                    <span>Leave Portal</span>
+                <!-- Collapsible Drawer Container -->
+                <div id="more-modules-drawer" class="hidden mt-1 pl-1 space-y-1">
+                    <!-- Unpinned modules injected here dynamically -->
                 </div>
-                {% if user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR'] and pending_leave_count and pending_leave_count > 0 %}
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-900 animate-pulse">
-                    {{ pending_leave_count }}
-                </span>
-                {% endif %}
-            </a>
-
-            <!-- Reports and Analytics -->
-            <a href="/reports" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'reports' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-400"></i>
-                <span>Workforce Reports</span>
-            </a>
-
-            {% if user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR'] %}
-            <div class="pt-4 pb-1 px-3">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Operations Control</p>
             </div>
-
-            <!-- Admin Dedicated Shift Management Tab -->
-            <a href="/admin/shifts" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'shifts' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="clock" class="w-4 h-4 text-indigo-400"></i>
-                <span>Shift Management</span>
-            </a>
-
-            <!-- Shift & Roster Change History -->
-            <a href="/roster/history" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'shift_history' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="history" class="w-4 h-4 text-cyan-400"></i>
-                <span>Roster Change History</span>
-            </a>
-
-            <a href="/roster/manage" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'manage_roster' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="sliders" class="w-4 h-4"></i>
-                <span>Quick Assign Desk</span>
-            </a>
-
-            <a href="/admin/sync" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'sync' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-                <span>Bulk Excel / CSV Sync</span>
-            </a>
-
-            <a href="/admin/leave-master" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'leave_master' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="scale" class="w-4 h-4 text-emerald-400"></i>
-                <span>Leave Audit Master</span>
-            </a>
-            {% endif %}
-
-            {% if user.access_level in ['Admin', 'Super Admin'] %}
-            <div class="pt-4 pb-1 px-3">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Centralized Administration</p>
-            </div>
-
-            <!-- Dedicated User & Data Assignment -->
-            <a href="/admin/assignments" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'assignments' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="shield-check" class="w-4 h-4 text-blue-400"></i>
-                <span>User & Data Assignment</span>
-            </a>
-
-            <a href="/admin/users" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'users' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="users" class="w-4 h-4"></i>
-                <span>User Accounts & Credentials</span>
-            </a>
-
-            <a href="/audit-logs" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'audit_logs' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="file-text" class="w-4 h-4 text-amber-400"></i>
-                <span>Audit & Security Logs</span>
-            </a>
-
-            <a href="/admin/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all {% if active_page == 'settings' %}bg-blue-600 text-white shadow-md shadow-blue-600/30{% else %}hover:bg-slate-800 text-slate-300 hover:text-white{% endif %}">
-                <i data-lucide="building" class="w-4 h-4"></i>
-                <span>Holidays & Company Rules</span>
-            </a>
-            {% endif %}
         </nav>
 
-        <!-- Sidebar Footer -->
-        <div class="p-4 border-t border-slate-800 flex items-center justify-between">
-            <button onclick="toggleDarkMode()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" title="Toggle Dark/Light Mode">
-                <i data-lucide="moon" id="theme-icon-desktop" class="w-4 h-4"></i>
+        <!-- Sidebar Footer with "Customize Shortcuts" Trigger -->
+        <div class="p-3 border-t border-slate-800/80 space-y-2">
+            <!-- Customize Shortcuts Button -->
+            <button type="button" onclick="openSidebarCustomizerModal()" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800/80 transition group border border-slate-800/60 hover:border-blue-500/30">
+                <div class="flex items-center gap-2.5">
+                    <i data-lucide="settings" class="w-4 h-4 text-slate-400 group-hover:text-blue-400 shrink-0"></i>
+                    <span class="sidebar-text truncate">⚙ Customize Shortcuts</span>
+                </div>
+                <span class="sidebar-text text-[10px] text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded font-mono">Pinned</span>
             </button>
-            <a href="/logout" class="flex items-center gap-2 text-xs font-medium text-rose-400 hover:text-rose-300 py-1.5 px-2.5 rounded-lg hover:bg-rose-500/10 transition">
-                <i data-lucide="log-out" class="w-4 h-4"></i>
-                <span>Sign Out</span>
-            </a>
+
+            <!-- Bottom utility actions -->
+            <div class="flex items-center justify-between pt-1">
+                <button onclick="toggleDarkMode()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition" title="Toggle Dark/Light Mode">
+                    <i data-lucide="moon" id="theme-icon-desktop" class="w-4 h-4"></i>
+                </button>
+                <a href="/logout" class="flex items-center gap-2 text-xs font-medium text-rose-400 hover:text-rose-300 py-1.5 px-2.5 rounded-lg hover:bg-rose-500/10 transition">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                    <span class="sidebar-text">Sign Out</span>
+                </a>
+            </div>
         </div>
     </aside>
 
@@ -393,7 +292,7 @@
                     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3.5" id="launcher-global-grid">
                         <!-- Roster Home Card -->
                         <div class="relative group bg-gradient-to-b from-blue-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-blue-100 hover:to-white dark:hover:from-blue-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-blue-200/80 dark:border-slate-700 hover:border-blue-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/roster', 'Team Roster', 'calendar', 'blue')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster" title="Pin / Unpin to Sidebar">
+                            <button type="button" onclick="openSidebarCustomizerModal()" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/roster" class="w-full flex flex-col items-center">
@@ -407,7 +306,7 @@
 
                         <!-- Location Roster Card -->
                         <div class="relative group bg-gradient-to-b from-cyan-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-cyan-100 hover:to-white dark:hover:from-cyan-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-cyan-200/80 dark:border-slate-700 hover:border-cyan-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/roster/location', 'Location Roster', 'map-pin', 'cyan')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/location" title="Pin / Unpin to Sidebar">
+                            <button type="button" onclick="openSidebarCustomizerModal()" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/location" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/roster/location" class="w-full flex flex-col items-center">
@@ -421,7 +320,7 @@
 
                         <!-- Combined Roster Card -->
                         <div class="relative group bg-gradient-to-b from-purple-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-purple-100 hover:to-white dark:hover:from-purple-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-purple-200/80 dark:border-slate-700 hover:border-purple-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/roster/combined', 'Combined Roster', 'layers', 'purple')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/combined" title="Pin / Unpin to Sidebar">
+                            <button type="button" onclick="openSidebarCustomizerModal()" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/combined" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/roster/combined" class="w-full flex flex-col items-center">
@@ -435,7 +334,7 @@
 
                         <!-- Quick Shift Assign Desk -->
                         <div class="relative group bg-gradient-to-b from-amber-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-amber-100 hover:to-white dark:hover:from-amber-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-amber-200/80 dark:border-slate-700 hover:border-amber-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/roster/manage', 'Assign Desk', 'sliders', 'amber')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/manage" title="Pin / Unpin to Sidebar">
+                            <button type="button" onclick="openSidebarCustomizerModal()" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/manage" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/roster/manage" class="w-full flex flex-col items-center">
@@ -449,7 +348,7 @@
 
                         <!-- Shift Change History -->
                         <div class="relative group bg-gradient-to-b from-emerald-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-emerald-100 hover:to-white dark:hover:from-emerald-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-emerald-200/80 dark:border-slate-700 hover:border-emerald-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/roster/history', 'Change History', 'history', 'emerald')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/history" title="Pin / Unpin to Sidebar">
+                            <button type="button" onclick="openSidebarCustomizerModal()" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/history" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/roster/history" class="w-full flex flex-col items-center">
@@ -476,7 +375,7 @@
                     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3.5">
                         <!-- Leave Portal Card -->
                         <div class="relative group bg-gradient-to-b from-sky-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-sky-100 hover:to-white dark:hover:from-sky-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-sky-200/80 dark:border-slate-700 hover:border-sky-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/leaves', 'Leave Portal', 'plane', 'sky')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/leaves" title="Pin / Unpin to Sidebar">
+                            <button type="button" onclick="openSidebarCustomizerModal()" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/leaves" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/leaves" class="w-full flex flex-col items-center">
@@ -490,7 +389,7 @@
 
                         <!-- Leave Audit Master Card -->
                         <div class="relative group bg-gradient-to-b from-teal-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-teal-100 hover:to-white dark:hover:from-teal-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-teal-200/80 dark:border-slate-700 hover:border-teal-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/admin/leave-master', 'Leave Master', 'scale', 'emerald')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/admin/leave-master" title="Pin / Unpin to Sidebar">
+                            <button type="button" onclick="openSidebarCustomizerModal()" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/admin/leave-master" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/admin/leave-master" class="w-full flex flex-col items-center">
@@ -504,7 +403,7 @@
 
                         <!-- User Accounts Card -->
                         <div class="relative group bg-gradient-to-b from-indigo-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-indigo-100 hover:to-white dark:hover:from-indigo-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-indigo-200/80 dark:border-slate-700 hover:border-indigo-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/admin/users', 'User Master', 'users', 'indigo')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/admin/users" title="Pin / Unpin to Sidebar">
+                            <button type="button" onclick="openSidebarCustomizerModal()" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/admin/users" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/admin/users" class="w-full flex flex-col items-center">
@@ -518,7 +417,7 @@
 
                         <!-- Bulk Excel Sync Card -->
                         <div class="relative group bg-gradient-to-b from-emerald-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-emerald-100 hover:to-white dark:hover:from-emerald-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-emerald-200/80 dark:border-slate-700 hover:border-emerald-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/admin/sync', 'Excel Sync', 'file-spreadsheet', 'teal')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/admin/sync" title="Pin / Unpin to Sidebar">
+                            <button type="button" onclick="openSidebarCustomizerModal()" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/admin/sync" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/admin/sync" class="w-full flex flex-col items-center">
@@ -532,7 +431,7 @@
 
                         <!-- Workforce Reports Card -->
                         <div class="relative group bg-gradient-to-b from-rose-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-rose-100 hover:to-white dark:hover:from-rose-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-rose-200/80 dark:border-slate-700 hover:border-rose-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/reports', 'Reports', 'bar-chart-3', 'rose')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/reports" title="Pin / Unpin to Sidebar">
+                            <button type="button" onclick="openSidebarCustomizerModal()" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/reports" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/reports" class="w-full flex flex-col items-center">
@@ -573,6 +472,59 @@
             {% block content %}{% endblock %}
         </div>
     </main>
+
+    <!-- CUSTOMIZE MY SIDEBAR MODAL -->
+    <div id="customize-sidebar-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-[#0B1120] rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-xl shadow-2xl p-6 flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Customize My Sidebar</h3>
+                        <p class="text-xs text-slate-500">Select modules to display directly in your primary sidebar</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeSidebarCustomizerModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Rules / Counter -->
+            <div class="py-3 flex items-center justify-between text-xs shrink-0">
+                <span class="text-slate-500 dark:text-slate-400">Rules: Choose between <b class="text-slate-800 dark:text-slate-200">2 to 6</b> primary pinned items.</span>
+                <span id="customizer-selection-count" class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-500">
+                    4 / 6 Pinned
+                </span>
+            </div>
+
+            <!-- Available Modules Checklist -->
+            <div class="flex-1 overflow-y-auto space-y-2 py-2 pr-1" id="customizer-modules-list">
+                <!-- Dynamically generated via JS based on user permissions -->
+            </div>
+
+            <!-- Error message feedback -->
+            <div id="customizer-error" class="hidden text-xs text-rose-500 font-semibold py-1"></div>
+
+            <!-- Modal Footer Actions -->
+            <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+                <button type="button" onclick="resetSidebarPreferencesToDefault()" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    Reset to Defaults
+                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeSidebarCustomizerModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition">
+                        Cancel
+                    </button>
+                    <button type="button" id="save-sidebar-pref-btn" onclick="saveSidebarPreferencesFromModal()" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition flex items-center gap-1.5">
+                        <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                        <span>Save Preferences</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- MOBILE FLOATING ACTION BAR FOR EMPLOYEES -->
     {% if user %}
@@ -693,7 +645,6 @@
             const modal = document.getElementById('quick-options-modal');
             if (modal) {
                 modal.classList.remove('hidden');
-                updatePinButtonsInModal();
                 lucide.createIcons();
             }
         }
@@ -703,80 +654,6 @@
             if (modal) {
                 modal.classList.add('hidden');
             }
-        }
-
-        // Pinned Shortcuts Management (localStorage)
-        const DEFAULT_PINS = [
-            { url: '/roster/location', label: 'Location Roster', icon: 'map-pin', color: 'cyan' },
-            { url: '/leaves', label: 'Leave Portal', icon: 'plane', color: 'sky' },
-            { url: '/admin/leave-master', label: 'Leave Master', icon: 'scale', color: 'emerald' },
-            { url: '/admin/users', label: 'User Master', icon: 'users', color: 'indigo' }
-        ];
-
-        function getPinnedLinks() {
-            try {
-                const saved = localStorage.getItem('shiftflow_pinned_links');
-                if (saved) return JSON.parse(saved);
-            } catch(e) {}
-            return DEFAULT_PINS;
-        }
-
-        function savePinnedLinks(pins) {
-            localStorage.setItem('shiftflow_pinned_links', JSON.stringify(pins));
-            renderPinnedLinks();
-            updatePinButtonsInModal();
-        }
-
-        function togglePinLink(url, label, icon, color) {
-            let pins = getPinnedLinks();
-            const existsIdx = pins.findIndex(p => p.url === url);
-            if (existsIdx >= 0) {
-                pins.splice(existsIdx, 1);
-            } else {
-                pins.push({ url, label, icon, color: color || 'blue' });
-            }
-            savePinnedLinks(pins);
-        }
-
-        function renderPinnedLinks() {
-            const container = document.getElementById('pinned-links-list');
-            if (!container) return;
-            const pins = getPinnedLinks();
-            if (!pins || pins.length === 0) {
-                container.innerHTML = '<p class="text-[10px] text-slate-500 italic px-2 sidebar-text">No pinned links. Click Quick Options to pin.</p>';
-                return;
-            }
-
-            container.innerHTML = pins.map(p => {
-                return `
-                    <div class="flex items-center justify-between group px-2.5 py-1.5 rounded-lg hover:bg-slate-800 text-xs text-slate-300 hover:text-white transition">
-                        <a href="${p.url}" class="flex items-center gap-2.5 flex-1 truncate">
-                            <i data-lucide="${p.icon || 'link'}" class="w-3.5 h-3.5 text-cyan-400 shrink-0"></i>
-                            <span class="sidebar-text truncate font-medium">${p.label}</span>
-                        </a>
-                        <button type="button" onclick="togglePinLink('${p.url}', '${p.label}', '${p.icon}', '${p.color}')" class="opacity-0 group-hover:opacity-100 hover:text-rose-400 p-0.5 rounded transition sidebar-text" title="Unpin">
-                            <i data-lucide="x" class="w-3 h-3"></i>
-                        </button>
-                    </div>
-                `;
-            }).join('');
-            lucide.createIcons();
-        }
-
-        function updatePinButtonsInModal() {
-            const pins = getPinnedLinks();
-            const pinMap = new Set(pins.map(p => p.url));
-            document.querySelectorAll('.pin-toggle-btn').forEach(btn => {
-                const url = btn.getAttribute('data-url');
-                if (pinMap.has(url)) {
-                    btn.className = 'absolute top-2.5 right-2.5 p-1 rounded-lg text-amber-400 bg-amber-400/10 hover:bg-amber-400/20 pin-toggle-btn';
-                    btn.innerHTML = '<i data-lucide="pin-off" class="w-3.5 h-3.5"></i>';
-                } else {
-                    btn.className = 'absolute top-2.5 right-2.5 p-1 rounded-lg text-slate-400 hover:text-amber-500 pin-toggle-btn';
-                    btn.innerHTML = '<i data-lucide="pin" class="w-3.5 h-3.5"></i>';
-                }
-            });
-            lucide.createIcons();
         }
 
         // Global Keyboard Shortcut: Ctrl + K or Cmd + K
@@ -795,9 +672,435 @@
             }
         });
 
+        // ================= DYNAMIC ROLE-BASED NAVIGATION & PREFERENCES ================= //
+        const APP_MODULES_CATALOG = [
+            {
+                id: 'dashboard',
+                label: 'Dashboard',
+                url: '/dashboard',
+                icon: 'layout-dashboard',
+                activeKey: 'dashboard',
+                category: 'Core',
+                roles: ['All']
+            },
+            {
+                id: 'roster',
+                label: 'Team Roster',
+                url: '/roster',
+                icon: 'calendar-check',
+                activeKey: 'roster',
+                category: 'Core',
+                roles: ['All']
+            },
+            {
+                id: 'attendance_swaps',
+                label: 'Attendance & Swaps',
+                url: '/roster/manage',
+                icon: 'sliders',
+                activeKey: 'manage_roster',
+                category: 'Operations',
+                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader']
+            },
+            {
+                id: 'leaves',
+                label: 'Leave Approvals',
+                url: '/leaves',
+                icon: 'file-check',
+                activeKey: 'leaves',
+                category: 'Core',
+                badge: {% if pending_leave_count and pending_leave_count > 0 %}{{ pending_leave_count }}{% else %}null{% endif %},
+                roles: ['All']
+            },
+            {
+                id: 'desk_allocation',
+                label: 'Desk Allocation',
+                url: '/admin/shifts',
+                icon: 'users',
+                activeKey: 'shifts',
+                category: 'Operations',
+                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader']
+            },
+            {
+                id: 'location_matrix',
+                label: 'Location Matrix',
+                url: '/roster/location',
+                icon: 'map-pin',
+                activeKey: 'location_roster',
+                category: 'Operations',
+                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader']
+            },
+            {
+                id: 'combined_roster',
+                label: 'Combined Matrix',
+                url: '/roster/combined',
+                icon: 'layers',
+                activeKey: 'combined_roster',
+                category: 'Operations',
+                roles: ['Admin', 'Super Admin', 'HR']
+            },
+            {
+                id: 'audit_history',
+                label: 'Audit History',
+                url: '/roster/history',
+                icon: 'history',
+                activeKey: 'shift_history',
+                category: 'Audit',
+                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR']
+            },
+            {
+                id: 'analytics_reports',
+                label: 'Analytics & Reports',
+                url: '/reports',
+                icon: 'bar-chart-3',
+                activeKey: 'reports',
+                category: 'Insights',
+                roles: ['All']
+            },
+            {
+                id: 'leave_master',
+                label: 'Leave Audit Master',
+                url: '/admin/leave-master',
+                icon: 'scale',
+                activeKey: 'leave_master',
+                category: 'Administration',
+                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR']
+            },
+            {
+                id: 'user_accounts',
+                label: 'User Accounts',
+                url: '/admin/users',
+                icon: 'users',
+                activeKey: 'users',
+                category: 'Administration',
+                roles: ['Admin', 'Super Admin']
+            },
+            {
+                id: 'scope_assignments',
+                label: 'Data Assignments',
+                url: '/admin/assignments',
+                icon: 'shield-check',
+                activeKey: 'assignments',
+                category: 'Administration',
+                roles: ['Admin', 'Super Admin']
+            },
+            {
+                id: 'excel_sync',
+                label: 'Bulk Excel Sync',
+                url: '/admin/sync',
+                icon: 'file-spreadsheet',
+                activeKey: 'sync',
+                category: 'Operations',
+                roles: ['Admin', 'Super Admin', 'Manager', 'HR']
+            },
+            {
+                id: 'company_settings',
+                label: 'Company Settings',
+                url: '/admin/settings',
+                icon: 'settings',
+                activeKey: 'settings',
+                category: 'Administration',
+                roles: ['Admin', 'Super Admin']
+            }
+        ];
+
+        const CURRENT_USER_ROLE = "{{ user.access_level if user else 'Employee' }}";
+        const CURRENT_ACTIVE_PAGE = "{{ active_page if active_page else '' }}";
+        const DEFAULT_PINNED_MODULES = ['dashboard', 'roster', 'attendance_swaps', 'leaves'];
+
+        // Get modules permitted for this user's role
+        function getUserPermittedModules() {
+            return APP_MODULES_CATALOG.filter(m => {
+                if (m.roles.includes('All')) return true;
+                if (m.roles.includes(CURRENT_USER_ROLE)) return true;
+                if (CURRENT_USER_ROLE === 'Super Admin' || CURRENT_USER_ROLE === 'Admin') return true;
+                return false;
+            });
+        }
+
+        // Active pinned set in memory
+        let userPinnedModuleIds = [];
+        let isMoreModulesDrawerOpen = false;
+
+        function getStoredPinnedModules() {
+            try {
+                // 1. Check template-injected server list if available
+                {% if sidebar_pinned %}
+                const serverPref = {{ sidebar_pinned|tojson }};
+                if (Array.isArray(serverPref) && serverPref.length >= 2) {
+                    return serverPref;
+                }
+                {% endif %}
+
+                // 2. Check localStorage
+                const local = localStorage.getItem('shiftflow_sidebar_pinned');
+                if (local) {
+                    const parsed = JSON.parse(local);
+                    if (Array.isArray(parsed) && parsed.length >= 2) {
+                        return parsed;
+                    }
+                }
+            } catch(e) {}
+            return DEFAULT_PINNED_MODULES;
+        }
+
+        function createSidebarItemHtml(module, isDrawerItem = false) {
+            const isActive = (CURRENT_ACTIVE_PAGE === module.activeKey) || 
+                             (module.activeKey === 'roster' && CURRENT_ACTIVE_PAGE === 'my_roster') ||
+                             (window.location.pathname === module.url);
+            
+            const activeClasses = isActive 
+                ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/30' 
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/80 font-medium';
+
+            const activeIndicator = isActive 
+                ? '<span class="w-1.5 h-4 rounded-full bg-cyan-300 -ml-1"></span>' 
+                : '';
+
+            const badgeHtml = (module.badge && module.badge > 0)
+                ? `<span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-900 animate-pulse ml-auto">${module.badge}</span>`
+                : '';
+
+            return `
+                <a href="${module.url}" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group ${activeClasses}" title="${module.label}">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        ${activeIndicator}
+                        <i data-lucide="${module.icon}" class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"></i>
+                        <span class="sidebar-text truncate">${module.label}</span>
+                    </div>
+                    ${badgeHtml}
+                </a>
+            `;
+        }
+
+        function renderRoleBasedNavigation() {
+            const permitted = getUserPermittedModules();
+            const permittedMap = new Map(permitted.map(m => [m.id, m]));
+            
+            // Filter pinned list ensuring validity and permitted role
+            const validPinnedIds = userPinnedModuleIds.filter(id => permittedMap.has(id));
+            
+            // If somehow less than 2, fallback to defaults that are permitted
+            const effectivePinnedIds = validPinnedIds.length >= 2 
+                ? validPinnedIds 
+                : DEFAULT_PINNED_MODULES.filter(id => permittedMap.has(id));
+
+            const pinnedSet = new Set(effectivePinnedIds);
+            
+            // 1. Pinned Primary Navigation Items
+            const pinnedModules = effectivePinnedIds.map(id => permittedMap.get(id)).filter(Boolean);
+            const primaryContainer = document.getElementById('primary-pinned-nav');
+            if (primaryContainer) {
+                primaryContainer.innerHTML = pinnedModules.map(m => createSidebarItemHtml(m)).join('');
+            }
+
+            // 2. Unpinned More Modules (Collapsible Drawer)
+            const unpinnedModules = permitted.filter(m => !pinnedSet.has(m.id));
+            const drawerContainer = document.getElementById('more-modules-drawer');
+            const drawerCountEl = document.getElementById('more-modules-count');
+            const drawerWrapper = document.getElementById('more-modules-wrapper');
+
+            if (drawerCountEl) drawerCountEl.textContent = unpinnedModules.length;
+            
+            if (drawerContainer) {
+                if (unpinnedModules.length === 0) {
+                    if (drawerWrapper) drawerWrapper.style.display = 'none';
+                } else {
+                    if (drawerWrapper) drawerWrapper.style.display = '';
+                    drawerContainer.innerHTML = unpinnedModules.map(m => createSidebarItemHtml(m, true)).join('');
+                    
+                    // If active page is inside unpinned drawer, auto-expand so user sees context
+                    const hasActiveChild = unpinnedModules.some(m => m.activeKey === CURRENT_ACTIVE_PAGE || window.location.pathname === m.url);
+                    if (hasActiveChild) {
+                        openMoreModulesDrawer();
+                    }
+                }
+            }
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function toggleMoreModulesDrawer() {
+            const drawer = document.getElementById('more-modules-drawer');
+            const chevron = document.getElementById('more-modules-chevron');
+            if (!drawer) return;
+
+            isMoreModulesDrawerOpen = !isMoreModulesDrawerOpen;
+            if (isMoreModulesDrawerOpen) {
+                drawer.classList.remove('hidden');
+                if (chevron) chevron.style.transform = 'rotate(180deg)';
+            } else {
+                drawer.classList.add('hidden');
+                if (chevron) chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function openMoreModulesDrawer() {
+            const drawer = document.getElementById('more-modules-drawer');
+            const chevron = document.getElementById('more-modules-chevron');
+            if (!drawer) return;
+            isMoreModulesDrawerOpen = true;
+            drawer.classList.remove('hidden');
+            if (chevron) chevron.style.transform = 'rotate(180deg)';
+        }
+
+        // ================= CUSTOMIZE SHORTCUTS MODAL ================= //
+        let tempCustomizerSelections = [];
+
+        function openSidebarCustomizerModal() {
+            const modal = document.getElementById('customize-sidebar-modal');
+            const list = document.getElementById('customizer-modules-list');
+            const errorEl = document.getElementById('customizer-error');
+            if (!modal || !list) return;
+
+            if (errorEl) errorEl.classList.add('hidden');
+            tempCustomizerSelections = [...userPinnedModuleIds];
+
+            const permitted = getUserPermittedModules();
+            list.innerHTML = permitted.map(m => {
+                const isChecked = tempCustomizerSelections.includes(m.id);
+                return `
+                    <label class="flex items-center justify-between p-3 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-blue-500/40 bg-slate-50/50 dark:bg-slate-900/40 hover:bg-white dark:hover:bg-slate-800/80 cursor-pointer transition select-none">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                                <i data-lucide="${m.icon}" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <span class="text-xs font-bold text-slate-800 dark:text-slate-200 block">${m.label}</span>
+                                <span class="text-[10px] text-slate-400 block">${m.category} Module</span>
+                            </div>
+                        </div>
+                        <input type="checkbox" value="${m.id}" onchange="handleCustomizerCheckboxChange(this)" ${isChecked ? 'checked' : ''}
+                            class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+                    </label>
+                `;
+            }).join('');
+
+            updateCustomizerCounter();
+            modal.classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function closeSidebarCustomizerModal() {
+            const modal = document.getElementById('customize-sidebar-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function handleCustomizerCheckboxChange(cb) {
+            const val = cb.value;
+            const errorEl = document.getElementById('customizer-error');
+            if (errorEl) errorEl.classList.add('hidden');
+
+            if (cb.checked) {
+                if (tempCustomizerSelections.length >= 6) {
+                    cb.checked = false;
+                    if (errorEl) {
+                        errorEl.textContent = 'Maximum 6 pinned items allowed in primary navigation.';
+                        errorEl.classList.remove('hidden');
+                    }
+                    return;
+                }
+                if (!tempCustomizerSelections.includes(val)) {
+                    tempCustomizerSelections.push(val);
+                }
+            } else {
+                if (tempCustomizerSelections.length <= 2) {
+                    cb.checked = true;
+                    if (errorEl) {
+                        errorEl.textContent = 'Minimum 2 pinned items required in primary navigation.';
+                        errorEl.classList.remove('hidden');
+                    }
+                    return;
+                }
+                tempCustomizerSelections = tempCustomizerSelections.filter(id => id !== val);
+            }
+            updateCustomizerCounter();
+        }
+
+        function updateCustomizerCounter() {
+            const countEl = document.getElementById('customizer-selection-count');
+            if (countEl) {
+                countEl.textContent = `${tempCustomizerSelections.length} / 6 Pinned`;
+                if (tempCustomizerSelections.length < 2 || tempCustomizerSelections.length > 6) {
+                    countEl.className = 'px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-500';
+                } else {
+                    countEl.className = 'px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-500';
+                }
+            }
+        }
+
+        async function saveSidebarPreferencesFromModal() {
+            const errorEl = document.getElementById('customizer-error');
+            if (tempCustomizerSelections.length < 2 || tempCustomizerSelections.length > 6) {
+                if (errorEl) {
+                    errorEl.textContent = 'Please choose between 2 and 6 pinned items.';
+                    errorEl.classList.remove('hidden');
+                }
+                return;
+            }
+
+            userPinnedModuleIds = [...tempCustomizerSelections];
+            
+            // 1. Immediately cache in localStorage for instant reload render
+            localStorage.setItem('shiftflow_sidebar_pinned', JSON.stringify(userPinnedModuleIds));
+            
+            // 2. Re-render UI immediately
+            renderRoleBasedNavigation();
+            closeSidebarCustomizerModal();
+
+            // 3. Persist to database API asynchronously
+            try {
+                const resp = await fetch('/api/user/preferences', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sidebar_pinned: userPinnedModuleIds })
+                });
+                const res = await resp.json();
+                if (!resp.ok) {
+                    console.warn('API sync warning:', res.detail);
+                }
+            } catch(e) {
+                console.warn('Network error saving preferences, cached locally:', e);
+            }
+        }
+
+        async function resetSidebarPreferencesToDefault() {
+            tempCustomizerSelections = [...DEFAULT_PINNED_MODULES];
+            document.querySelectorAll('#customizer-modules-list input[type="checkbox"]').forEach(cb => {
+                cb.checked = tempCustomizerSelections.includes(cb.value);
+            });
+            updateCustomizerCounter();
+            const errorEl = document.getElementById('customizer-error');
+            if (errorEl) errorEl.classList.add('hidden');
+        }
+
+        // Fetch fresh preferences from API on page load (background sync)
+        async function syncUserPreferencesFromApi() {
+            try {
+                const resp = await fetch('/api/user/preferences');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data && Array.isArray(data.sidebar_pinned) && data.sidebar_pinned.length >= 2) {
+                        const incoming = JSON.stringify(data.sidebar_pinned);
+                        const current = JSON.stringify(userPinnedModuleIds);
+                        if (incoming !== current) {
+                            userPinnedModuleIds = data.sidebar_pinned;
+                            localStorage.setItem('shiftflow_sidebar_pinned', incoming);
+                            renderRoleBasedNavigation();
+                        }
+                    }
+                }
+            } catch(e) {
+                // Offline fallback already loaded via localStorage
+            }
+        }
+
+        // Initialize user preferences immediately
+        userPinnedModuleIds = getStoredPinnedModules();
+        renderRoleBasedNavigation();
+        syncUserPreferencesFromApi();
+
         initTheme();
         restoreSidebarState();
-        renderPinnedLinks();
     </script>
     {% block extra_scripts %}{% endblock %}
 </body>

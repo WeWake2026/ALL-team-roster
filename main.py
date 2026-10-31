@@ -62,6 +62,22 @@ def get_user_notifications(user_id: int, db: Session) -> List[models.Notificatio
 def get_pending_leave_count(db: Session) -> int:
     return db.query(models.LeaveRequest).filter(models.LeaveRequest.status == "Pending").count()
 
+def get_user_sidebar_pinned(user_id: int, db: Session) -> List[str]:
+    """Retrieves pinned module IDs for a user with clean fallback to defaults."""
+    default_pinned = ["dashboard", "roster", "attendance_swaps", "leaves"]
+    if not user_id:
+        return default_pinned
+    try:
+        pref = db.query(models.UserPreference).filter(models.UserPreference.user_id == user_id).first()
+        if pref and pref.sidebar_pinned:
+            items = json.loads(pref.sidebar_pinned)
+            if isinstance(items, list) and len(items) >= 2:
+                return items
+    except Exception:
+        pass
+    return default_pinned
+
+
 # ================= AUTH ROUTES ================= #
 
 @app.get("/", response_class=HTMLResponse)
@@ -296,7 +312,8 @@ def dashboard(
             "upcoming_leaves": upcoming_leaves,
             "user_leaves": user_leaves,
             "notifications": notifications,
-            "pending_leave_count": pending_count
+            "pending_leave_count": pending_count,
+            "sidebar_pinned": get_user_sidebar_pinned(user.id, db)
         }
     )
 
@@ -2532,6 +2549,82 @@ async def api_activate_employee(
     except Exception as e:
         db.rollback()
         return {"success": False, "detail": str(e)}
+
+# ================= USER PREFERENCES & NAVIGATION SHORTCUTS API ================= #
+
+@app.get("/api/user/preferences")
+def get_user_preferences_api(
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """
+    Retrieves the current user's navigation and sidebar preferences.
+    """
+    pref = db.query(models.UserPreference).filter(models.UserPreference.user_id == user.id).first()
+    default_pinned = ["dashboard", "roster", "attendance_swaps", "leaves"]
+    pinned_list = default_pinned
+    if pref and pref.sidebar_pinned:
+        try:
+            pinned_list = json.loads(pref.sidebar_pinned)
+            if not isinstance(pinned_list, list):
+                pinned_list = default_pinned
+        except Exception:
+            pinned_list = default_pinned
+
+    return {
+        "success": True,
+        "user_id": user.id,
+        "sidebar_pinned": pinned_list
+    }
+
+@app.post("/api/user/preferences")
+async def save_user_preferences_api(
+    request: Request,
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """
+    Persists user's custom sidebar pinned items.
+    Enforces minimum 2 and maximum 6 pinned items.
+    """
+    try:
+        data = await request.json()
+        pinned = data.get("sidebar_pinned", [])
+        if not isinstance(pinned, list):
+            raise HTTPException(status_code=400, detail="sidebar_pinned must be an array of module IDs.")
+
+        # Clean strings
+        pinned = [str(item).strip() for item in pinned if str(item).strip()]
+
+        # Enforce min 2, max 6
+        if len(pinned) < 2:
+            raise HTTPException(status_code=400, detail="Minimum 2 pinned items required.")
+        if len(pinned) > 6:
+            raise HTTPException(status_code=400, detail="Maximum 6 pinned items allowed.")
+
+        pref = db.query(models.UserPreference).filter(models.UserPreference.user_id == user.id).first()
+        if not pref:
+            pref = models.UserPreference(
+                user_id=user.id,
+                sidebar_pinned=json.dumps(pinned)
+            )
+            db.add(pref)
+        else:
+            pref.sidebar_pinned = json.dumps(pinned)
+            pref.updated_at = datetime.utcnow()
+
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "Sidebar preferences saved successfully.",
+            "sidebar_pinned": pinned
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to save preferences: {str(e)}")
 
 @app.get("/api/roster/capacity")
 def api_get_roster_capacity(
