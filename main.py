@@ -564,6 +564,13 @@ def leaves_page(
 
         review_queue = rq_query.order_by(models.LeaveRequest.created_at.asc()).all()
 
+    all_staff = []
+    if perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader:
+        s_query = db.query(models.User).filter(models.User.is_active == True)
+        if not perms.can_view_all and not perms.is_admin:
+            s_query = s_query.filter(models.User.location_id.in_(perms.location_ids))
+        all_staff = s_query.order_by(models.User.name.asc()).all()
+
     return templates.TemplateResponse(
         request=request,
         name="leaves.html",
@@ -574,6 +581,7 @@ def leaves_page(
             "today": today,
             "my_requests": my_requests,
             "all_pending_requests": review_queue,
+            "all_staff": all_staff,
             "pending_approval_count": len(review_queue),
             "pending_leave_count": pending_count,
             "alert_msg": alert_msg,
@@ -588,13 +596,28 @@ async def apply_leave(
     start_date: str = Form(...),
     end_date: str = Form(...),
     reason: str = Form(...),
+    target_user_id: Optional[int] = Form(None), # When Admin/Manager assigns leave for another staff member
+    admin_notes: Optional[str] = Form(None), # Remarks from senior/head
     day_part: Optional[str] = Form("full"), # "full" (1.0), "half_first" (0.5), "half_second" (0.5)
     doc_category: Optional[str] = Form("Medical / Supporting Evidence"),
     evidence_files: List[UploadFile] = File(default=[]),
     user: models.User = Depends(require_auth),
+    perms: get_user_perms = Depends(get_user_perms),
     db: Session = Depends(get_db)
 ):
     try:
+        # Determine applicant: self or target staff member if Admin/Manager
+        applicant = user
+        is_admin_assign = False
+        if target_user_id and target_user_id != user.id:
+            if not (perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader):
+                raise HTTPException(status_code=403, detail="Unauthorized to apply leave on behalf of other staff.")
+            target_user = db.query(models.User).filter(models.User.id == target_user_id).first()
+            if not target_user:
+                return RedirectResponse(url="/leaves?alert_msg=Target+employee+not+found&alert_type=error", status_code=302)
+            applicant = target_user
+            is_admin_assign = True
+
         s_dt = datetime.strptime(start_date.strip(), "%Y-%m-%d").date()
         e_dt = datetime.strptime(end_date.strip(), "%Y-%m-%d").date()
         if e_dt < s_dt:
@@ -605,7 +628,7 @@ async def apply_leave(
 
         # Check overlapping leave requests for this user
         overlapping = db.query(models.LeaveRequest).filter(
-            models.LeaveRequest.user_id == user.id,
+            models.LeaveRequest.user_id == applicant.id,
             models.LeaveRequest.status.in_(["Approved", "Pending Approval", "Pending", "Under Review"]),
             models.LeaveRequest.start_date <= e_dt,
             models.LeaveRequest.end_date >= s_dt
@@ -619,14 +642,14 @@ async def apply_leave(
         if day_part in ["half", "half_first", "half_second"] or leave_type == "Half-Day":
             duration = 0.5
             if leave_type == "Half-Day":
-                leave_type = "CL" if (user.balance_cl or user.cl_balance or 0) >= 0.5 else "SL"
+                leave_type = "CL" if (applicant.balance_cl or applicant.cl_balance or 0) >= 0.5 else "SL"
         else:
             duration = float((e_dt - s_dt).days + 1)
 
         # Active balance references
-        active_cl = user.balance_cl if user.balance_cl is not None else (user.cl_balance or 0.0)
-        active_sl = user.balance_sl if user.balance_sl is not None else (user.sl_balance or 0.0)
-        active_co = user.balance_co if user.balance_co is not None else (user.co_balance or 0.0)
+        active_cl = applicant.balance_cl if applicant.balance_cl is not None else (applicant.cl_balance or 0.0)
+        active_sl = applicant.balance_sl if applicant.balance_sl is not None else (applicant.sl_balance or 0.0)
+        active_co = applicant.balance_co if applicant.balance_co is not None else (applicant.co_balance or 0.0)
 
         # Balance check
         if leave_type == "CL" and active_cl < duration:
@@ -650,19 +673,65 @@ async def apply_leave(
         seq = db.query(models.LeaveRequest).count() + 1
         app_num = f"LA-{date_stamp}-{seq:04d}"
 
+        # Combine applicant reason with any senior admin handover note
+        full_reason = reason.strip()
+        if admin_notes and admin_notes.strip():
+            full_reason += f" [Admin/Senior Note by {user.name}: {admin_notes.strip()}]"
+
+        initial_status = "Approved" if (is_admin_assign and (perms.is_admin or perms.is_hr)) else "Pending Approval"
+
         leave_req = models.LeaveRequest(
             application_number=app_num,
-            user_id=user.id,
+            user_id=applicant.id,
             leave_type=leave_type,
             day_part=day_part,
             start_date=s_dt,
             end_date=e_dt,
             duration_days=duration,
-            reason=reason.strip(),
-            status="Pending Approval"
+            reason=full_reason,
+            status=initial_status,
+            reviewed_by=user.name if is_admin_assign else None,
+            reviewed_at=datetime.utcnow() if is_admin_assign else None,
+            reviewer_comment=admin_notes.strip() if admin_notes else None
         )
         db.add(leave_req)
         db.flush()
+
+        # If auto-approved by admin/HR, deduct quota immediately and update roster
+        if initial_status == "Approved":
+            if leave_type == "CL":
+                applicant.balance_cl = max(0.0, active_cl - duration)
+                applicant.cl_balance = applicant.balance_cl
+                applicant.taken_cl = (applicant.taken_cl or 0.0) + duration
+            elif leave_type == "SL":
+                applicant.balance_sl = max(0.0, active_sl - duration)
+                applicant.sl_balance = applicant.balance_sl
+                applicant.taken_sl = (applicant.taken_sl or 0.0) + duration
+            elif leave_type in ["Comp-Off", "CO"]:
+                applicant.balance_co = max(0.0, active_co - duration)
+                applicant.co_balance = applicant.balance_co
+
+            # Sync Roster
+            curr = s_dt
+            while curr <= e_dt:
+                rentry = db.query(models.RosterEntry).filter(
+                    models.RosterEntry.user_id == applicant.id,
+                    models.RosterEntry.date == curr
+                ).first()
+                if not rentry:
+                    rentry = models.RosterEntry(
+                        user_id=applicant.id,
+                        date=curr,
+                        shift_code_or_time=leave_type,
+                        status="Leave",
+                        updated_by=user.name
+                    )
+                    db.add(rentry)
+                else:
+                    rentry.shift_code_or_time = leave_type
+                    rentry.status = "Leave"
+                    rentry.updated_by = user.name
+                curr += timedelta(days=1)
 
         # Handle file uploads securely
         saved_count = 0

@@ -392,58 +392,72 @@
 
                     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3.5" id="launcher-global-grid">
                         <!-- Roster Home Card -->
-                        <div class="relative group bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 shadow-xs hover:shadow-md transition-all flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/roster', 'Team Roster', 'calendar', 'blue')" class="absolute top-2.5 right-2.5 p-1 rounded-lg text-slate-400 hover:text-amber-500 pin-toggle-btn" data-url="/roster" title="Pin / Unpin to Sidebar">
+                        <div class="relative group bg-gradient-to-b from-blue-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-blue-100 hover:to-white dark:hover:from-blue-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-blue-200/80 dark:border-slate-700 hover:border-blue-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
+                            <button type="button" onclick="togglePinLink('/roster', 'Team Roster', 'calendar', 'blue')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/roster" class="w-full flex flex-col items-center">
-                                <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
-                                    <i data-lucide="calendar" class="w-6 h-6"></i>
+                                <div class="w-14 h-14 rounded-2xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2.5 shadow-xs group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-200">
+                                    <i data-lucide="calendar" class="w-7 h-7"></i>
                                 </div>
-                                <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Team Roster</span>
-                                <span class="text-[10px] text-slate-400 mt-0.5">Weekly Schedule</span>
+                                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Team Roster</span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Weekly Schedule</span>
                             </a>
                         </div>
 
                         <!-- Location Roster Card -->
-                        <div class="relative group bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 shadow-xs hover:shadow-md transition-all flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/roster/location', 'Location Roster', 'map-pin', 'cyan')" class="absolute top-2.5 right-2.5 p-1 rounded-lg text-slate-400 hover:text-amber-500 pin-toggle-btn" data-url="/roster/location" title="Pin / Unpin to Sidebar">
+                        <div class="relative group bg-gradient-to-b from-cyan-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-cyan-100 hover:to-white dark:hover:from-cyan-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-cyan-200/80 dark:border-slate-700 hover:border-cyan-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
+                            <button type="button" onclick="togglePinLink('/roster/location', 'Location Roster', 'map-pin', 'cyan')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/location" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/roster/location" class="w-full flex flex-col items-center">
-                                <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
-                                    <i data-lucide="map-pin" class="w-6 h-6"></i>
+                                <div class="w-14 h-14 rounded-2xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center mb-2.5 shadow-xs group-hover:scale-110 group-hover:bg-cyan-600 group-hover:text-white transition-all duration-200">
+                                    <i data-lucide="map-pin" class="w-7 h-7"></i>
                                 </div>
-                                <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Location Roster</span>
-                                <span class="text-[10px] text-slate-400 mt-0.5">Branch Operations</span>
+                                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">Location Roster</span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Branch Operations</span>
                             </a>
                         </div>
 
                         <!-- Combined Roster Card -->
-                        <div class="relative group bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 shadow-xs hover:shadow-md transition-all flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/roster/combined', 'Combined Roster', 'layers', 'purple')" class="absolute top-2.5 right-2.5 p-1 rounded-lg text-slate-400 hover:text-amber-500 pin-toggle-btn" data-url="/roster/combined" title="Pin / Unpin to Sidebar">
+                        <div class="relative group bg-gradient-to-b from-purple-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-purple-100 hover:to-white dark:hover:from-purple-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-purple-200/80 dark:border-slate-700 hover:border-purple-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
+                            <button type="button" onclick="togglePinLink('/roster/combined', 'Combined Roster', 'layers', 'purple')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/combined" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/roster/combined" class="w-full flex flex-col items-center">
-                                <div class="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
-                                    <i data-lucide="layers" class="w-6 h-6"></i>
+                                <div class="w-14 h-14 rounded-2xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-2.5 shadow-xs group-hover:scale-110 group-hover:bg-purple-600 group-hover:text-white transition-all duration-200">
+                                    <i data-lucide="layers" class="w-7 h-7"></i>
                                 </div>
-                                <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Combined View</span>
-                                <span class="text-[10px] text-slate-400 mt-0.5">All Branches</span>
+                                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Combined View</span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">All Branches</span>
                             </a>
                         </div>
 
                         <!-- Quick Shift Assign Desk -->
-                        <div class="relative group bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500/50 shadow-xs hover:shadow-md transition-all flex flex-col items-center text-center">
-                            <button type="button" onclick="togglePinLink('/roster/manage', 'Assign Desk', 'sliders', 'amber')" class="absolute top-2.5 right-2.5 p-1 rounded-lg text-slate-400 hover:text-amber-500 pin-toggle-btn" data-url="/roster/manage" title="Pin / Unpin to Sidebar">
+                        <div class="relative group bg-gradient-to-b from-amber-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-amber-100 hover:to-white dark:hover:from-amber-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-amber-200/80 dark:border-slate-700 hover:border-amber-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
+                            <button type="button" onclick="togglePinLink('/roster/manage', 'Assign Desk', 'sliders', 'amber')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/manage" title="Pin / Unpin to Sidebar">
                                 <i data-lucide="pin" class="w-3.5 h-3.5"></i>
                             </button>
                             <a href="/roster/manage" class="w-full flex flex-col items-center">
-                                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
-                                    <i data-lucide="sliders" class="w-6 h-6"></i>
+                                <div class="w-14 h-14 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2.5 shadow-xs group-hover:scale-110 group-hover:bg-amber-600 group-hover:text-white transition-all duration-200">
+                                    <i data-lucide="sliders" class="w-7 h-7"></i>
                                 </div>
-                                <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Assign Desk</span>
-                                <span class="text-[10px] text-slate-400 mt-0.5">Fast Modification</span>
+                                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Assign Desk</span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Fast Modification</span>
+                            </a>
+                        </div>
+
+                        <!-- Shift Change History -->
+                        <div class="relative group bg-gradient-to-b from-emerald-50/80 to-white dark:from-slate-800 dark:to-slate-800/80 hover:from-emerald-100 hover:to-white dark:hover:from-emerald-950/40 dark:hover:to-slate-800 p-4 rounded-2xl border border-emerald-200/80 dark:border-slate-700 hover:border-emerald-500 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-200 flex flex-col items-center text-center">
+                            <button type="button" onclick="togglePinLink('/roster/history', 'Change History', 'history', 'emerald')" class="absolute top-2.5 right-2.5 p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 pin-toggle-btn transition" data-url="/roster/history" title="Pin / Unpin to Sidebar">
+                                <i data-lucide="pin" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <a href="/roster/history" class="w-full flex flex-col items-center">
+                                <div class="w-14 h-14 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2.5 shadow-xs group-hover:scale-110 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-200">
+                                    <i data-lucide="history" class="w-7 h-7"></i>
+                                </div>
+                                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Change History</span>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Audit Log & Trace</span>
                             </a>
                         </div>
 
