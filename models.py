@@ -384,3 +384,18 @@ class UserPreference(Base):
 
     user = relationship("User")
 
+class CompanySetting(Base):
+    """
+    Global 24/7 Enterprise rules, shift rotations, holiday compensatory policies,
+    and leave quota limits.
+    """
+    __tablename__ = "company_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    setting_key = Column(String(80), unique=True, nullable=False, index=True)
+    setting_value = Column(Text, nullable=False)
+    description = Column(String(255), nullable=True)
+    category = Column(String(50), default="24x7_rules") # 24x7_rules, quotas, holidays, shifts
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+

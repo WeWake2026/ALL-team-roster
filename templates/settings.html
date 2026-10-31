@@ -1,72 +1,320 @@
 {% extends "base.html" %}
-{% block title %}Operational Settings & Holidays - ShiftFlow Pro{% endblock %}
+{% block title %}24/7 Operations Rules, Holidays & Quota Master - ShiftFlow Pro{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Header -->
-    <div>
-        <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <span>Administration</span>
-            <i data-lucide="chevron-right" class="w-3 h-3"></i>
-            <span class="text-slate-800 dark:text-slate-200 font-semibold">Settings</span>
+    <!-- Header with Breadcrumbs & Overview -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                <span>Enterprise Administration</span>
+                <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                <span class="text-slate-800 dark:text-slate-200 font-semibold">24/7 Operational Settings</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                <span>Company Rules, Holidays & Quotas</span>
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                    24/7 Continuous Operations
+                </span>
+            </h1>
+            <p class="text-xs text-slate-500 mt-1">Configure round-the-clock shift policies, holiday comp-off rules, and workforce quota guardrails.</p>
         </div>
-        <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Company Rules, Holidays & Quotas
-        </h1>
+        <div class="flex items-center gap-2">
+            <span class="text-xs px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-slate-700">
+                Today: {{ today.strftime('%d %B %Y') }}
+            </span>
+        </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <!-- Add Holiday Form -->
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
-            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-                <i data-lucide="calendar-plus" class="w-5 h-5 text-blue-600"></i>
-                <span>Declare Official Public Holiday</span>
-            </h2>
-            <p class="text-xs text-slate-500 mb-5">Holidays will automatically highlight in all employee rosters.</p>
+    <!-- 24/7 Operational Rules & Quota Ceilings Form -->
+    <form action="/admin/settings/update-rules" method="POST" class="space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Card 1: 24/7 Continuous Shift & Rest Policy -->
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+                <div class="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <i data-lucide="clock" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white">24/7 Shift & Fatigue Rules</h2>
+                        <p class="text-[11px] text-slate-400">Rest gaps and overnight rotation rules</p>
+                    </div>
+                </div>
 
-            <form action="/admin/add-holiday" method="POST" class="space-y-4 text-xs">
-                <div>
-                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Holiday Name</label>
-                    <input type="text" name="name" required placeholder="e.g. New Year Day / Shivaji Maharaj Jayanti" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
+                <div class="space-y-3.5 text-xs">
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Min Rest Gap Between Shifts (Hours)
+                        </label>
+                        <input type="number" step="1" name="min_rest_hours_between_shifts" required
+                            value="{{ settings.get('min_rest_hours_between_shifts', '12') }}"
+                            class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-blue-500">
+                        <span class="text-[10px] text-slate-400 mt-1 block">Mandatory rest gap between back-to-back shifts.</span>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Max Consecutive Night Shifts
+                        </label>
+                        <input type="number" step="1" name="max_consecutive_night_shifts" required
+                            value="{{ settings.get('max_consecutive_night_shifts', '4') }}"
+                            class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-blue-500">
+                        <span class="text-[10px] text-slate-400 mt-1 block">Maximum nights worked before mandatory 48-hr rest off.</span>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Night Shift Allowance & Tracking
+                        </label>
+                        <select name="auto_night_shift_allowance" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-blue-500">
+                            <option value="ENABLED" {% if settings.get('auto_night_shift_allowance') == 'ENABLED' %}selected{% endif %}>Automated Tracking (Enabled)</option>
+                            <option value="DISABLED" {% if settings.get('auto_night_shift_allowance') == 'DISABLED' %}selected{% endif %}>Manual Approval (Disabled)</option>
+                        </select>
+                        <span class="text-[10px] text-slate-400 mt-1 block">Tracks overnight shifts for shift allowance reporting.</span>
+                    </div>
                 </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Holiday Date</label>
-                    <input type="date" name="date" required value="{{ today.strftime('%Y-%m-%d') }}" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- Card 2: Holiday Compensatory & Working Day Rules -->
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+                <div class="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                        <i data-lucide="scale" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white">24/7 Holiday Working Policy</h2>
+                        <p class="text-[11px] text-slate-400">Comp-off credits for rostered shifts</p>
+                    </div>
                 </div>
-                <button type="submit" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow transition">
+
+                <div class="space-y-3.5 text-xs">
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Holiday Work Compensation Policy
+                        </label>
+                        <select name="holiday_shift_policy" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-blue-500">
+                            <option value="COMP_OFF_CREDIT" {% if settings.get('holiday_shift_policy') == 'COMP_OFF_CREDIT' %}selected{% endif %}>Auto 1.0 Comp-Off (CO) Credit</option>
+                            <option value="DOUBLE_PAY_ALLOWANCE" {% if settings.get('holiday_shift_policy') == 'DOUBLE_PAY_ALLOWANCE' %}selected{% endif %}>Holiday Overtime Allowance (Payroll)</option>
+                            <option value="STANDARD_REST" {% if settings.get('holiday_shift_policy') == 'STANDARD_REST' %}selected{% endif %}>Standard Weekly Rest Adjustment</option>
+                        </select>
+                        <span class="text-[10px] text-slate-400 mt-1 block">In a 24/7 continuous utility, staff working on declared holidays accrue credit.</span>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Daily Leave Cap Per Branch (%)
+                        </label>
+                        <input type="number" step="0.5" name="daily_leave_cap_percentage" required
+                            value="{{ settings.get('daily_leave_cap_percentage', '15.0') }}"
+                            class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-blue-500">
+                        <span class="text-[10px] text-slate-400 mt-1 block">Guardrail: Cap concurrent leaves so minimum branch headcount is preserved.</span>
+                    </div>
+
+                    <div class="p-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl">
+                        <span class="font-bold text-amber-800 dark:text-amber-300 block mb-1">Round-the-Clock Guarantee</span>
+                        <p class="text-[10px] text-amber-700 dark:text-amber-400">All 3 shifts (Morning, General/Evening, Night) are guarded against under-staffing.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3: Annual Leave Quotas & Ceilings -->
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+                <div class="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <i data-lucide="calendar-range" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white">Annual Employee Leave Quotas</h2>
+                        <p class="text-[11px] text-slate-400">Standard annual entitlement ceilings</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3.5 text-xs">
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Casual Leave (CL) Quota (Days / Year)
+                        </label>
+                        <input type="number" step="0.5" name="annual_cl_quota" required
+                            value="{{ settings.get('annual_cl_quota', '12.0') }}"
+                            class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-blue-500">
+                        <span class="text-[10px] text-slate-400 mt-1 block">Accrued 1.0 day / month for active rostered personnel.</span>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Sick Leave (SL) Quota (Days / Year)
+                        </label>
+                        <input type="number" step="0.5" name="annual_sl_quota" required
+                            value="{{ settings.get('annual_sl_quota', '9.0') }}"
+                            class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-blue-500">
+                        <span class="text-[10px] text-slate-400 mt-1 block">Requires medical prescription certificate after 2 consecutive days.</span>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Privilege Leave (PL) Quota (Days / Year)
+                        </label>
+                        <input type="number" step="0.5" name="annual_pl_quota" required
+                            value="{{ settings.get('annual_pl_quota', '15.0') }}"
+                            class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-blue-500">
+                        <span class="text-[10px] text-slate-400 mt-1 block">Requires minimum 7-day advance submission notice.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit Button for 24/7 Rules -->
+        <div class="flex items-center justify-end">
+            <button type="submit" class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4"></i>
+                <span>Save 24/7 Operational Rules & Quotas</span>
+            </button>
+        </div>
+    </form>
+
+    <!-- Public Holidays & Shift Slots Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
+        <!-- Official Holidays Master Table (2 cols) -->
+        <div class="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <i data-lucide="calendar" class="w-5 h-5 text-indigo-600"></i>
+                        <span>Declared Public Holidays Master ({{ holidays|length }})</span>
+                    </h2>
+                    <p class="text-xs text-slate-500">Highlights on all rosters; staff working these days receive Comp-Off credit</p>
+                </div>
+                <button type="button" onclick="document.getElementById('add-holiday-modal').classList.remove('hidden')" class="px-3.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs border border-indigo-200 dark:border-indigo-900 transition flex items-center gap-1.5">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    <span>Declare Holiday</span>
+                </button>
+            </div>
+
+            <!-- Holidays List -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+                    <thead class="bg-slate-50 dark:bg-slate-800/60 text-[11px] font-bold uppercase text-slate-400">
+                        <tr>
+                            <th class="p-3 pl-4">Date</th>
+                            <th class="p-3">Holiday Name</th>
+                            <th class="p-3 text-center">Type</th>
+                            <th class="p-3 text-right pr-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        {% for h in holidays %}
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                            <td class="p-3 pl-4 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                                {{ h.date.strftime('%d %b %Y') }}
+                                <span class="text-[10px] text-slate-400 font-normal block">{{ h.date.strftime('%A') }}</span>
+                            </td>
+                            <td class="p-3 font-semibold text-slate-800 dark:text-slate-200">
+                                {{ h.name }}
+                            </td>
+                            <td class="p-3 text-center">
+                                {% if h.optional_flag %}
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">Optional / Restricted</span>
+                                {% else %}
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Mandatory Holiday</span>
+                                {% endif %}
+                            </td>
+                            <td class="p-3 text-right pr-4">
+                                <form action="/admin/delete-holiday" method="POST" class="inline" onsubmit="return confirm('Remove holiday {{ h.name }}?');">
+                                    <input type="hidden" name="holiday_id" value="{{ h.id }}">
+                                    <button type="submit" class="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition" title="Delete Holiday">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 24/7 Shift Overview Quick Reference -->
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <i data-lucide="sliders" class="w-5 h-5 text-blue-600"></i>
+                        <span>Configured Shifts ({{ shifts|length }})</span>
+                    </h2>
+                    <p class="text-xs text-slate-500">Active round-the-clock shift slots</p>
+                </div>
+                <a href="/admin/shifts" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400">Manage</a>
+            </div>
+
+            <div class="space-y-2.5">
+                {% for s in shifts %}
+                <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-3 h-3 rounded-full" style="background-color: {{ s.color_code or '#3b82f6' }};"></span>
+                        <div>
+                            <span class="font-bold text-slate-800 dark:text-white block">{{ s.name }}</span>
+                            <span class="font-mono text-[11px] text-slate-500 dark:text-slate-400">{{ s.code }}</span>
+                        </div>
+                    </div>
+                    {% if s.is_overnight %}
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">Overnight</span>
+                    {% else %}
+                    <span class="text-[10px] text-slate-400">{{ s.break_duration_mins }}m break</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="pt-2">
+                <a href="/admin/shifts" class="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Configure New 24/7 Shift</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DECLARE HOLIDAY MODAL -->
+<div id="add-holiday-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md shadow-2xl p-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="calendar-plus" class="w-5 h-5 text-blue-600"></i>
+                <span>Declare Public Holiday</span>
+            </h3>
+            <button onclick="document.getElementById('add-holiday-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form action="/admin/add-holiday" method="POST" class="mt-4 space-y-4 text-xs">
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Holiday Name *</label>
+                <input type="text" name="name" required placeholder="e.g. Diwali / Republic Day"
+                    class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Holiday Date *</label>
+                <input type="date" name="date" required value="{{ today.strftime('%Y-%m-%d') }}"
+                    class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="flex items-center gap-2 pt-1">
+                <input type="checkbox" id="optional_flag" name="optional_flag" value="true" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300">
+                <label for="optional_flag" class="font-medium text-slate-700 dark:text-slate-300 select-none">Optional / Restricted Holiday</label>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onclick="document.getElementById('add-holiday-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-md shadow-blue-500/20 transition">
                     Save Holiday
                 </button>
-            </form>
-        </div>
-
-        <!-- Add Shift Template Form -->
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
-            <h2 class="text-base font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-                <i data-lucide="clock" class="w-5 h-5 text-indigo-600"></i>
-                <span>Create Custom Shift Timing</span>
-            </h2>
-            <p class="text-xs text-slate-500 mb-5">Define new slot timings for seasonal audit drives or escalations.</p>
-
-            <form action="/admin/add-shift" method="POST" class="space-y-4 text-xs">
-                <div>
-                    <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Shift Label</label>
-                    <input type="text" name="name" required placeholder="e.g. Mid-Day Flexi Shift" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">Start Time</label>
-                        <input type="time" name="start_time" required value="10:00" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">End Time</label>
-                        <input type="time" name="end_time" required value="19:00" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
-                    </div>
-                </div>
-                <button type="submit" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow transition">
-                    Save Shift Template
-                </button>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}

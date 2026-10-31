@@ -1843,41 +1843,143 @@ def download_sample_roster(
         headers={"Content-Disposition": "attachment; filename=ShiftFlow_Operations_Sample_Template.xlsx"}
     )
 
+# ================= OPERATIONAL SETTINGS, 24/7 RULES & HOLIDAYS ================= #
+
+def get_company_setting_val(key: str, default: str, db: Session) -> str:
+    s = db.query(models.CompanySetting).filter(models.CompanySetting.setting_key == key).first()
+    return s.setting_value if s else default
+
 @app.get("/admin/settings", response_class=HTMLResponse)
 def settings_page(
     request: Request,
+    alert_msg: Optional[str] = None,
+    alert_type: Optional[str] = "success",
     user: models.User = Depends(require_admin_or_manager),
+    perms: get_user_perms = Depends(get_user_perms),
     db: Session = Depends(get_db)
 ):
     today = date.today()
     pending_count = get_pending_leave_count(db)
+    holidays = db.query(models.Holiday).order_by(models.Holiday.date.asc()).all()
+    shifts = db.query(models.Shift).order_by(models.Shift.id.asc()).all()
+    locations = db.query(models.Location).filter(models.Location.is_active == True).all()
+    
+    # Load settings map
+    all_settings = db.query(models.CompanySetting).all()
+    settings_map = {s.setting_key: s.setting_value for s in all_settings}
+
     return templates.TemplateResponse(
         request=request,
         name="settings.html",
         context={
             "user": user,
+            "perms": perms,
             "active_page": "settings",
             "today": today,
-            "pending_leave_count": pending_count
+            "pending_leave_count": pending_count,
+            "holidays": holidays,
+            "shifts": shifts,
+            "locations": locations,
+            "settings": settings_map,
+            "alert_msg": alert_msg,
+            "alert_type": alert_type
         }
+    )
+
+@app.post("/admin/settings/update-rules")
+def update_company_rules(
+    request: Request,
+    min_rest_hours_between_shifts: str = Form("12"),
+    holiday_shift_policy: str = Form("COMP_OFF_CREDIT"),
+    max_consecutive_night_shifts: str = Form("4"),
+    annual_cl_quota: str = Form("12.0"),
+    annual_sl_quota: str = Form("9.0"),
+    annual_pl_quota: str = Form("15.0"),
+    daily_leave_cap_percentage: str = Form("15.0"),
+    auto_night_shift_allowance: str = Form("ENABLED"),
+    user: models.User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Saves 24/7 continuous operations rules and quotas configuration"""
+    rules_dict = {
+        "min_rest_hours_between_shifts": min_rest_hours_between_shifts.strip(),
+        "holiday_shift_policy": holiday_shift_policy.strip(),
+        "max_consecutive_night_shifts": max_consecutive_night_shifts.strip(),
+        "annual_cl_quota": annual_cl_quota.strip(),
+        "annual_sl_quota": annual_sl_quota.strip(),
+        "annual_pl_quota": annual_pl_quota.strip(),
+        "daily_leave_cap_percentage": daily_leave_cap_percentage.strip(),
+        "auto_night_shift_allowance": auto_night_shift_allowance.strip(),
+    }
+
+    for key, val in rules_dict.items():
+        s = db.query(models.CompanySetting).filter(models.CompanySetting.setting_key == key).first()
+        if not s:
+            s = models.CompanySetting(setting_key=key, setting_value=val, category="24x7_rules")
+            db.add(s)
+        else:
+            s.setting_value = val
+    
+    db.commit()
+
+    log_audit_event(
+        db=db,
+        actor=user,
+        action="COMPANY_SETTINGS_UPDATE",
+        resource_type="CompanySetting",
+        resource_id="ALL",
+        details="Updated 24/7 continuous operational rules and annual quota ceilings."
+    )
+
+    return RedirectResponse(
+        url="/admin/settings?alert_msg=24%2F7+Company+Rules+and+Quota+settings+saved+successfully!&alert_type=success",
+        status_code=302
     )
 
 @app.post("/admin/add-holiday")
 def add_holiday(
     name: str = Form(...),
     date: str = Form(...),
+    optional_flag: Optional[bool] = Form(False),
     user: models.User = Depends(require_admin_or_manager),
     db: Session = Depends(get_db)
 ):
-    h_date = datetime.strptime(date, "%Y-%m-%d").date()
+    try:
+        h_date = datetime.strptime(date.strip(), "%Y-%m-%d").date()
+    except Exception:
+        return RedirectResponse(url="/admin/settings?alert_msg=Invalid+date+format&alert_type=error", status_code=302)
+
     existing = db.query(models.Holiday).filter(models.Holiday.date == h_date).first()
     if existing:
-        existing.name = name
+        existing.name = name.strip()
+        existing.optional_flag = bool(optional_flag)
     else:
-        h = models.Holiday(name=name, date=h_date)
+        h = models.Holiday(name=name.strip(), date=h_date, optional_flag=bool(optional_flag))
         db.add(h)
     db.commit()
-    return RedirectResponse(url="/roster/manage", status_code=status.HTTP_302_FOUND)
+
+    return RedirectResponse(
+        url=f"/admin/settings?alert_msg=Holiday+{name.strip()}+saved+successfully!&alert_type=success",
+        status_code=status.HTTP_302_FOUND
+    )
+
+@app.post("/admin/delete-holiday")
+def delete_holiday(
+    holiday_id: int = Form(...),
+    user: models.User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    h = db.query(models.Holiday).filter(models.Holiday.id == holiday_id).first()
+    if h:
+        h_name = h.name
+        db.delete(h)
+        db.commit()
+        return RedirectResponse(
+            url=f"/admin/settings?alert_msg=Holiday+{h_name}+removed+successfully.&alert_type=success",
+            status_code=302
+        )
+    return RedirectResponse(url="/admin/settings?alert_msg=Holiday+not+found&alert_type=error", status_code=302)
+
 
 @app.post("/admin/add-shift")
 def add_shift(
