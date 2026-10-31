@@ -562,7 +562,8 @@ def dashboard(
             "active_work_session": active_work_session,
             "active_break": active_break,
             "recent_session_logs": recent_session_logs,
-            "today_online_hours": today_online_hours
+            "today_online_hours": today_online_hours,
+            "timedelta": timedelta
         }
     )
 

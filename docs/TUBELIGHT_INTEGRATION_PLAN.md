@@ -94,3 +94,4 @@ flowchart LR
 1. **Step 1 (UI Widget)**: Add the Tubelight Quick Options / Launcher card directly on the ShiftFlow Dashboard and floating softphone trigger.
 2. **Step 2 (Data Ingestion)**: Add a Tubelight CDR (Call Detail Record) / Disposition upload & webhook handler in `excel_service.py` to allow managers to upload daily Tubelight call summary reports.
 3. **Step 3 (Reconciliation)**: Correlate Tubelight login hours with ShiftFlow work sessions for automated attendance verification.
+
