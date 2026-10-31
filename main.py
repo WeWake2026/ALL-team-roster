@@ -116,6 +116,157 @@ def login_page(
         }
     )
 
+@app.get("/signup", response_class=HTMLResponse)
+def signup_page(
+    request: Request,
+    error: Optional[str] = None,
+    success: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    locations = db.query(models.Location).filter(models.Location.is_active == True).order_by(models.Location.name.asc()).all()
+    departments = db.query(models.Department).order_by(models.Department.name.asc()).all()
+    today = date.today()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="signup.html",
+        context={
+            "user": None,
+            "locations": locations,
+            "departments": departments,
+            "today": today,
+            "error": error,
+            "success": success
+        }
+    )
+
+@app.post("/signup", response_class=HTMLResponse)
+def signup_action(
+    request: Request,
+    name: str = Form(...),
+    email: str = Form(...),
+    unique_id: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...),
+    location_id: int = Form(...),
+    department_id: Optional[int] = Form(None),
+    role_title: Optional[str] = Form(None),
+    phone_number: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    clean_name = name.strip()
+    clean_email = email.strip().lower()
+    clean_uid = unique_id.strip().upper()
+
+    locations = db.query(models.Location).filter(models.Location.is_active == True).order_by(models.Location.name.asc()).all()
+    departments = db.query(models.Department).order_by(models.Department.name.asc()).all()
+    today = date.today()
+
+    # Form Validations
+    if password != confirm_password:
+        return templates.TemplateResponse(
+            request=request,
+            name="signup.html",
+            context={
+                "user": None,
+                "locations": locations,
+                "departments": departments,
+                "today": today,
+                "error": "Passwords do not match. Please verify your password entry."
+            }
+        )
+
+    if len(password) < 6:
+        return templates.TemplateResponse(
+            request=request,
+            name="signup.html",
+            context={
+                "user": None,
+                "locations": locations,
+                "departments": departments,
+                "today": today,
+                "error": "Password must be at least 6 characters in length."
+            }
+        )
+
+    # Check for existing email or unique_id
+    existing_user = db.query(models.User).filter(
+        (models.User.email == clean_email) | (models.User.unique_id == clean_uid)
+    ).first()
+    if existing_user:
+        dup_field = "Email address" if existing_user.email.lower() == clean_email else "Employee / Unique ID"
+        return templates.TemplateResponse(
+            request=request,
+            name="signup.html",
+            context={
+                "user": None,
+                "locations": locations,
+                "departments": departments,
+                "today": today,
+                "error": f"An account with this {dup_field} ({clean_email if dup_field == 'Email address' else clean_uid}) already exists."
+            }
+        )
+
+    # Create new employee user record
+    new_user = models.User(
+        name=clean_name,
+        email=clean_email,
+        unique_id=clean_uid,
+        hashed_password=get_password_hash(password),
+        location_id=location_id,
+        department_id=department_id,
+        role_title=role_title.strip() if role_title else "Operational Staff",
+        access_level="Employee",
+        is_active=True # Active so user can log in immediately and be rostered
+    )
+    db.add(new_user)
+    db.flush()
+
+    # Seed default leave balances according to 24/7 company quota settings
+    def_cl = float(get_company_setting_val("annual_cl_quota", "12.0", db))
+    def_sl = float(get_company_setting_val("annual_sl_quota", "9.0", db))
+    def_pl = float(get_company_setting_val("annual_pl_quota", "15.0", db))
+
+    # Update user level balance columns
+    new_user.eligible_cl = def_cl
+    new_user.eligible_sl = def_sl
+    new_user.balance_cl = def_cl
+    new_user.balance_sl = def_sl
+    new_user.cl_balance = def_cl
+    new_user.sl_balance = def_sl
+    new_user.pl_balance = def_pl
+
+    # Create monthly statement record in leave_balances
+    current_period = date.today().strftime("%b-%y")
+    loc_obj = db.query(models.Location).filter(models.Location.id == location_id).first()
+    leave_balance = models.LeaveBalance(
+        user_id=new_user.id,
+        unique_id=clean_uid,
+        name=clean_name,
+        location=loc_obj.name if loc_obj else "MUMBAI",
+        month_year=current_period,
+        eligible_cl=def_cl,
+        eligible_sl=def_sl,
+        balance_cl=def_cl,
+        balance_sl=def_sl,
+        balance_co=0.0
+    )
+    db.add(leave_balance)
+    db.commit()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="signup.html",
+        context={
+            "user": None,
+            "locations": locations,
+            "departments": departments,
+            "today": today,
+            "success": f"Account for {clean_name} ({clean_uid}) created successfully! You can now log in using your credentials."
+        }
+    )
+
+
 @app.post("/login")
 def login_action(
     request: Request,
@@ -188,11 +339,36 @@ def login_action(
     else:
         redirect_url = "/dashboard"
 
+    # Record website login event and active user session log
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+    u_agent = request.headers.get("user-agent", "")[:250]
+
+    session_log = models.UserSessionLog(
+        user_id=user.id,
+        login_time=datetime.utcnow(),
+        ip_address=client_ip,
+        user_agent=u_agent,
+        is_active_session=True
+    )
+    db.add(session_log)
+    db.commit()
+
     response = RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
-    # Set session cookie
+    # Set session cookies
     response.set_cookie(
         key="user_id",
         value=str(user.id),
+        httponly=True,
+        max_age=86400 * 7,
+        path="/",
+        samesite="lax"
+    )
+    response.set_cookie(
+        key="session_log_id",
+        value=str(session_log.id),
         httponly=True,
         max_age=86400 * 7,
         path="/",
@@ -210,9 +386,46 @@ def login_action(
     return response
 
 @app.get("/logout")
-def logout():
+def logout(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    # Retrieve user_id and session_log_id to calculate session duration
+    user_id_cookie = request.cookies.get("user_id")
+    session_log_id_cookie = request.cookies.get("session_log_id")
+
+    now = datetime.utcnow()
+
+    if session_log_id_cookie:
+        try:
+            s_id = int(session_log_id_cookie)
+            sess = db.query(models.UserSessionLog).filter(models.UserSessionLog.id == s_id).first()
+            if sess and sess.is_active_session:
+                sess.logout_time = now
+                sess.duration_seconds = max(0, int((now - sess.login_time).total_seconds()))
+                sess.is_active_session = False
+                db.commit()
+        except Exception:
+            pass
+    elif user_id_cookie:
+        try:
+            u_id = int(user_id_cookie)
+            # Find most recent open session
+            sess = db.query(models.UserSessionLog).filter(
+                models.UserSessionLog.user_id == u_id,
+                models.UserSessionLog.is_active_session == True
+            ).order_by(models.UserSessionLog.id.desc()).first()
+            if sess:
+                sess.logout_time = now
+                sess.duration_seconds = max(0, int((now - sess.login_time).total_seconds()))
+                sess.is_active_session = False
+                db.commit()
+        except Exception:
+            pass
+
     response = RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     response.delete_cookie(key="user_id")
+    response.delete_cookie(key="session_log_id")
     return response
 
 @app.get("/switch-persona")
@@ -299,6 +512,38 @@ def dashboard(
         models.LeaveRequest.user_id == user.id
     ).order_by(desc(models.LeaveRequest.created_at)).all()
 
+    # Active work session and break tracking for employee
+    active_work_session = db.query(models.WorkSession).filter(
+        models.WorkSession.user_id == user.id,
+        models.WorkSession.session_date == today
+    ).order_by(models.WorkSession.id.desc()).first()
+
+    active_break = None
+    if active_work_session and active_work_session.status == "ON_BREAK":
+        active_break = db.query(models.SessionBreak).filter(
+            models.SessionBreak.session_id == active_work_session.id,
+            models.SessionBreak.end_time == None
+        ).first()
+
+    # User's recent website session logs (Login/Logout count & duration)
+    recent_session_logs = db.query(models.UserSessionLog).filter(
+        models.UserSessionLog.user_id == user.id
+    ).order_by(models.UserSessionLog.id.desc()).limit(7).all()
+
+    # Calculate today's total online website hours
+    today_online_seconds = 0
+    today_sessions = db.query(models.UserSessionLog).filter(
+        models.UserSessionLog.user_id == user.id,
+        models.UserSessionLog.login_time >= datetime.combine(today, datetime.min.time())
+    ).all()
+    for s in today_sessions:
+        if s.logout_time:
+            today_online_seconds += s.duration_seconds
+        elif s.is_active_session:
+            today_online_seconds += max(0, int((datetime.utcnow() - s.login_time).total_seconds()))
+
+    today_online_hours = round(today_online_seconds / 3600.0, 1)
+
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
@@ -313,9 +558,176 @@ def dashboard(
             "user_leaves": user_leaves,
             "notifications": notifications,
             "pending_leave_count": pending_count,
-            "sidebar_pinned": get_user_sidebar_pinned(user.id, db)
+            "sidebar_pinned": get_user_sidebar_pinned(user.id, db),
+            "active_work_session": active_work_session,
+            "active_break": active_break,
+            "recent_session_logs": recent_session_logs,
+            "today_online_hours": today_online_hours
         }
     )
+
+# ================= WORK SESSION, BREAK & TIME TRACKING APIS ================= #
+
+@app.post("/api/work/start-shift")
+def start_work_shift(
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    today = date.today()
+    now = datetime.utcnow()
+
+    # Check for existing open session
+    sess = db.query(models.WorkSession).filter(
+        models.WorkSession.user_id == user.id,
+        models.WorkSession.session_date == today
+    ).order_by(models.WorkSession.id.desc()).first()
+
+    if sess and sess.status in ["ACTIVE", "ON_BREAK"]:
+        return JSONResponse({"status": "error", "message": "You already have an active shift session in progress."})
+
+    new_sess = models.WorkSession(
+        user_id=user.id,
+        session_date=today,
+        start_time=now,
+        status="ACTIVE"
+    )
+    db.add(new_sess)
+    db.commit()
+
+    log_audit_event(
+        db=db,
+        actor=user,
+        action="WORK_SHIFT_START",
+        resource_type="WorkSession",
+        resource_id=str(new_sess.id),
+        details=f"Employee {user.name} started operational work session at {now.strftime('%H:%M:%S UTC')}."
+    )
+
+    return JSONResponse({"status": "success", "message": "Work shift started successfully!", "session_id": new_sess.id})
+
+@app.post("/api/work/end-shift")
+def end_work_shift(
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    today = date.today()
+    now = datetime.utcnow()
+
+    sess = db.query(models.WorkSession).filter(
+        models.WorkSession.user_id == user.id,
+        models.WorkSession.session_date == today,
+        models.WorkSession.status.in_(["ACTIVE", "ON_BREAK"])
+    ).order_by(models.WorkSession.id.desc()).first()
+
+    if not sess:
+        return JSONResponse({"status": "error", "message": "No active shift session found to complete."})
+
+    # If currently on break, close open break
+    if sess.status == "ON_BREAK":
+        open_brk = db.query(models.SessionBreak).filter(
+            models.SessionBreak.session_id == sess.id,
+            models.SessionBreak.end_time == None
+        ).first()
+        if open_brk:
+            open_brk.end_time = now
+            open_brk.duration_mins = max(0, int((now - open_brk.start_time).total_seconds() / 60))
+
+    sess.end_time = now
+    sess.status = "COMPLETED"
+
+    # Compute gross and break minutes
+    gross_mins = max(0, int((now - sess.start_time).total_seconds() / 60))
+    breaks = db.query(models.SessionBreak).filter(models.SessionBreak.session_id == sess.id).all()
+    total_brk_mins = sum(b.duration_mins for b in breaks)
+    net_mins = max(0, gross_mins - total_brk_mins)
+
+    sess.gross_duration_mins = gross_mins
+    sess.total_break_mins = total_brk_mins
+    sess.net_work_mins = net_mins
+    db.commit()
+
+    log_audit_event(
+        db=db,
+        actor=user,
+        action="WORK_SHIFT_END",
+        resource_type="WorkSession",
+        resource_id=str(sess.id),
+        details=f"Employee {user.name} completed shift. Gross: {gross_mins}m, Breaks: {total_brk_mins}m, Net Productive: {net_mins}m."
+    )
+
+    return JSONResponse({
+        "status": "success",
+        "message": f"Shift completed! Net working time: {net_mins // 60}h {net_mins % 60}m.",
+        "gross_mins": gross_mins,
+        "net_mins": net_mins
+    })
+
+@app.post("/api/work/start-break")
+def start_work_break(
+    request: Request,
+    break_type: str = Form("Lunch"),
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    today = date.today()
+    now = datetime.utcnow()
+
+    sess = db.query(models.WorkSession).filter(
+        models.WorkSession.user_id == user.id,
+        models.WorkSession.session_date == today,
+        models.WorkSession.status == "ACTIVE"
+    ).order_by(models.WorkSession.id.desc()).first()
+
+    if not sess:
+        return JSONResponse({"status": "error", "message": "You must have an active working shift to take a break."})
+
+    new_brk = models.SessionBreak(
+        session_id=sess.id,
+        break_type=break_type.strip(),
+        start_time=now
+    )
+    sess.status = "ON_BREAK"
+    db.add(new_brk)
+    db.commit()
+
+    return JSONResponse({"status": "success", "message": f"{break_type} break started.", "break_id": new_brk.id})
+
+@app.post("/api/work/end-break")
+def end_work_break(
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    today = date.today()
+    now = datetime.utcnow()
+
+    sess = db.query(models.WorkSession).filter(
+        models.WorkSession.user_id == user.id,
+        models.WorkSession.session_date == today,
+        models.WorkSession.status == "ON_BREAK"
+    ).order_by(models.WorkSession.id.desc()).first()
+
+    if not sess:
+        return JSONResponse({"status": "error", "message": "No active break found to end."})
+
+    open_brk = db.query(models.SessionBreak).filter(
+        models.SessionBreak.session_id == sess.id,
+        models.SessionBreak.end_time == None
+    ).order_by(models.SessionBreak.id.desc()).first()
+
+    if open_brk:
+        open_brk.end_time = now
+        dur = max(0, int((now - open_brk.start_time).total_seconds() / 60))
+        open_brk.duration_mins = dur
+        # Flag excess if Lunch > 45m or Tea > 15m
+        if open_brk.break_type.lower() == "lunch" and dur > 45:
+            open_brk.is_excess = True
+        elif open_brk.break_type.lower() == "tea" and dur > 15:
+            open_brk.is_excess = True
+
+    sess.status = "ACTIVE"
+    db.commit()
+
+    return JSONResponse({"status": "success", "message": "Break ended! Resumed active duty.", "duration_mins": open_brk.duration_mins if open_brk else 0})
 
 # ================= ROSTER MATRIX ROUTES ================= #
 

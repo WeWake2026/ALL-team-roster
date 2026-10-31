@@ -108,6 +108,76 @@
     </div>
     {% endif %}
 
+    <!-- EMPLOYEE WORK SESSION & BREAK TRACKER WIDGET -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-blue-950 text-white rounded-3xl border border-slate-800 p-6 shadow-xl relative overflow-hidden">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+            <!-- Left Info & Status -->
+            <div class="space-y-2">
+                <div class="flex items-center gap-2 text-xs font-semibold">
+                    <span class="px-2.5 py-0.5 rounded-full {% if active_work_session and active_work_session.status == 'ACTIVE' %}bg-emerald-500/20 text-emerald-400 border border-emerald-500/30{% elif active_work_session and active_work_session.status == 'ON_BREAK' %}bg-amber-500/20 text-amber-400 border border-amber-500/30{% elif active_work_session and active_work_session.status == 'COMPLETED' %}bg-blue-500/20 text-blue-400 border border-blue-500/30{% else %}bg-slate-700/60 text-slate-300 border border-slate-600{% endif %} flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full {% if active_work_session and active_work_session.status == 'ACTIVE' %}bg-emerald-400 animate-pulse{% elif active_work_session and active_work_session.status == 'ON_BREAK' %}bg-amber-400 animate-bounce{% elif active_work_session and active_work_session.status == 'COMPLETED' %}bg-blue-400{% else %}bg-slate-400{% endif %}"></span>
+                        {% if active_work_session and active_work_session.status == 'ACTIVE' %}
+                            Duty Active • Clocked In
+                        {% elif active_work_session and active_work_session.status == 'ON_BREAK' %}
+                            On Break • {{ active_break.break_type if active_break else 'Rest' }}
+                        {% elif active_work_session and active_work_session.status == 'COMPLETED' %}
+                            Shift Completed • Signed Off
+                        {% else %}
+                            Shift Ready • Not Started
+                        {% endif %}
+                    </span>
+                    <span class="text-slate-400">|</span>
+                    <span class="text-slate-300">Website Online Today: <strong class="text-cyan-400 font-mono">{{ today_online_hours }} hrs</strong></span>
+                </div>
+
+                <h2 class="text-xl font-black tracking-tight text-white flex items-center gap-3">
+                    <span>Shift Time & Productivity Desk</span>
+                </h2>
+                <p class="text-xs text-slate-400 max-w-xl">
+                    Assigned: <strong class="text-white">{{ today_shift }}</strong>. Start shift when taking the desk, track lunch/tea breaks, and complete shift when finished.
+                </p>
+            </div>
+
+            <!-- Right: Action Buttons & Timers -->
+            <div class="flex items-center gap-3 flex-wrap">
+                {% if not active_work_session %}
+                <!-- Button to Start Shift -->
+                <button type="button" onclick="performShiftAction('/api/work/start-shift')" class="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition flex items-center gap-2">
+                    <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                    <span>Start Work Shift</span>
+                </button>
+                {% elif active_work_session.status == 'ACTIVE' %}
+                <!-- Take Break Modal Trigger & End Shift -->
+                <button type="button" onclick="openBreakModal()" class="px-4 py-2.5 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-xs transition flex items-center gap-1.5">
+                    <i data-lucide="coffee" class="w-4 h-4"></i>
+                    <span>Take Break</span>
+                </button>
+                <button type="button" onclick="performShiftAction('/api/work/end-shift', 'Complete your work shift for today?')" class="px-5 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition flex items-center gap-2">
+                    <i data-lucide="square" class="w-4 h-4 fill-current"></i>
+                    <span>Complete Shift</span>
+                </button>
+                {% elif active_work_session.status == 'ON_BREAK' %}
+                <!-- End Break Button -->
+                <button type="button" onclick="performShiftAction('/api/work/end-break')" class="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    <span>End Break & Resume Work</span>
+                </button>
+                {% elif active_work_session.status == 'COMPLETED' %}
+                <div class="px-4 py-2 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-cyan-300 text-xs font-semibold flex items-center gap-2">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Net Worked: {{ active_work_session.net_work_mins // 60 }}h {{ active_work_session.net_work_mins % 60 }}m (Breaks: {{ active_work_session.total_break_mins }}m)</span>
+                </div>
+                {% endif %}
+
+                <!-- Website Session History Trigger -->
+                <button type="button" onclick="document.getElementById('session-history-modal').classList.remove('hidden')" class="px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition border border-slate-700 flex items-center gap-1.5" title="View Login / Logout History">
+                    <i data-lucide="history" class="w-4 h-4"></i>
+                    <span>Login Logs</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Quick Stats Grid -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <!-- Today Shift -->
@@ -604,5 +674,132 @@ function filterModalAlerts() {
         }
     });
 }
+// Work Session & Break Action Handler
+async function performShiftAction(url, confirmMsg) {
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    try {
+        const res = await fetch(url, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Operation failed');
+        }
+    } catch(err) {
+        alert('Network error: ' + err.message);
+    }
+}
+
+function openBreakModal() {
+    document.getElementById('take-break-modal').classList.remove('hidden');
+}
+
+function closeBreakModal() {
+    document.getElementById('take-break-modal').classList.add('hidden');
+}
+
+async function submitBreakStart(e) {
+    e.preventDefault();
+    const breakType = document.getElementById('break-type-select').value;
+    const form = new FormData();
+    form.append('break_type', breakType);
+
+    try {
+        const res = await fetch('/api/work/start-break', {
+            method: 'POST',
+            body: form
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to start break');
+        }
+    } catch(err) {
+        alert('Network error: ' + err.message);
+    }
+}
 </script>
+
+<!-- TAKE BREAK MODAL -->
+<div id="take-break-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-sm shadow-2xl p-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="coffee" class="w-4 h-4 text-amber-500"></i>
+                <span>Take Operational Break</span>
+            </h3>
+            <button onclick="closeBreakModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <form onsubmit="submitBreakStart(event)" class="mt-4 space-y-4 text-xs">
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Select Break Type</label>
+                <select id="break-type-select" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-blue-500">
+                    <option value="Lunch">Lunch Break (Max 45 mins)</option>
+                    <option value="Tea">Tea / Refreshment Break (Max 15 mins)</option>
+                    <option value="Dinner">Dinner Break (Max 45 mins)</option>
+                    <option value="Auxiliary">Auxiliary / Technical Break (10 mins)</option>
+                </select>
+                <span class="text-[10px] text-slate-400 mt-1 block">Breaks pause productive work hours countdown.</span>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onclick="closeBreakModal()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold transition">
+                    Start Break
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- WEBSITE SESSION LOGS MODAL -->
+<div id="session-history-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="history" class="w-4 h-4 text-cyan-500"></i>
+                    <span>Website Login & Logout History</span>
+                </h3>
+                <p class="text-[11px] text-slate-400">Total Online Today: <strong class="text-cyan-500">{{ today_online_hours }} Hours</strong></p>
+            </div>
+            <button onclick="document.getElementById('session-history-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <div class="mt-4 space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar text-xs">
+            {% for s in recent_session_logs %}
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full {% if s.is_active_session %}bg-emerald-400 animate-pulse{% else %}bg-slate-400{% endif %}"></span>
+                        <span class="font-bold text-slate-800 dark:text-white">{{ s.login_time.strftime('%d %b %Y, %H:%M') }}</span>
+                        {% if s.is_active_session %}
+                        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Active Now</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-mono mt-0.5">IP: {{ s.ip_address or 'Local' }}</p>
+                </div>
+                <div class="text-right">
+                    {% if s.logout_time %}
+                    <span class="font-mono font-bold text-slate-700 dark:text-slate-300 block">{{ s.duration_seconds // 3600 }}h {{ (s.duration_seconds % 3600) // 60 }}m</span>
+                    <span class="text-[10px] text-slate-400">Out: {{ s.logout_time.strftime('%H:%M') }}</span>
+                    {% else %}
+                    <span class="text-emerald-500 font-semibold font-mono">In Progress</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <p class="text-slate-400 text-center py-4">No login sessions recorded yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
 {% endblock %}

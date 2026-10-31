@@ -398,4 +398,74 @@ class CompanySetting(Base):
     category = Column(String(50), default="24x7_rules") # 24x7_rules, quotas, holidays, shifts
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class UserSessionLog(Base):
+    """
+    Automatic Login and Logout Tracking with Session Duration and IP/Browser device info.
+    """
+    __tablename__ = "user_session_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    login_time = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    logout_time = Column(DateTime, nullable=True)
+    duration_seconds = Column(Integer, default=0) # Total active seconds between login and logout
+    ip_address = Column(String(60), nullable=True)
+    user_agent = Column(String(255), nullable=True)
+    is_active_session = Column(Boolean, default=True) # True while user is still logged in
+    
+    user = relationship("User")
+
+class WorkSession(Base):
+    """
+    Shift Work & Break Tracker for employees (Web Start Shift, Breaks, End Shift).
+    """
+    __tablename__ = "work_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    shift_id = Column(Integer, ForeignKey("shifts.id"), nullable=True)
+    session_date = Column(Date, nullable=False, index=True) # Operational date
+    
+    # Session Timestamps
+    start_time = Column(DateTime, nullable=True)
+    end_time = Column(DateTime, nullable=True)
+    
+    # Calculated Minutes
+    gross_duration_mins = Column(Integer, default=0)
+    total_break_mins = Column(Integer, default=0)
+    net_work_mins = Column(Integer, default=0)
+    late_arrival_mins = Column(Integer, default=0)
+    overtime_mins = Column(Integer, default=0)
+    
+    # Status: 'ACTIVE', 'ON_BREAK', 'COMPLETED'
+    status = Column(String(30), default="ACTIVE", index=True)
+    
+    # Manager Sign-off
+    is_verified = Column(Boolean, default=False)
+    verified_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    manager_notes = Column(String(255), nullable=True)
+
+    user = relationship("User", foreign_keys=[user_id])
+    shift = relationship("Shift", foreign_keys=[shift_id])
+    breaks = relationship("SessionBreak", back_populates="session", cascade="all, delete-orphan")
+
+class SessionBreak(Base):
+    """
+    Individual break intervals within an active shift work session (Lunch, Tea, Auxiliary).
+    """
+    __tablename__ = "session_breaks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(Integer, ForeignKey("work_sessions.id"), nullable=False, index=True)
+    break_type = Column(String(50), nullable=False) # 'Lunch', 'Tea', 'Auxiliary'
+    start_time = Column(DateTime, default=datetime.utcnow, nullable=False)
+    end_time = Column(DateTime, nullable=True)
+    duration_mins = Column(Integer, default=0)
+    is_excess = Column(Boolean, default=False)
+
+    session = relationship("WorkSession", back_populates="breaks")
+
+
+
 
