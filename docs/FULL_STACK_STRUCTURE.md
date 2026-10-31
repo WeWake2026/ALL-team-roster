@@ -159,3 +159,4 @@ To safely refactor into this structure without disrupting the live operational s
    - Clean up `main.py` to become the master app factory registering all routers and static mounts.
 5. **Step 5: Run Automated Verification Suite**
    - Execute `run_audit_tests.py` and `test_leave_lifecycle.py` to confirm 100% backward compatibility.
+
