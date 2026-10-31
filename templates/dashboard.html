@@ -163,10 +163,15 @@
                     <span>End Break & Resume Work</span>
                 </button>
                 {% elif active_work_session.status == 'COMPLETED' %}
-                <div class="px-4 py-2 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-cyan-300 text-xs font-semibold flex items-center gap-2">
-                    <i data-lucide="check" class="w-4 h-4"></i>
+                <div class="px-3.5 py-2 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-cyan-300 text-xs font-semibold flex items-center gap-2">
+                    <i data-lucide="check-check" class="w-4 h-4 text-emerald-400"></i>
                     <span>Net Worked: {{ active_work_session.net_work_mins // 60 }}h {{ active_work_session.net_work_mins % 60 }}m (Breaks: {{ active_work_session.total_break_mins }}m)</span>
                 </div>
+                <!-- Restart Shift / Start Additional Shift Option -->
+                <button type="button" onclick="performShiftAction('/api/work/start-shift', 'Resume or start a new working session for today?')" class="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5" title="Start another working shift session today">
+                    <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                    <span>Restart / New Session</span>
+                </button>
                 {% endif %}
 
                 <!-- Website Session History Trigger -->

@@ -20,10 +20,11 @@ def start_work_shift(
 
     sess = db.query(models.WorkSession).filter(
         models.WorkSession.user_id == user.id,
-        models.WorkSession.session_date == today
+        models.WorkSession.session_date == today,
+        models.WorkSession.status.in_(["ACTIVE", "ON_BREAK"])
     ).order_by(models.WorkSession.id.desc()).first()
 
-    if sess and sess.status in ["ACTIVE", "ON_BREAK"]:
+    if sess:
         return JSONResponse({"status": "error", "message": "You already have an active shift session in progress."})
 
     new_sess = models.WorkSession(
