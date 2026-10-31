@@ -1919,6 +1919,132 @@ def get_dashboard_metrics(
 class ResetPasswordPayload(models.Base.__class__):
     pass
 
+@app.get("/api/admin/users/details/{user_id}")
+def api_get_user_details(
+    user_id: int,
+    user: models.User = Depends(require_admin_or_manager),
+    db: Session = Depends(get_db)
+):
+    target = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    return {
+        "id": target.id,
+        "name": target.name,
+        "email": target.email,
+        "unique_id": target.unique_id,
+        "crm_id": target.crm_id or "",
+        "bm_id": target.bm_id or "",
+        "ecn": target.ecn or "",
+        "role_title": target.role_title or "",
+        "access_level": target.access_level or "Employee",
+        "location_id": target.location_id,
+        "location": target.location or "",
+        "department_id": target.department_id,
+        "department": target.department or "",
+        "is_active": target.is_active,
+        "cl_balance": float(target.cl_balance or 0.0),
+        "sl_balance": float(target.sl_balance or 0.0),
+        "pl_balance": float(target.pl_balance or 0.0),
+        "co_balance": float(target.co_balance or 0.0),
+        "taken_cl": float(target.taken_cl or 0.0),
+        "taken_sl": float(target.taken_sl or 0.0),
+        "doj": str(target.doj) if target.doj else "",
+        "exit_date": str(target.exit_date) if target.exit_date else "",
+        "exit_reason": target.exit_reason or ""
+    }
+
+@app.post("/api/admin/users/update-all")
+async def api_admin_update_all_user_details(
+    request: Request,
+    user: models.User = Depends(require_admin_or_manager),
+    db: Session = Depends(get_db)
+):
+    try:
+        data = await request.json()
+        target_uid = int(data.get("user_id"))
+        target = db.query(models.User).filter(models.User.id == target_uid).first()
+        if not target:
+            raise HTTPException(status_code=404, detail="User not found.")
+
+        # Update Personal & Identifiers
+        if "name" in data and data["name"]:
+            target.name = str(data["name"]).strip()
+        if "email" in data and data["email"]:
+            target.email = str(data["email"]).strip()
+        if "unique_id" in data and data["unique_id"]:
+            target.unique_id = str(data["unique_id"]).strip()
+        if "bm_id" in data:
+            target.bm_id = str(data["bm_id"]).strip() if data["bm_id"] else None
+        if "crm_id" in data:
+            target.crm_id = str(data["crm_id"]).strip() if data["crm_id"] else None
+        if "ecn" in data:
+            target.ecn = str(data["ecn"]).strip() if data["ecn"] else None
+
+        # Update Role & Permissions
+        if "role_title" in data and data["role_title"]:
+            target.role_title = str(data["role_title"]).strip()
+        if "access_level" in data and data["access_level"]:
+            target.access_level = str(data["access_level"]).strip()
+
+        # Update Location & Department
+        if "location_id" in data and data["location_id"]:
+            loc_id = int(data["location_id"])
+            loc_obj = db.query(models.Location).filter(models.Location.id == loc_id).first()
+            if loc_obj:
+                target.location_id = loc_obj.id
+                target.location = loc_obj.name
+
+        if "department_id" in data and data["department_id"]:
+            dept_id = int(data["department_id"])
+            dept_obj = db.query(models.Department).filter(models.Department.id == dept_id).first()
+            if dept_obj:
+                target.department_id = dept_obj.id
+                target.department = dept_obj.name
+
+        # Update Active Status
+        if "is_active" in data:
+            target.is_active = bool(data["is_active"])
+
+        # Update Leave Quotas
+        if "cl_balance" in data:
+            target.cl_balance = float(data["cl_balance"] or 0.0)
+            target.balance_cl = target.cl_balance
+        if "sl_balance" in data:
+            target.sl_balance = float(data["sl_balance"] or 0.0)
+            target.balance_sl = target.sl_balance
+        if "pl_balance" in data:
+            target.pl_balance = float(data["pl_balance"] or 0.0)
+        if "co_balance" in data:
+            target.co_balance = float(data["co_balance"] or 0.0)
+
+        # Optional password update if provided
+        if "new_password" in data and data["new_password"]:
+            raw_pw = str(data["new_password"]).strip()
+            if len(raw_pw) >= 4:
+                from auth import get_password_hash
+                target.hashed_password = get_password_hash(raw_pw)
+
+        db.commit()
+        return {
+            "status": "success",
+            "message": f"Successfully updated all details and quotas for {target.name} ({target.unique_id}).",
+            "user": {
+                "id": target.id,
+                "name": target.name,
+                "location": target.location,
+                "location_id": target.location_id,
+                "access_level": target.access_level,
+                "is_active": target.is_active
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.post("/api/admin/users/edit")
 async def api_admin_edit_user(
     request: Request,
