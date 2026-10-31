@@ -41,7 +41,10 @@ app = FastAPI(title="ShiftFlow Pro - MSEDCL Workforce & Leave Portal")
 
 # Static files & Jinja2 Templates
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+static_dir = os.path.join(BASE_DIR, "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 @app.exception_handler(HTTPException)
