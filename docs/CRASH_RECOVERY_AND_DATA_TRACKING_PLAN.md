@@ -117,3 +117,4 @@ Every piece of employee data is tracked across dedicated normalized tables in `s
 3. **If Server is Down**: Client keeps the data in offline buffer and retries once connection is restored.
 4. **After Crash / Restart**: Server startup hook automatically reconciles all open sessions and records recovery logs.
 5. **Historical Integrity**: Every change is mirrored in the immutable `audit_logs` table for compliance and forensic auditing.
+

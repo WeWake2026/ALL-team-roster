@@ -718,16 +718,38 @@ def end_work_break(
         open_brk.end_time = now
         dur = max(0, int((now - open_brk.start_time).total_seconds() / 60))
         open_brk.duration_mins = dur
-        # Flag excess if Lunch > 45m or Tea > 15m
-        if open_brk.break_type.lower() == "lunch" and dur > 45:
+
+        # Calculate all break minutes so far today for this shift
+        all_breaks = db.query(models.SessionBreak).filter(
+            models.SessionBreak.session_id == sess.id
+        ).all()
+        cumulative_break_mins = sum(b.duration_mins for b in all_breaks)
+
+        # Flag excess:
+        # 1. Individual break limits: Lunch > 45 mins, Tea > 15 mins
+        # 2. Cumulative shift break limit: Total Breaks > 60 mins (1 hour)
+        is_individual_excess = (
+            (open_brk.break_type.lower() == "lunch" and dur > 45) or
+            (open_brk.break_type.lower() == "tea" and dur > 15) or
+            (open_brk.break_type.lower() == "dinner" and dur > 45)
+        )
+        is_total_excess = cumulative_break_mins > 60
+
+        if is_individual_excess or is_total_excess:
             open_brk.is_excess = True
-        elif open_brk.break_type.lower() == "tea" and dur > 15:
-            open_brk.is_excess = True
+
+        sess.total_break_mins = cumulative_break_mins
 
     sess.status = "ACTIVE"
     db.commit()
 
-    return JSONResponse({"status": "success", "message": "Break ended! Resumed active duty.", "duration_mins": open_brk.duration_mins if open_brk else 0})
+    return JSONResponse({
+        "status": "success",
+        "message": f"Break ended! Resumed active duty. (Today's total breaks: {cumulative_break_mins}m / 60m allowed)",
+        "duration_mins": open_brk.duration_mins if open_brk else 0,
+        "total_break_mins": cumulative_break_mins,
+        "is_excess": open_brk.is_excess if open_brk else False
+    })
 
 # ================= ROSTER MATRIX ROUTES ================= #
 
