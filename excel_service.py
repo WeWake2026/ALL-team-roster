@@ -35,14 +35,31 @@ def parse_date_str(val: Any) -> str:
 
 def import_roster_file(file_bytes: bytes, filename: str, db: Session, updated_by: str = "Admin") -> Dict[str, Any]:
     """
-    Parses an Excel (.xlsx) or CSV file matching exact MSEDCL operations format:
+    Parses an Excel (.xlsx, .xls) or CSV file matching exact MSEDCL operations format:
     Headers: SR NO., EMPLOYEE NAME, GENDER, UNIQUE ID, CRM ID, BM ID, LOCATION, ECN, EMAIL-ID, ROLE,
     followed by date columns (e.g. 2026-10-19), and summary columns WO, CO, SHIFTS.
+    Supports files with top title/metadata banner rows by auto-detecting the header row.
     """
     if filename.lower().endswith('.csv'):
-        df = pd.read_csv(BytesIO(file_bytes))
+        # Check if CSV has title banner in first few rows
+        df_raw = pd.read_csv(BytesIO(file_bytes), header=None, nrows=10)
+        skip = 0
+        for idx, row in df_raw.iterrows():
+            vals = [normalize_header(str(v)) for v in row.values if pd.notna(v)]
+            if any(k in vals for k in ["UNIQUEID", "EMPLOYEENAME", "EMPNAME", "SRNO"]):
+                skip = idx
+                break
+        df = pd.read_csv(BytesIO(file_bytes), skiprows=skip)
     else:
-        df = pd.read_excel(BytesIO(file_bytes), sheet_name=0)
+        # Check if Excel has title banner in first few rows
+        df_raw = pd.read_excel(BytesIO(file_bytes), sheet_name=0, header=None, nrows=10)
+        skip = 0
+        for idx, row in df_raw.iterrows():
+            vals = [normalize_header(str(v)) for v in row.values if pd.notna(v)]
+            if any(k in vals for k in ["UNIQUEID", "EMPLOYEENAME", "EMPNAME", "SRNO"]):
+                skip = idx
+                break
+        df = pd.read_excel(BytesIO(file_bytes), sheet_name=0, skiprows=skip)
 
     # Clean header mapping with priority for exact matches
     col_mapping = {}
