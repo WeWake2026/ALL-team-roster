@@ -38,19 +38,25 @@
             </p>
 
             <form action="/admin/upload-roster" method="POST" enctype="multipart/form-data" class="space-y-4">
-                <div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-8 text-center hover:border-blue-500 dark:hover:border-blue-500 transition cursor-pointer relative bg-slate-50/50 dark:bg-slate-800/30">
-                    <input type="file" name="file" id="roster_file" required accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileName(this)">
-                    <div class="space-y-2 pointer-events-none">
+                <div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-6 text-center hover:border-blue-500 dark:hover:border-blue-500 transition relative bg-slate-50/50 dark:bg-slate-800/30">
+                    <div class="space-y-3">
                         <div class="w-12 h-12 mx-auto rounded-full bg-blue-50 dark:bg-blue-950 flex items-center justify-center text-blue-600 dark:text-blue-400">
                             <i data-lucide="file-spreadsheet" class="w-6 h-6"></i>
                         </div>
-                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                            Drag & drop your Excel (.xlsx) or CSV roster file here
-                        </p>
-                        <p class="text-xs text-slate-400">
-                            Or browse from your computer
-                        </p>
-                        <p id="file-name-display" class="text-xs font-bold text-blue-600 dark:text-blue-400 mt-2"></p>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                Select or Drop Excel (.xlsx, .xls) / CSV Roster
+                            </p>
+                            <p class="text-xs text-slate-400 mt-1">
+                                Click the button below to browse or select your file
+                            </p>
+                        </div>
+                        <div class="flex justify-center">
+                            <input type="file" name="file" id="roster_file" required accept=".xlsx, .xls, .csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv" 
+                                class="block w-full max-w-sm text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+                                onchange="updateFileName(this)">
+                        </div>
+                        <p id="file-name-display" class="text-xs font-bold text-emerald-600 dark:text-emerald-400"></p>
                     </div>
                 </div>
 
@@ -147,19 +153,25 @@
                     <input type="text" name="month_year" value="Oct-26" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-mono">
                 </div>
 
-                <div class="border-2 border-dashed border-indigo-300 dark:border-indigo-700 rounded-2xl p-8 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition cursor-pointer relative bg-indigo-50/20 dark:bg-indigo-950/10">
-                    <input type="file" name="file" required accept=".pdf, .xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateLeaveFileName(this)">
-                    <div class="space-y-2 pointer-events-none">
+                <div class="border-2 border-dashed border-indigo-300 dark:border-indigo-700 rounded-2xl p-6 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition relative bg-indigo-50/20 dark:bg-indigo-950/10">
+                    <div class="space-y-3">
                         <div class="w-12 h-12 mx-auto rounded-full bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                             <i data-lucide="file-text" class="w-6 h-6"></i>
                         </div>
-                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                            Drag & drop your Monthly Leave Statement (.pdf, .xlsx, or .csv) here
-                        </p>
-                        <p class="text-xs text-slate-400">
-                            Matches against UNIQUE CODE (e.g. AIPLCC222) or ECN (e.g. MAH0297)
-                        </p>
-                        <p id="leave-file-name-display" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-2"></p>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                Select or Drop Monthly Leave Statement (.pdf, .xlsx, or .csv)
+                            </p>
+                            <p class="text-xs text-slate-400 mt-1">
+                                Matches against UNIQUE CODE (e.g. AIPLCC222) or ECN (e.g. MAH0297)
+                            </p>
+                        </div>
+                        <div class="flex justify-center">
+                            <input type="file" name="file" required accept=".pdf, .xlsx, .xls, .csv, application/pdf, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv" 
+                                class="block w-full max-w-sm text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                                onchange="updateLeaveFileName(this)">
+                        </div>
+                        <p id="leave-file-name-display" class="text-xs font-bold text-indigo-600 dark:text-indigo-400"></p>
                     </div>
                 </div>
 
