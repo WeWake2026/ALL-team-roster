@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse,
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 import models
 from database import engine, get_db, Base
