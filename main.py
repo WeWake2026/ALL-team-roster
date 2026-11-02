@@ -1788,26 +1788,190 @@ def get_leave_details(
 @app.get("/roster/manage", response_class=HTMLResponse)
 def manage_roster(
     request: Request,
+    target_date: Optional[str] = None,
+    filter_role: Optional[str] = "All",
+    filter_status: Optional[str] = "All",
     user: models.User = Depends(require_admin_or_manager),
+    perms: get_user_perms = Depends(get_user_perms),
     db: Session = Depends(get_db)
 ):
     today = date.today()
-    users = db.query(models.User).filter(models.User.is_active == True).order_by(models.User.name.asc()).all()
-    shifts = db.query(models.Shift).all()
+    if target_date:
+        try:
+            sel_date = datetime.strptime(target_date.strip(), "%Y-%m-%d").date()
+        except Exception:
+            sel_date = today
+    else:
+        sel_date = today
+
+    # Base query for employees under scope
+    u_query = db.query(models.User).filter(
+        ((models.User.is_active == True) | (models.User.exit_date > sel_date))
+    )
+
+    # Respect management & TL hierarchy
+    is_admin_scope = perms.is_admin or perms.is_hr or perms.is_manager
+    if not is_admin_scope:
+        if perms.is_team_leader:
+            if perms.assigned_employee_ids:
+                u_query = u_query.filter(models.User.id.in_(perms.assigned_employee_ids | {user.id}))
+            elif user.team_id:
+                u_query = u_query.filter(models.User.team_id == user.team_id)
+        else:
+            u_query = u_query.filter(models.User.id == user.id)
+
+    # Exclude system admin from attendance roster list
+    u_query = u_query.filter(models.User.unique_id != "ADMIN001")
+    users = u_query.order_by(models.User.name.asc()).all()
+
+    # Pre-fetch shifts & holidays
+    shifts = db.query(models.Shift).filter(models.Shift.is_active == True).order_by(models.Shift.start_time.asc()).all()
     holidays = db.query(models.Holiday).order_by(models.Holiday.date.asc()).all()
     pending_count = get_pending_leave_count(db)
+
+    # Pre-fetch roster entries, work sessions, and approved leaves for target date
+    user_ids = [u.id for u in users]
+    entries = db.query(models.RosterEntry).filter(
+        models.RosterEntry.date == sel_date,
+        models.RosterEntry.user_id.in_(user_ids)
+    ).all() if user_ids else []
+    entry_map = {e.user_id: e for e in entries}
+
+    sessions = db.query(models.WorkSession).filter(
+        models.WorkSession.session_date == sel_date,
+        models.WorkSession.user_id.in_(user_ids)
+    ).all() if user_ids else []
+    session_map = {s.user_id: s for s in sessions}
+
+    approved_leaves = db.query(models.LeaveRequest).filter(
+        models.LeaveRequest.status == "Approved",
+        models.LeaveRequest.start_date <= sel_date,
+        models.LeaveRequest.end_date >= sel_date,
+        models.LeaveRequest.user_id.in_(user_ids)
+    ).all() if user_ids else []
+    leave_map = {al.user_id: al for al in approved_leaves}
+
+    # Build comprehensive live floor attendance rows
+    floor_records = []
+    presents_cnt = 0
+    absents_cnt = 0
+    leaves_cnt = 0
+    wo_cnt = 0
+    punched_active_cnt = 0
+
+    for u in users:
+        r_entry = entry_map.get(u.id)
+        w_sess = session_map.get(u.id)
+        app_leave = leave_map.get(u.id)
+
+        # Scheduled shift code
+        shift_assigned = r_entry.shift_code_or_time if r_entry else "09:00 To 18:00"
+        roster_status = r_entry.status if r_entry else "Scheduled"
+
+        if app_leave:
+            leave_code = app_leave.leave_type or "Leave"
+            shift_assigned = leave_code
+            roster_status = "Leave"
+
+        # Punch data
+        punch_status = "NOT_PUNCHED"
+        punch_time_str = "--"
+        punch_out_str = "--"
+        punch_duration_str = "--"
+
+        if w_sess:
+            punch_status = w_sess.status  # ACTIVE, ON_BREAK, COMPLETED
+            if w_sess.start_time:
+                punch_time_str = w_sess.start_time.strftime("%I:%M %p")
+            if w_sess.end_time:
+                punch_out_str = w_sess.end_time.strftime("%I:%M %p")
+
+            if w_sess.status == "COMPLETED":
+                if w_sess.net_work_mins > 0:
+                    punch_duration_str = f"{w_sess.net_work_mins // 60}h {w_sess.net_work_mins % 60}m"
+                else:
+                    punch_duration_str = "< 1m"
+            elif w_sess.status in ["ACTIVE", "ON_BREAK"]:
+                punch_duration_str = "Live Session"
+
+        # Categorization counters
+        u_shift_up = str(shift_assigned).upper()
+        if roster_status == "Present" or u_shift_up in ["P", "PRESENT"]:
+            presents_cnt += 1
+        elif roster_status == "Absent" or u_shift_up in ["A", "ABSENT"]:
+            absents_cnt += 1
+        elif roster_status == "Leave" or u_shift_up in ["LEAVE", "CL", "SL", "PL"]:
+            leaves_cnt += 1
+        elif roster_status in ["WO", "CO"] or u_shift_up in ["WO", "CO"]:
+            wo_cnt += 1
+        else:
+            if w_sess and w_sess.status in ["ACTIVE", "COMPLETED"]:
+                presents_cnt += 1
+
+        if w_sess and w_sess.status in ["ACTIVE", "ON_BREAK"]:
+            punched_active_cnt += 1
+
+        rec = {
+            "user": u,
+            "roster_entry": r_entry,
+            "shift_assigned": shift_assigned,
+            "roster_status": roster_status,
+            "work_session": w_sess,
+            "punch_status": punch_status,
+            "punch_time_str": punch_time_str,
+            "punch_out_str": punch_out_str,
+            "punch_duration_str": punch_duration_str,
+            "has_leave": bool(app_leave),
+            "leave_info": app_leave
+        }
+
+        # Filtering
+        if filter_role and filter_role != "All":
+            if (u.role_title or "").upper() != filter_role.upper():
+                continue
+        if filter_status and filter_status != "All":
+            if filter_status == "P" and not (roster_status == "Present" or u_shift_up in ["P", "PRESENT"] or (w_sess and w_sess.status in ["ACTIVE", "COMPLETED"])):
+                continue
+            elif filter_status == "A" and not (roster_status == "Absent" or u_shift_up in ["A", "ABSENT"]):
+                continue
+            elif filter_status == "Leave" and not (roster_status == "Leave" or u_shift_up in ["LEAVE", "CL", "SL", "PL"]):
+                continue
+            elif filter_status == "Punched" and punch_status not in ["ACTIVE", "ON_BREAK", "COMPLETED"]:
+                continue
+            elif filter_status == "NotPunched" and punch_status != "NOT_PUNCHED":
+                continue
+
+        floor_records.append(rec)
+
+    # Available roles for filtering
+    distinct_roles = sorted(list({u.role_title for u in users if u.role_title}))
 
     return templates.TemplateResponse(
         request=request,
         name="manage_roster.html",
         context={
             "user": user,
+            "perms": perms,
             "active_page": "manage_roster",
             "today": today,
+            "sel_date": sel_date,
+            "sel_date_str": sel_date.strftime("%Y-%m-%d"),
             "users": users,
+            "floor_records": floor_records,
             "shifts": shifts,
             "holidays": holidays,
-            "pending_leave_count": pending_count
+            "pending_leave_count": pending_count,
+            "distinct_roles": distinct_roles,
+            "filter_role": filter_role,
+            "filter_status": filter_status,
+            "stats": {
+                "total": len(users),
+                "present": presents_cnt,
+                "absent": absents_cnt,
+                "leave": leaves_cnt,
+                "wo": wo_cnt,
+                "punched_active": punched_active_cnt
+            }
         }
     )
 
@@ -1945,6 +2109,162 @@ def quick_assign_shift(
     redirect_target = safe_return_url if safe_return_url else "/roster"
     delimiter = "&" if "?" in redirect_target else "?"
     return RedirectResponse(url=f"{redirect_target}{delimiter}alert_msg=Shift+updated+successfully+and+logged+to+history!&alert_type=success", status_code=302)
+
+@app.post("/api/attendance/mark")
+def supervisor_mark_attendance(
+    user_id: int = Form(...),
+    target_date: str = Form(...),
+    status_mark: str = Form(...), # 'P', 'A', 'WO', 'CO', 'Leave', 'CL', 'SL', 'HD', or shift code e.g. '07:00 To 16:00'
+    notes: Optional[str] = Form(None),
+    user: models.User = Depends(require_admin_or_manager),
+    perms: get_user_perms = Depends(get_user_perms),
+    db: Session = Depends(get_db)
+):
+    """
+    Supervisor / TL / ATL / Manager Quick Floor Attendance & Shift Override Desk API.
+    Marks P, A, Leave, WO, CO or specific Shift for an employee with instant audit trail.
+    """
+    try:
+        t_date = datetime.strptime(target_date.strip(), "%Y-%m-%d").date()
+    except Exception:
+        return JSONResponse({"status": "error", "message": "Invalid date format. Use YYYY-MM-DD."}, status_code=400)
+
+    target_emp = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target_emp:
+        return JSONResponse({"status": "error", "message": "Employee not found."}, status_code=404)
+
+    # Permission check: TL can only mark their own assigned employees, while Admins/Managers can mark all
+    if perms.is_team_leader and not (perms.is_admin or perms.is_hr or perms.is_manager):
+        if perms.assigned_employee_ids and user_id not in perms.assigned_employee_ids and user_id != user.id:
+            return JSONResponse({"status": "error", "message": "Access restricted: You can only mark attendance for your team members."}, status_code=403)
+
+    mark_val = status_mark.strip()
+    status_category = "Scheduled"
+    shift_code_val = mark_val
+
+    mark_upper = mark_val.upper()
+    if mark_upper in ["P", "PRESENT"]:
+        status_category = "Present"
+        # Preserve existing shift window if set, otherwise default general
+        existing_r = db.query(models.RosterEntry).filter(models.RosterEntry.user_id == user_id, models.RosterEntry.date == t_date).first()
+        if existing_r and any(c in existing_r.shift_code_or_time for c in [":", "07:", "09:", "13:", "22:"]):
+            shift_code_val = existing_r.shift_code_or_time
+        else:
+            shift_code_val = "P"
+    elif mark_upper in ["A", "ABSENT"]:
+        status_category = "Absent"
+        shift_code_val = "A"
+    elif mark_upper in ["WO", "WEEK OFF"]:
+        status_category = "WO"
+        shift_code_val = "WO"
+    elif mark_upper in ["CO", "COMP-OFF", "COMP OFF"]:
+        status_category = "CO"
+        shift_code_val = "CO"
+    elif mark_upper in ["LEAVE", "CL", "SL", "PL"]:
+        status_category = "Leave"
+        shift_code_val = mark_val
+    elif mark_upper in ["HD", "HALF-DAY", "HALF DAY"]:
+        status_category = "Half-Day"
+        shift_code_val = "HD"
+    else:
+        # Shift timing e.g. 07:00 To 16:00
+        status_category = "Scheduled"
+        shift_code_val = mark_val
+
+    # Find or create RosterEntry
+    r_entry = db.query(models.RosterEntry).filter(
+        models.RosterEntry.user_id == user_id,
+        models.RosterEntry.date == t_date
+    ).first()
+
+    prev_shift = r_entry.shift_code_or_time if r_entry else "None"
+    prev_status = r_entry.status if r_entry else "None"
+
+    if r_entry:
+        r_entry.shift_code_or_time = shift_code_val
+        r_entry.status = status_category
+        r_entry.updated_by = user.name
+    else:
+        r_entry = models.RosterEntry(
+            user_id=user_id,
+            date=t_date,
+            shift_code_or_time=shift_code_val,
+            status=status_category,
+            updated_by=user.name
+        )
+        db.add(r_entry)
+
+    # Sync with WorkSession if supervisor marks Present or Absent
+    work_sess = db.query(models.WorkSession).filter(
+        models.WorkSession.user_id == user_id,
+        models.WorkSession.session_date == t_date
+    ).order_by(models.WorkSession.id.desc()).first()
+
+    now = datetime.utcnow()
+    audit_notes = notes.strip() if notes else f"Supervisor {user.name} ({user.role_title or user.access_level}) marked {mark_val}"
+
+    if status_category == "Present":
+        if not work_sess:
+            # Create a supervisor verified present punch session
+            work_sess = models.WorkSession(
+                user_id=user_id,
+                session_date=t_date,
+                start_time=now,
+                status="COMPLETED",
+                is_verified=True,
+                verified_by_user_id=user.id,
+                verified_at=now,
+                manager_notes=audit_notes,
+                gross_duration_mins=480, # 8 hours standard
+                net_work_mins=480
+            )
+            db.add(work_sess)
+        else:
+            work_sess.is_verified = True
+            work_sess.verified_by_user_id = user.id
+            work_sess.verified_at = now
+            if audit_notes:
+                work_sess.manager_notes = (work_sess.manager_notes or "") + f" | {audit_notes}"
+    elif status_category == "Absent":
+        if work_sess and work_sess.status in ["ACTIVE", "ON_BREAK"]:
+            work_sess.status = "COMPLETED"
+            work_sess.end_time = now
+            work_sess.manager_notes = f"Marked absent by supervisor {user.name}."
+
+    # Record ShiftChangeHistory
+    history_record = models.ShiftChangeHistory(
+        user_id=user_id,
+        roster_date=t_date,
+        previous_shift=f"{prev_shift} ({prev_status})",
+        new_shift=f"{shift_code_val} ({status_category})",
+        previous_timings=prev_shift,
+        new_timings=shift_code_val,
+        changed_by_id=user.id,
+        changed_by_name=user.name,
+        change_reason=audit_notes,
+        approval_status="Approved"
+    )
+    db.add(history_record)
+
+    # Notification
+    notif = models.Notification(
+        user_id=user_id,
+        title="Floor Attendance Marked",
+        message=f"Your attendance for {t_date.strftime('%d %b %Y')} was marked as '{status_category} ({shift_code_val})' by {user.name}.",
+        category="shift_change"
+    )
+    db.add(notif)
+    db.commit()
+
+    return JSONResponse({
+        "status": "success",
+        "message": f"Successfully marked {target_emp.name} as {status_category} ({shift_code_val})!",
+        "user_id": user_id,
+        "date": target_date,
+        "shift_code": shift_code_val,
+        "status_category": status_category,
+        "marked_by": user.name
+    })
 
 # ================= ADMIN SHIFT MANAGEMENT & AUDIT ROUTES ================= #
 

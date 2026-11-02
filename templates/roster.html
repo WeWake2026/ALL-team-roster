@@ -563,61 +563,56 @@
                             {{ row.user.location }}
                         </td>
 
-                        <!-- Shift Entries for each date -->
+                        <!-- Shift Entries for each date (Clickable for authorized supervisors) -->
                         {% for d in date_list %}
                         {% set shift_val = row.dates.get(d, '-')|string|trim %}
                         {% set u_val = shift_val|upper %}
-                        <td class="p-1.5 text-center border-r border-slate-200 dark:border-slate-700 {% if d == today %}bg-blue-50/30 dark:bg-blue-950/20{% endif %}">
-                            {% if u_val == 'WO' %}
-                            <span class="inline-block w-full py-1 rounded font-bold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 text-[11px]">
-                                WO
-                            </span>
-                            {% elif u_val == 'CO' %}
-                            <span class="inline-block w-full py-1 rounded font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 text-[11px]">
-                                CO
-                            </span>
-                            {% elif u_val in ['P', 'S'] %}
-                            <span class="inline-block w-full py-1 rounded font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 text-[11px]">
-                                P
-                            </span>
-                            {% elif u_val in ['SL', 'LEAVE'] %}
-                            <span class="inline-block w-full py-1 rounded font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 text-[11px]">
-                                {{ shift_val }}
-                            </span>
-                            {% elif u_val in ['CL', 'PL'] %}
-                            <span class="inline-block w-full py-1 rounded font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 text-[11px]">
-                                {{ shift_val }}
-                            </span>
-                            {% elif u_val == 'HD' %}
-                            <span class="inline-block w-full py-1 rounded font-bold bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300 text-[11px]">
-                                HD
-                            </span>
-                            {% elif u_val in ['A', 'ABSENT'] %}
-                            <span class="inline-block w-full py-1 rounded font-bold bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300 text-[11px]">
-                                A
-                            </span>
-                            {% elif u_val == 'LEFT' %}
-                            <span class="inline-block w-full py-1 rounded font-medium bg-slate-100 text-slate-400 dark:bg-slate-800 text-[10px]">
-                                Left
-                            </span>
-                            {% elif '07:00' in shift_val %}
-                            <span class="inline-block w-full py-1 rounded font-medium bg-teal-50 text-teal-800 dark:bg-teal-950/40 text-[10px]">
-                                07-16
-                            </span>
-                            {% elif '09:00' in shift_val %}
-                            <span class="inline-block w-full py-1 rounded font-medium bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 text-[10px]">
-                                09-18
-                            </span>
-                            {% elif '13:00' in shift_val %}
-                            <span class="inline-block w-full py-1 rounded font-medium bg-orange-50 text-orange-800 dark:bg-orange-950/40 text-[10px]">
-                                13-22
-                            </span>
-                            {% elif '22:00' in shift_val %}
-                            <span class="inline-block w-full py-1 rounded font-medium bg-purple-50 text-purple-800 dark:bg-purple-950/40 text-[10px]">
-                                22-07
-                            </span>
+                        <td class="p-1 text-center border-r border-slate-200 dark:border-slate-700 {% if d == today %}bg-blue-50/30 dark:bg-blue-950/20{% endif %}">
+                            {% if perms.can_edit or user.access_level in ['Admin', 'Manager', 'Team Leader', 'Quality', 'SME'] %}
+                            <button type="button" 
+                                onclick="openRosterCellModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}', '{{ d.strftime('%Y-%m-%d') }}', '{{ shift_val }}')"
+                                class="w-full py-1 px-0.5 rounded font-bold text-[11px] transition hover:scale-105 shadow-2xs
+                                {% if u_val == 'WO' %}bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300
+                                {% elif u_val == 'CO' %}bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300
+                                {% elif u_val in ['P', 'S'] %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300
+                                {% elif u_val in ['SL', 'LEAVE'] %}bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300
+                                {% elif u_val in ['CL', 'PL'] %}bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300
+                                {% elif u_val == 'HD' %}bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300
+                                {% elif u_val in ['A', 'ABSENT'] %}bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300
+                                {% elif '07:00' in shift_val %}bg-teal-50 text-teal-800 dark:bg-teal-950/40 text-[10px]
+                                {% elif '09:00' in shift_val %}bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 text-[10px]
+                                {% elif '13:00' in shift_val %}bg-orange-50 text-orange-800 dark:bg-orange-950/40 text-[10px]
+                                {% elif '22:00' in shift_val %}bg-purple-50 text-purple-800 dark:bg-purple-950/40 text-[10px]
+                                {% else %}bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400{% endif %}"
+                                title="Click to Quick-Mark Attendance / Shift for {{ d.strftime('%d %b') }}">
+                                {% if '07:00' in shift_val %}07-16
+                                {% elif '09:00' in shift_val %}09-18
+                                {% elif '13:00' in shift_val %}13-22
+                                {% elif '22:00' in shift_val %}22-07
+                                {% else %}{{ shift_val }}
+                                {% endif %}
+                            </button>
                             {% else %}
-                            <span class="text-slate-400 font-mono text-[11px]">{{ shift_val }}</span>
+                            <span class="inline-block w-full py-1 rounded font-bold text-[11px]
+                                {% if u_val == 'WO' %}bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300
+                                {% elif u_val == 'CO' %}bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300
+                                {% elif u_val in ['P', 'S'] %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300
+                                {% elif u_val in ['SL', 'LEAVE'] %}bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300
+                                {% elif u_val in ['CL', 'PL'] %}bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300
+                                {% elif u_val == 'HD' %}bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300
+                                {% elif u_val in ['A', 'ABSENT'] %}bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300
+                                {% elif '07:00' in shift_val %}bg-teal-50 text-teal-800 dark:bg-teal-950/40 text-[10px]
+                                {% elif '09:00' in shift_val %}bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 text-[10px]
+                                {% elif '13:00' in shift_val %}bg-orange-50 text-orange-800 dark:bg-orange-950/40 text-[10px]
+                                {% elif '22:00' in shift_val %}bg-purple-50 text-purple-800 dark:bg-purple-950/40 text-[10px]
+                                {% else %}text-slate-400 font-mono{% endif %}">
+                                {% if '07:00' in shift_val %}07-16
+                                {% elif '09:00' in shift_val %}09-18
+                                {% elif '13:00' in shift_val %}13-22
+                                {% elif '22:00' in shift_val %}22-07
+                                {% else %}{{ shift_val }}
+                                {% endif %}
+                            </span>
                             {% endif %}
                         </td>
                         {% endfor %}
@@ -1157,6 +1152,52 @@ function closeBatchShiftModal() {
     if (modal) modal.classList.add('hidden');
 }
 
+function openRosterCellModal(userId, userName, uniqueId, targetDate, currentShift) {
+    const modal = document.getElementById('roster-cell-quick-modal');
+    if (!modal) return;
+    document.getElementById('cell-user-id').value = userId;
+    document.getElementById('cell-target-date').value = targetDate;
+    document.getElementById('cell-emp-name').textContent = userName;
+    document.getElementById('cell-emp-uid').textContent = uniqueId;
+    document.getElementById('cell-date-display').textContent = targetDate;
+    document.getElementById('cell-current-shift').textContent = currentShift || 'Not set';
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function closeRosterCellModal() {
+    const modal = document.getElementById('roster-cell-quick-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function submitCellAttendance(statusMark) {
+    const userId = document.getElementById('cell-user-id').value;
+    const targetDate = document.getElementById('cell-target-date').value;
+    if (!userId || !targetDate) return;
+
+    try {
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        formData.append('target_date', targetDate);
+        formData.append('status_mark', statusMark);
+        formData.append('notes', 'Roster Matrix Quick Action Desk');
+
+        const resp = await fetch('/api/attendance/mark', {
+            method: 'POST',
+            body: formData
+        });
+        const res = await resp.json();
+        if (res.status === 'success') {
+            closeRosterCellModal();
+            window.location.reload();
+        } else {
+            alert(res.message || 'Error updating attendance');
+        }
+    } catch (e) {
+        alert('Request failed: ' + e.message);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     applyDynamicFilters();
 });
@@ -1228,6 +1269,94 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button type="submit" class="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm">Save Timetable Update</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- SUPERVISOR ROSTER CELL QUICK ACTION MODAL -->
+<div id="roster-cell-quick-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="scan-face" class="w-5 h-5 text-blue-600"></i>
+                    <span>Floor Attendance & Shift Override</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Authorized supervisor instant mark for roll-call & shifts.</p>
+            </div>
+            <button type="button" onclick="closeRosterCellModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <input type="hidden" id="cell-user-id">
+        <input type="hidden" id="cell-target-date">
+
+        <div class="my-4 p-3 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-200 dark:border-blue-900/60 flex items-center justify-between text-xs">
+            <div>
+                <span class="text-[10px] uppercase font-bold text-blue-500 block">Employee</span>
+                <span id="cell-emp-name" class="font-bold text-sm text-slate-900 dark:text-white"></span>
+                <span id="cell-emp-uid" class="font-mono text-[11px] text-slate-400 block"></span>
+            </div>
+            <div class="text-right">
+                <span class="text-[10px] uppercase font-bold text-blue-500 block">Target Date & Current</span>
+                <span id="cell-date-display" class="font-bold text-slate-900 dark:text-white block"></span>
+                <span id="cell-current-shift" class="font-bold font-mono text-xs text-blue-600 dark:text-blue-400"></span>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">1. Quick Attendance Roll Call (P / A / Leave)</label>
+                <div class="grid grid-cols-4 gap-2">
+                    <button type="button" onclick="submitCellAttendance('P')" class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 transition flex flex-col items-center justify-center gap-0.5">
+                        <span class="text-sm">P</span>
+                        <span class="text-[9px] font-normal opacity-90">Present</span>
+                    </button>
+                    <button type="button" onclick="submitCellAttendance('A')" class="py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/20 transition flex flex-col items-center justify-center gap-0.5">
+                        <span class="text-sm">A</span>
+                        <span class="text-[9px] font-normal opacity-90">Absent</span>
+                    </button>
+                    <button type="button" onclick="submitCellAttendance('HD')" class="py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-md shadow-amber-500/20 transition flex flex-col items-center justify-center gap-0.5">
+                        <span class="text-sm">HD</span>
+                        <span class="text-[9px] font-normal opacity-90">Half-Day</span>
+                    </button>
+                    <button type="button" onclick="submitCellAttendance('CL')" class="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-md shadow-indigo-600/20 transition flex flex-col items-center justify-center gap-0.5">
+                        <span class="text-sm">CL</span>
+                        <span class="text-[9px] font-normal opacity-90">Casual Leave</span>
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">2. Shift Slots & Offs</label>
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                    <button type="button" onclick="submitCellAttendance('07:00 To 16:00')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-700 transition">
+                        07:00 - 16:00
+                    </button>
+                    <button type="button" onclick="submitCellAttendance('09:00 To 18:00')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-700 transition">
+                        09:00 - 18:00
+                    </button>
+                    <button type="button" onclick="submitCellAttendance('13:00 To 22:00')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-700 transition">
+                        13:00 - 22:00
+                    </button>
+                    <button type="button" onclick="submitCellAttendance('22:00 To 07:00')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-700 transition">
+                        22:00 - 07:00
+                    </button>
+                    <button type="button" onclick="submitCellAttendance('WO')" class="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800 transition">
+                        WO (Week Off)
+                    </button>
+                    <button type="button" onclick="submitCellAttendance('CO')" class="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800 transition">
+                        CO (Comp Off)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+            <button type="button" onclick="closeRosterCellModal()" class="px-4 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-semibold">
+                Close
+            </button>
+        </div>
     </div>
 </div>
 

@@ -1,80 +1,323 @@
 {% extends "base.html" %}
-{% block title %}Shift Master & Quick Edit - ShiftFlow Pro{% endblock %}
+{% block title %}Floor Attendance & Supervisor Desk - ShiftFlow Pro{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <!-- Header with Operational Context & Date Picker -->
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
             <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
-                <span>Operations Lead</span>
+                <span>Operations Floor</span>
                 <i data-lucide="chevron-right" class="w-3 h-3"></i>
-                <span class="text-slate-800 dark:text-slate-200 font-semibold">Shift Master & Quick Edit</span>
+                <span class="text-slate-800 dark:text-slate-200 font-semibold">Live Floor Attendance & Shift Override Desk</span>
             </div>
             <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
-                <span>Interactive Shift Assignment Desk</span>
+                <span class="p-2 rounded-xl bg-blue-600/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400">
+                    <i data-lucide="scan-face" class="w-6 h-6"></i>
+                </span>
+                <span>Floor Attendance & Shift Control Desk</span>
             </h1>
+            <p class="text-xs text-slate-500 mt-1">
+                Authorized for <strong>Team Leader (TL / ATL), Quality, SME, Managers & Admins</strong>. Compare live employee punch sessions with supervisor roster status and override P, A, Shifts, or Leaves in real-time.
+            </p>
         </div>
 
-        <!-- Quick Form Modal Trigger -->
-        <button onclick="document.getElementById('quick-assign-modal').classList.remove('hidden')" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-semibold shadow-md transition flex items-center gap-2">
-            <i data-lucide="calendar-plus" class="w-4 h-4"></i>
-            <span>Assign Single Shift</span>
-        </button>
+        <!-- Date Filter & Quick Actions -->
+        <div class="flex items-center gap-3">
+            <form method="GET" action="/roster/manage" class="flex items-center gap-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div class="flex items-center gap-1.5 px-3 py-1 text-xs text-slate-600 dark:text-slate-300 font-semibold">
+                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
+                    <span>Date:</span>
+                </div>
+                <input type="date" name="target_date" value="{{ sel_date_str }}" onchange="this.form.submit()" class="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500">
+                <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition">
+                    View
+                </button>
+            </form>
+        </div>
     </div>
 
-    <!-- Quick Assign Card -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
-        <h2 class="text-base font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
-            <i data-lucide="sliders" class="w-5 h-5 text-blue-600"></i>
-            <span>Inline Shift Quick-Assigner</span>
-        </h2>
-        <p class="text-xs text-slate-500 mb-6">Select staff member and set their operational timing or mark Week Off / Comp-Off directly.</p>
+    <!-- Live Floor KPI Cards -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <!-- Total Headcount -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div class="flex items-center justify-between text-slate-400 mb-1">
+                <span class="text-[11px] font-bold uppercase tracking-wider">Total Staff</span>
+                <i data-lucide="users" class="w-4 h-4 text-blue-600"></i>
+            </div>
+            <div class="text-2xl font-black text-slate-900 dark:text-white">{{ stats.total }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Floor scope</div>
+        </div>
 
-        <form action="/roster/quick-assign" method="POST" class="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
-            <div>
-                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Select Employee
-                </label>
-                <select name="user_id" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
-                    {% for u in users %}
-                    <option value="{{ u.id }}">{{ u.name }} ({{ u.unique_id }} - {{ u.role_title }})</option>
+        <!-- Present Marked -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-950/60 shadow-sm">
+            <div class="flex items-center justify-between text-emerald-600 dark:text-emerald-400 mb-1">
+                <span class="text-[11px] font-bold uppercase tracking-wider">Present (P)</span>
+                <i data-lucide="user-check" class="w-4 h-4"></i>
+            </div>
+            <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400">{{ stats.present }}</div>
+            <div class="text-[10px] text-emerald-700/70 dark:text-emerald-400/60 mt-0.5">Marked present</div>
+        </div>
+
+        <!-- Absent Marked -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-950/60 shadow-sm">
+            <div class="flex items-center justify-between text-rose-600 dark:text-rose-400 mb-1">
+                <span class="text-[11px] font-bold uppercase tracking-wider">Absent (A)</span>
+                <i data-lucide="user-x" class="w-4 h-4"></i>
+            </div>
+            <div class="text-2xl font-black text-rose-600 dark:text-rose-400">{{ stats.absent }}</div>
+            <div class="text-[10px] text-rose-700/70 dark:text-rose-400/60 mt-0.5">Marked absent</div>
+        </div>
+
+        <!-- On Leave -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-950/60 shadow-sm">
+            <div class="flex items-center justify-between text-amber-600 dark:text-amber-400 mb-1">
+                <span class="text-[11px] font-bold uppercase tracking-wider">On Leave</span>
+                <i data-lucide="calendar-off" class="w-4 h-4"></i>
+            </div>
+            <div class="text-2xl font-black text-amber-600 dark:text-amber-400">{{ stats.leave }}</div>
+            <div class="text-[10px] text-amber-700/70 dark:text-amber-400/60 mt-0.5">Approved / CL / SL</div>
+        </div>
+
+        <!-- Week Off / Comp Off -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div class="flex items-center justify-between text-slate-500 mb-1">
+                <span class="text-[11px] font-bold uppercase tracking-wider">WO / CO</span>
+                <i data-lucide="coffee" class="w-4 h-4 text-purple-600"></i>
+            </div>
+            <div class="text-2xl font-black text-purple-600 dark:text-purple-400">{{ stats.wo }}</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Off scheduled</div>
+        </div>
+
+        <!-- Live Punch Active -->
+        <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-950/60 shadow-sm">
+            <div class="flex items-center justify-between text-blue-600 dark:text-blue-400 mb-1">
+                <span class="text-[11px] font-bold uppercase tracking-wider">Punched Live</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            </div>
+            <div class="text-2xl font-black text-blue-600 dark:text-blue-400">{{ stats.punched_active }}</div>
+            <div class="text-[10px] text-blue-700/70 dark:text-blue-400/60 mt-0.5">Active / On Break</div>
+        </div>
+    </div>
+
+    <!-- Supervisor Interactive Table & Floor Attendance Desk -->
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <!-- Action Toolbar & Quick Search Filter -->
+        <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                    <i data-lucide="table" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-white">
+                        Floor Roll Call & Live Punch Matrix ({{ sel_date.strftime('%d %B %Y') }})
+                    </h2>
+                    <p class="text-xs text-slate-500">
+                        Click single-action supervisor pills to immediately mark or correct attendance for any employee.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Client Filter & Quick Search -->
+            <div class="flex flex-wrap items-center gap-2">
+                <input type="text" id="floor-search-input" onkeyup="filterFloorTable()" placeholder="Search staff name or ID..." class="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 w-48 sm:w-56">
+
+                <!-- Filter by Role -->
+                <select id="floor-role-select" onchange="filterFloorTable()" class="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    <option value="All">All Roles</option>
+                    {% for r in distinct_roles %}
+                    <option value="{{ r }}">{{ r }}</option>
                     {% endfor %}
                 </select>
             </div>
+        </div>
 
-            <div>
-                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Target Date
-                </label>
-                <input type="date" name="date" required value="{{ today.strftime('%Y-%m-%d') }}" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
-            </div>
+        <!-- Attendance Roll Call Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-800 text-[11px] uppercase tracking-wider">
+                        <th class="p-3 pl-5">Staff Member</th>
+                        <th class="p-3">Role & Location</th>
+                        <th class="p-3">Scheduled Shift</th>
+                        <th class="p-3">Employee Punch (Live)</th>
+                        <th class="p-3">Supervisor Status</th>
+                        <th class="p-3 pr-5 text-right">Quick Mark Actions (TL / Manager)</th>
+                    </tr>
+                </thead>
+                <tbody id="floor-table-body" class="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                    {% for row in floor_records %}
+                    <tr class="floor-row hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition" 
+                        data-name="{{ row.user.name|lower }}" 
+                        data-uid="{{ row.user.unique_id|lower }}" 
+                        data-role="{{ row.user.role_title|lower if row.user.role_title else '' }}">
+                        <!-- Staff Member Info -->
+                        <td class="p-3 pl-5">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-bold flex items-center justify-center text-xs shadow-inner">
+                                    {{ row.user.name[:2]|upper }}
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                        <span>{{ row.user.name }}</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-400 font-mono">{{ row.user.unique_id }}</div>
+                                </div>
+                            </div>
+                        </td>
 
-            <div>
-                <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                    Shift Timing / Status
-                </label>
-                <select name="shift_code" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-blue-500">
-                    <option value="07:00 To 16:00">07:00 To 16:00 (Morning)</option>
-                    <option value="09:00 To 18:00" selected>09:00 To 18:00 (General)</option>
-                    <option value="13:00 To 22:00">13:00 To 22:00 (Afternoon)</option>
-                    <option value="22:00 To 07:00">22:00 To 07:00 (Night)</option>
-                    <option value="WO">WO (Week Off)</option>
-                    <option value="CO">CO (Comp-Off)</option>
-                    <option value="Leave">On Leave</option>
-                </select>
-            </div>
+                        <!-- Role & Location -->
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 inline-block mb-0.5">
+                                {{ row.user.role_title or row.user.access_level }}
+                            </span>
+                            <div class="text-[11px] text-slate-400 flex items-center gap-1">
+                                <i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i>
+                                <span>{{ row.user.location or 'Head Office' }}</span>
+                            </div>
+                        </td>
 
-            <div class="flex items-end">
-                <button type="submit" class="w-full py-2.5 px-4 rounded-xl font-semibold text-xs text-white bg-blue-600 hover:bg-blue-700 shadow-md transition flex items-center justify-center gap-1.5">
-                    <i data-lucide="check" class="w-4 h-4"></i>
-                    <span>Apply Shift Update</span>
-                </button>
-            </div>
-        </form>
+                        <!-- Scheduled Shift -->
+                        <td class="p-3">
+                            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold font-mono 
+                                {% if row.shift_assigned in ['WO'] %}bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700
+                                {% elif row.shift_assigned in ['CO'] %}bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800
+                                {% elif row.shift_assigned in ['CL', 'SL', 'Leave', 'PL'] %}bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800
+                                {% elif '07:00' in row.shift_assigned %}bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800
+                                {% elif '13:00' in row.shift_assigned %}bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800
+                                {% elif '22:00' in row.shift_assigned %}bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800
+                                {% else %}bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}">
+                                <i data-lucide="clock" class="w-3 h-3"></i>
+                                <span id="shift-label-{{ row.user.id }}">{{ row.shift_assigned }}</span>
+                            </div>
+                        </td>
+
+                        <!-- Employee Punch Data (Clock in, Break, Duration) -->
+                        <td class="p-3">
+                            {% if row.punch_status == 'ACTIVE' %}
+                            <div class="space-y-0.5">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                                    <span>Punched In: {{ row.punch_time_str }}</span>
+                                </span>
+                                <div class="text-[10px] text-slate-500">Status: <strong>Active on Duty</strong></div>
+                            </div>
+                            {% elif row.punch_status == 'ON_BREAK' %}
+                            <div class="space-y-0.5">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                                    <i data-lucide="coffee" class="w-3 h-3 text-amber-600"></i>
+                                    <span>On Break ({{ row.punch_time_str }})</span>
+                                </span>
+                                <div class="text-[10px] text-slate-500">Break: {{ row.work_session.total_break_mins or 0 }}m taken</div>
+                            </div>
+                            {% elif row.punch_status == 'COMPLETED' %}
+                            <div class="space-y-0.5">
+                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
+                                    <i data-lucide="check-circle" class="w-3 h-3 text-blue-600"></i>
+                                    <span>Punched Out: {{ row.punch_out_str }}</span>
+                                </span>
+                                <div class="text-[10px] text-slate-500">In: {{ row.punch_time_str }} | Net: <strong>{{ row.punch_duration_str }}</strong></div>
+                            </div>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                <i data-lucide="clock-alert" class="w-3 h-3"></i>
+                                <span>Not Punched Yet</span>
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Supervisor Attendance Status Badge -->
+                        <td class="p-3">
+                            <div id="status-container-{{ row.user.id }}">
+                                {% if row.roster_status == 'Present' or row.shift_assigned in ['P', 'Present'] %}
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 inline-flex items-center gap-1">
+                                    <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                    <span>P (Present)</span>
+                                </span>
+                                {% elif row.roster_status == 'Absent' or row.shift_assigned in ['A', 'Absent'] %}
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-black bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-800 inline-flex items-center gap-1">
+                                    <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                                    <span>A (Absent)</span>
+                                </span>
+                                {% elif row.roster_status == 'Leave' or row.shift_assigned in ['CL', 'SL', 'Leave', 'PL'] %}
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800 inline-flex items-center gap-1">
+                                    <i data-lucide="calendar-x" class="w-3.5 h-3.5"></i>
+                                    <span>{{ row.shift_assigned if row.shift_assigned != 'Scheduled' else 'Leave' }}</span>
+                                </span>
+                                {% elif row.roster_status == 'Half-Day' or row.shift_assigned in ['HD'] %}
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 inline-flex items-center gap-1">
+                                    <span>HD (Half-Day)</span>
+                                </span>
+                                {% elif row.roster_status in ['WO', 'CO'] or row.shift_assigned in ['WO', 'CO'] %}
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 inline-flex items-center gap-1">
+                                    <span>{{ row.shift_assigned }}</span>
+                                </span>
+                                {% else %}
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1">
+                                    <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                                    <span>{{ row.shift_assigned }}</span>
+                                </span>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- One-Click Quick Mark Buttons (Supervisor Actions) -->
+                        <td class="p-3 pr-5 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <!-- Mark Present (P) -->
+                                <button type="button" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', 'P')" title="Mark Present (P)" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-600 dark:hover:text-white font-extrabold text-xs border border-emerald-300 dark:border-emerald-700 shadow-xs transition hover:scale-105">
+                                    P
+                                </button>
+
+                                <!-- Mark Absent (A) -->
+                                <button type="button" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', 'A')" title="Mark Absent (A)" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-600 dark:hover:text-white font-extrabold text-xs border border-rose-300 dark:border-rose-700 shadow-xs transition hover:scale-105">
+                                    A
+                                </button>
+
+                                <!-- Mark Half Day (HD) -->
+                                <button type="button" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', 'HD')" title="Mark Half Day (HD)" class="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-600 text-amber-700 hover:text-white dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-600 dark:hover:text-white font-bold text-xs border border-amber-300 dark:border-amber-700 shadow-xs transition hover:scale-105">
+                                    HD
+                                </button>
+
+                                <!-- Mark Leave (Casual / Sick / Privilege) -->
+                                <div class="relative inline-block text-left">
+                                    <button type="button" onclick="toggleDropdown('leave-dropdown-{{ row.user.id }}')" title="Mark Leave (CL / SL / Leave)" class="px-2 py-1 rounded-lg bg-orange-50 hover:bg-orange-600 text-orange-700 hover:text-white dark:bg-orange-950/60 dark:text-orange-300 dark:hover:bg-orange-600 dark:hover:text-white font-bold text-xs border border-orange-300 dark:border-orange-700 shadow-xs transition flex items-center gap-1">
+                                        <span>Leave</span>
+                                        <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                                    </button>
+                                    <div id="leave-dropdown-{{ row.user.id }}" class="hidden absolute right-0 mt-1 w-36 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 z-30 text-xs">
+                                        <a href="javascript:void(0)" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', 'CL'); toggleDropdown('leave-dropdown-{{ row.user.id }}')" class="block px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold">Casual Leave (CL)</a>
+                                        <a href="javascript:void(0)" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', 'SL'); toggleDropdown('leave-dropdown-{{ row.user.id }}')" class="block px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold">Sick Leave (SL)</a>
+                                        <a href="javascript:void(0)" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', 'Leave'); toggleDropdown('leave-dropdown-{{ row.user.id }}')" class="block px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold">General Leave</a>
+                                    </div>
+                                </div>
+
+                                <!-- Change Shift Dropdown -->
+                                <div class="relative inline-block text-left">
+                                    <button type="button" onclick="toggleDropdown('shift-dropdown-{{ row.user.id }}')" title="Override Shift Window or Off" class="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white dark:bg-blue-950/60 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white font-bold text-xs border border-blue-200 dark:border-blue-800 shadow-xs transition flex items-center gap-1">
+                                        <span>Shift</span>
+                                        <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                                    </button>
+                                    <div id="shift-dropdown-{{ row.user.id }}" class="hidden absolute right-0 mt-1 w-44 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 z-30 text-xs">
+                                        <a href="javascript:void(0)" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', '07:00 To 16:00'); toggleDropdown('shift-dropdown-{{ row.user.id }}')" class="block px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">07:00 To 16:00 (Morn)</a>
+                                        <a href="javascript:void(0)" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', '09:00 To 18:00'); toggleDropdown('shift-dropdown-{{ row.user.id }}')" class="block px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">09:00 To 18:00 (Gen)</a>
+                                        <a href="javascript:void(0)" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', '13:00 To 22:00'); toggleDropdown('shift-dropdown-{{ row.user.id }}')" class="block px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">13:00 To 22:00 (Aft)</a>
+                                        <a href="javascript:void(0)" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', '22:00 To 07:00'); toggleDropdown('shift-dropdown-{{ row.user.id }}')" class="block px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">22:00 To 07:00 (Night)</a>
+                                        <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                                        <a href="javascript:void(0)" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', 'WO'); toggleDropdown('shift-dropdown-{{ row.user.id }}')" class="block px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-purple-600 font-bold">Week Off (WO)</a>
+                                        <a href="javascript:void(0)" onclick="quickMarkAttendance('{{ row.user.id }}', '{{ sel_date_str }}', 'CO'); toggleDropdown('shift-dropdown-{{ row.user.id }}')" class="block px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-purple-600 font-bold">Comp-Off (CO)</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <!-- Active Shifts Reference List -->
+    <!-- Active Shifts Reference & State Holidays Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Defined Shift Templates -->
         <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
@@ -119,4 +362,133 @@
         </div>
     </div>
 </div>
+
+<!-- CLIENT NOTIFICATION TOAST CONTAINER -->
+<div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+<script>
+function toggleDropdown(id) {
+    document.querySelectorAll('[id^="leave-dropdown-"], [id^="shift-dropdown-"]').forEach(el => {
+        if (el.id !== id) el.classList.add('hidden');
+    });
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden');
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('button')) {
+        document.querySelectorAll('[id^="leave-dropdown-"], [id^="shift-dropdown-"]').forEach(el => {
+            el.classList.add('hidden');
+        });
+    }
+});
+
+function filterFloorTable() {
+    const q = (document.getElementById('floor-search-input')?.value || '').toLowerCase().trim();
+    const role = (document.getElementById('floor-role-select')?.value || 'All').toLowerCase();
+
+    document.querySelectorAll('.floor-row').forEach(row => {
+        const name = row.getAttribute('data-name') || '';
+        const uid = row.getAttribute('data-uid') || '';
+        const r = row.getAttribute('data-role') || '';
+
+        const matchesText = !q || name.includes(q) || uid.includes(q);
+        const matchesRole = role === 'all' || r.includes(role);
+
+        row.style.display = (matchesText && matchesRole) ? '' : 'none';
+    });
+}
+
+async function quickMarkAttendance(userId, targetDate, statusMark) {
+    try {
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        formData.append('target_date', targetDate);
+        formData.append('status_mark', statusMark);
+        formData.append('notes', 'Floor Attendance Desk Quick Action');
+
+        const resp = await fetch('/api/attendance/mark', {
+            method: 'POST',
+            body: formData
+        });
+
+        const res = await resp.json();
+        if (res.status === 'success') {
+            showToast(res.message, 'success');
+
+            // Dynamically update UI badge for immediate feedback
+            const container = document.getElementById('status-container-' + userId);
+            const shiftLabel = document.getElementById('shift-label-' + userId);
+
+            if (shiftLabel) {
+                shiftLabel.textContent = res.shift_code;
+            }
+
+            if (container) {
+                let badgeHtml = '';
+                if (res.status_category === 'Present') {
+                    badgeHtml = `<span class="px-2.5 py-1 rounded-lg text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 inline-flex items-center gap-1">
+                        <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                        <span>P (Present)</span>
+                    </span>`;
+                } else if (res.status_category === 'Absent') {
+                    badgeHtml = `<span class="px-2.5 py-1 rounded-lg text-xs font-black bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-800 inline-flex items-center gap-1">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        <span>A (Absent)</span>
+                    </span>`;
+                } else if (res.status_category === 'Leave') {
+                    badgeHtml = `<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 inline-flex items-center gap-1">
+                        <i data-lucide="calendar-x" class="w-3.5 h-3.5"></i>
+                        <span>${res.shift_code}</span>
+                    </span>`;
+                } else if (res.status_category === 'Half-Day') {
+                    badgeHtml = `<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 inline-flex items-center gap-1">
+                        <span>HD (Half-Day)</span>
+                    </span>`;
+                } else {
+                    badgeHtml = `<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 inline-flex items-center gap-1">
+                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                        <span>${res.shift_code}</span>
+                    </span>`;
+                }
+                container.innerHTML = badgeHtml;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        } else {
+            showToast(res.message || 'Failed to mark attendance', 'error');
+        }
+    } catch (err) {
+        showToast('Network error while marking attendance: ' + err.message, 'error');
+    }
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    const isSuccess = type === 'success';
+    toast.className = `p-3 rounded-2xl shadow-xl border text-xs font-bold flex items-center gap-2 transform transition-all duration-300 ease-out translate-y-2 opacity-0 ${
+        isSuccess 
+            ? 'bg-slate-900 text-white border-slate-700 dark:bg-white dark:text-slate-900' 
+            : 'bg-rose-600 text-white border-rose-500'
+    }`;
+    toast.innerHTML = `
+        <i data-lucide="${isSuccess ? 'check-circle' : 'alert-triangle'}" class="w-4 h-4"></i>
+        <span>${message}</span>
+    `;
+    container.appendChild(toast);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+    }, 10);
+
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
+}
+</script>
 {% endblock %}
