@@ -114,16 +114,29 @@
                 </a>
             </div>
 
-            <!-- Role Category & Designation Filter -->
-            <form method="GET" action="/roster" class="inline-flex">
+            <!-- Location & Role Filter Form -->
+            <form method="GET" action="/roster" class="inline-flex items-center gap-2">
                 <input type="hidden" name="start_date" value="{{ current_start_str }}">
                 <input type="hidden" name="view_mode" value="{{ view_mode }}">
-                <div class="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2 py-1 shadow-sm">
-                    <span class="text-[10px] uppercase font-bold text-slate-400 pl-1">Role View:</span>
+
+                <!-- Location Selector -->
+                <div class="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2 py-1 shadow-sm">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 pl-1">Location:</span>
+                    <select name="location" onchange="this.form.submit()" class="text-xs bg-transparent text-slate-700 dark:text-slate-200 font-semibold focus:outline-none pr-1">
+                        <option value="All" {% if current_location == 'All' %}selected{% endif %}>🌐 All Circles</option>
+                        {% for loc in available_locations %}
+                        <option value="{{ loc }}" {% if current_location == loc %}selected{% endif %}>📍 {{ loc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Role Selector -->
+                <div class="flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2 py-1 shadow-sm">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 pl-1">Role:</span>
                     <select name="role" onchange="this.form.submit()" class="text-xs bg-transparent text-slate-700 dark:text-slate-200 font-semibold focus:outline-none pr-1">
                         {% for r in role_categories %}
                         <option value="{{ r }}" {% if current_role == r %}selected{% endif %}>
-                            {% if r == 'All' %}🌐 All Roles (Full Team)
+                            {% if r == 'All' %}🌐 All Roles
                             {% elif r == 'TL' %}👔 Team Leader (TL)
                             {% elif r == 'Admin' %}🛡️ Admin View
                             {% elif r == 'Manager' %}📊 Manager View

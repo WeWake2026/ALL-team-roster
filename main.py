@@ -835,21 +835,22 @@ def roster_matrix(
     start_date: Optional[str] = None,
     view_mode: Optional[str] = "7", # 7 or 14
     role: Optional[str] = "All",
+    location: Optional[str] = "All",
     user: models.User = Depends(require_auth),
     perms: get_user_perms = Depends(get_user_perms),
     db: Session = Depends(get_db)
 ):
     today = date.today()
 
-    # Determine start date (default to current week's Monday if not explicitly provided)
+    # Determine start date (default to Sunday of current week so full operational week is visible)
     if start_date:
         try:
             current_start = datetime.strptime(start_date, "%Y-%m-%d").date()
         except Exception:
-            current_start = today - timedelta(days=today.weekday())
+            current_start = today - timedelta(days=(today.weekday() + 1) % 7)
     else:
-        # Default to current week's Monday
-        current_start = today - timedelta(days=today.weekday())
+        # Default to Sunday of current week
+        current_start = today - timedelta(days=(today.weekday() + 1) % 7)
 
     num_days = 14 if view_mode == "14" else 7
     date_list = [current_start + timedelta(days=i) for i in range(num_days)]
@@ -892,19 +893,25 @@ def roster_matrix(
         ((models.User.is_active == True) | (models.User.exit_date > date_list[0]))
     )
 
-    # STRICT ROLE-BASED SCOPING:
-    # If the user is an Agent / Advisor / standard Employee, strictly limit to their own assigned team!
+    # ROLE & LOCATION SCOPING:
+    # Allow staff and employees to view their operational peers in the same location
     is_mgmt = perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader or (user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader'])
     if not is_mgmt:
         if user.team_id:
             u_query = u_query.filter(models.User.team_id == user.team_id)
-        else:
-            u_query = u_query.filter(models.User.id == user.id)
+        elif user.location:
+            u_query = u_query.filter(models.User.location == user.location)
     elif perms.is_team_leader and not (perms.is_admin or perms.is_hr):
         if perms.assigned_employee_ids:
             u_query = u_query.filter(models.User.id.in_(perms.assigned_employee_ids + [user.id]))
         elif user.team_id:
             u_query = u_query.filter(models.User.team_id == user.team_id)
+        elif user.location:
+            u_query = u_query.filter(models.User.location == user.location)
+
+    # Server-Side Location Filter
+    if location and location not in ["All", "ALL", ""]:
+        u_query = u_query.filter(models.User.location.ilike(f"%{location.strip()}%"))
 
     if role and role != "All":
         r_clean = role.strip().upper()
@@ -1014,6 +1021,7 @@ def roster_matrix(
             "available_shifts": available_shifts,
             "configured_shifts": configured_shifts,
             "current_role": role,
+            "current_location": location or "All",
             "view_mode": str(num_days),
             "current_start_str": current_start.strftime("%Y-%m-%d"),
             "prev_date_str": prev_date.strftime("%Y-%m-%d"),
