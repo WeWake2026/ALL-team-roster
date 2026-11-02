@@ -370,7 +370,10 @@ def login_action(
 
     # Determine post-login destination
     # If location is provided and authorized, send to Location Roster (or dashboard if employee without roster view rights)
-    is_mgmt = perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader or (user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader'])
+    is_mgmt = (
+        perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader or perms.is_quality or perms.is_sme or
+        (user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader', 'Quality', 'QA', 'SME'])
+    )
     if target_loc_id and is_mgmt:
         redirect_url = f"/roster/location?location_id={target_loc_id}"
     else:

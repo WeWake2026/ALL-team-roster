@@ -187,7 +187,7 @@
                         </td>
 
                         <td class="p-3 text-center">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if u.access_level == 'Admin' %}bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300{% elif u.access_level == 'HR' %}bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300{% elif u.access_level == 'Location Manager' %}bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300{% elif u.access_level == 'Team Leader' %}bg-cyan-100 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300{% else %}bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300{% endif %}">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if u.access_level == 'Admin' %}bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300{% elif u.access_level == 'HR' %}bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300{% elif u.access_level == 'Location Manager' %}bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300{% elif u.access_level == 'Team Leader' %}bg-cyan-100 text-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-300{% elif u.access_level == 'Quality' or u.access_level == 'QA' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300{% elif u.access_level == 'SME' %}bg-indigo-100 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300{% else %}bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300{% endif %}">
                                 {{ u.access_level }}
                             </span>
                         </td>
@@ -805,6 +805,8 @@
                         <option value="Employee">Employee</option>
                         <option value="Team Leader">Team Leader</option>
                         <option value="Location Manager">Location Manager</option>
+                        <option value="Quality">Quality / QA Lead</option>
+                        <option value="SME">Subject Matter Expert (SME)</option>
                         <option value="HR">HR</option>
                         <option value="Admin">Admin</option>
                     </select>
@@ -875,6 +877,8 @@
                         <option value="Employee">Employee</option>
                         <option value="Team Leader">Team Leader</option>
                         <option value="Location Manager">Location Manager</option>
+                        <option value="Quality">Quality / QA Lead</option>
+                        <option value="SME">Subject Matter Expert (SME)</option>
                         <option value="HR">HR</option>
                         <option value="Admin">Admin</option>
                     </select>
@@ -987,6 +991,8 @@
                             <option value="Employee">Employee (Self Roster & Leave)</option>
                             <option value="Team Leader">Team Leader (Manage Team & Rosters)</option>
                             <option value="Location Manager">Location Manager (Branch Shift Desk)</option>
+                            <option value="Quality">Quality / QA Lead (Audit & Performance)</option>
+                            <option value="SME">Subject Matter Expert (Roster & Skills)</option>
                             <option value="HR">HR (Leave Master & Approvals)</option>
                             <option value="Admin">Admin (Universal Authority)</option>
                         </select>

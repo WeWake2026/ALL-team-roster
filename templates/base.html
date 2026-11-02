@@ -202,15 +202,15 @@
                     </a>
                     <a href="/roster" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
                         <i data-lucide="calendar" class="w-4 h-4"></i>
-                        <span>{% if user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader'] %}Team Roster{% else %}My Team Roster{% endif %}</span>
+                        <span>{% if user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader', 'Quality', 'QA', 'SME'] %}Team Roster{% else %}My Team Roster{% endif %}</span>
                     </a>
-                    {% if (perms and (perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader)) or (user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader']) %}
+                    {% if (perms and (perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader)) or (user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader', 'Quality', 'QA', 'SME']) %}
                     <a href="/roster/location" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
                         <i data-lucide="map-pin" class="w-4 h-4 text-cyan-400"></i>
                         <span>Location Roster</span>
                     </a>
                     {% endif %}
-                    {% if (perms and (perms.is_admin or perms.is_hr)) or (user.access_level in ['Admin', 'Super Admin', 'HR']) %}
+                    {% if (perms and (perms.is_admin or perms.is_hr)) or (user.access_level in ['Admin', 'Super Admin', 'HR', 'Quality', 'QA', 'SME']) %}
                     <a href="/roster/combined" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-300 hover:bg-slate-800">
                         <i data-lucide="layers" class="w-4 h-4 text-purple-400"></i>
                         <span>Combined Roster</span>
@@ -699,7 +699,7 @@
                 icon: 'sliders',
                 activeKey: 'manage_roster',
                 category: 'Operations',
-                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader']
+                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader', 'Quality', 'QA', 'SME']
             },
             {
                 id: 'leaves',
@@ -718,7 +718,7 @@
                 icon: 'users',
                 activeKey: 'shifts',
                 category: 'Operations',
-                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader']
+                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader', 'Quality', 'QA', 'SME']
             },
             {
                 id: 'location_matrix',
@@ -727,7 +727,7 @@
                 icon: 'map-pin',
                 activeKey: 'location_roster',
                 category: 'Operations',
-                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader']
+                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader', 'Quality', 'QA', 'SME']
             },
             {
                 id: 'combined_roster',
@@ -736,7 +736,7 @@
                 icon: 'layers',
                 activeKey: 'combined_roster',
                 category: 'Operations',
-                roles: ['Admin', 'Super Admin', 'HR']
+                roles: ['Admin', 'Super Admin', 'HR', 'Quality', 'QA', 'SME']
             },
             {
                 id: 'audit_history',
@@ -745,7 +745,7 @@
                 icon: 'history',
                 activeKey: 'shift_history',
                 category: 'Audit',
-                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR']
+                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Quality', 'QA', 'SME']
             },
             {
                 id: 'analytics_reports',
@@ -763,7 +763,7 @@
                 icon: 'scale',
                 activeKey: 'leave_master',
                 category: 'Administration',
-                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR']
+                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Quality', 'QA', 'SME']
             },
             {
                 id: 'user_accounts',

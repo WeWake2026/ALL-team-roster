@@ -68,7 +68,9 @@ class UserPermissions:
         can_edit: bool,
         can_approve: bool,
         can_export: bool,
-        active_assignments: List[models.UserAssignment]
+        active_assignments: List[models.UserAssignment],
+        is_quality: bool = False,
+        is_sme: bool = False
     ):
         self.user = user
         self.is_super_admin = is_super_admin
@@ -77,6 +79,8 @@ class UserPermissions:
         self.is_manager = is_manager
         self.is_team_leader = is_team_leader
         self.is_employee = is_employee
+        self.is_quality = is_quality
+        self.is_sme = is_sme
         self.location_ids = location_ids
         self.department_ids = department_ids
         self.team_ids = team_ids
@@ -110,12 +114,16 @@ def resolve_user_permissions(user: models.User, db: Session) -> UserPermissions:
     Implements least-privilege access and denies access by default.
     """
     role = (user.access_level or "Employee").strip()
+    role_title_clean = (user.role_title or "").strip().upper()
+
     is_super_admin = role in ["Super Admin"]
     is_admin = role in ["Super Admin", "Admin"]
     is_hr = role == "HR"
     is_manager = role in ["Location Manager", "Operations Manager", "Manager"]
-    is_team_leader = role in ["Team Leader", "Team Lead", "TL"]
-    is_employee = role == "Employee"
+    is_team_leader = role in ["Team Leader", "Team Lead", "TL"] or "LEAD" in role_title_clean or "TL" in role_title_clean
+    is_quality = role in ["Quality", "QA", "Quality Lead"] or "QA" in role_title_clean or "QUALITY" in role_title_clean
+    is_sme = role in ["SME", "Subject Matter Expert"] or "SME" in role_title_clean
+    is_employee = not (is_admin or is_manager or is_hr or is_team_leader or is_quality or is_sme)
 
     # Admins and Super Admins have universal visibility by default
     if is_admin:
@@ -227,6 +235,22 @@ def resolve_user_permissions(user: models.User, db: Session) -> UserPermissions:
         # TL default permissions
         can_edit = can_edit or True
 
+    elif is_quality:
+        # QA / Quality Lead can audit rosters across operational teams and view reports
+        can_view_all = False
+        can_export = True
+        can_create = False
+        can_edit = False
+        can_approve = False
+
+    elif is_sme:
+        # Subject Matter Expert has extended visibility for skill & roster support
+        can_view_all = False
+        can_export = True
+        can_create = False
+        can_edit = False
+        can_approve = False
+
     # Build employee list from assigned teams/departments if no specific employee was specified
     if team_ids:
         team_members = db.query(models.User.id).filter(models.User.team_id.in_(team_ids)).all()
@@ -248,6 +272,8 @@ def resolve_user_permissions(user: models.User, db: Session) -> UserPermissions:
         is_manager=is_manager,
         is_team_leader=is_team_leader,
         is_employee=is_employee,
+        is_quality=is_quality,
+        is_sme=is_sme,
         location_ids=location_ids,
         department_ids=department_ids,
         team_ids=team_ids,
@@ -310,11 +336,11 @@ def require_admin_or_manager(
     user: models.User = Depends(require_auth),
     perms: UserPermissions = Depends(get_user_perms)
 ) -> models.User:
-    """Admin, Manager, or HR routes"""
-    if not (perms.is_admin or perms.is_manager or perms.is_hr):
+    """Admin, Manager, HR, Team Leader, Quality (QA), or SME routes"""
+    if not (perms.is_admin or perms.is_manager or perms.is_hr or perms.is_team_leader or perms.is_quality or perms.is_sme):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access restricted to Administrative and Management personnel."
+            detail="Access restricted to Authorized Operational Staff (Admin, Manager, Team Leader, Quality, SME)."
         )
     return user
 
