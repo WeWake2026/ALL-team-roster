@@ -15,63 +15,103 @@ def normalize_header(header: str) -> str:
     return re.sub(r'[^a-zA-Z0-9]', '', header).upper()
 
 def parse_date_str(val: Any) -> str:
-    """Extract standard YYYY-MM-DD date string from header or date object"""
+    """
+    Extract standard YYYY-MM-DD date string from header or date object.
+    Strictly validates that year is realistic (e.g. 2020-2035) to avoid false matches
+    like 'SUNDAY.1' parsing to '0001-01-01'.
+    """
     if isinstance(val, (datetime, date)):
-        return val.strftime("%Y-%m-%d")
+        if val.year >= 2020 and val.year <= 2035:
+            return val.strftime("%Y-%m-%d")
+        return ""
+    
     s = str(val).strip()
+    if not s or s.upper() in ["NAN", "NONE", "-", "=", "SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]:
+        return ""
+
     m1 = re.match(r'^(\d{4})[-/](\d{1,2})[-/](\d{1,2})', s)
     if m1:
         y, m, d = m1.groups()
-        return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+        if int(y) >= 2020 and int(y) <= 2035:
+            return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+        return ""
+
     m2 = re.match(r'^(\d{1,2})[-/](\d{1,2})[-/](\d{4})', s)
     if m2:
         d, m, y = m2.groups()
-        return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
-    try:
-        dt = pd.to_datetime(s)
-        return dt.strftime("%Y-%m-%d")
-    except Exception:
+        if int(y) >= 2020 and int(y) <= 2035:
+            return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
         return ""
+
+    try:
+        # Only parse if looks like a date containing digits
+        if any(ch.isdigit() for ch in s):
+            dt = pd.to_datetime(s, errors='coerce')
+            if pd.notna(dt) and dt.year >= 2020 and dt.year <= 2035:
+                return dt.strftime("%Y-%m-%d")
+    except Exception:
+        pass
+    return ""
 
 def import_roster_file(file_bytes: bytes, filename: str, db: Session, updated_by: str = "Admin") -> Dict[str, Any]:
     """
-    Parses an Excel (.xlsx, .xls) or CSV file matching exact MSEDCL operations format:
-    Headers: SR NO., EMPLOYEE NAME, GENDER, UNIQUE ID, CRM ID, BM ID, LOCATION, ECN, EMAIL-ID, ROLE,
-    followed by date columns (e.g. 2026-10-19), and summary columns WO, CO, SHIFTS.
-    Supports files with top title/metadata banner rows by auto-detecting the header row.
+    Parses an Excel (.xlsx, .xls) or CSV file matching MSEDCL operations format:
+    Headers: NO / SR NO., EMPLOYEE NAME, GENDER, UNIQUE ID, CRM ID, BM ID, LOCATION, ECN, EMAIL-ID, ROLE,
+    followed by date columns or week day headers (e.g. 2026-11-01, MONDAY, TUESDAY), and summary columns WO, CO, SHIFTS.
+    Supports files with top title/metadata banner rows by auto-detecting the header row and inspecting banner rows for dates.
     """
+    banner_dates_by_col = {}
+
     if filename.lower().endswith('.csv'):
-        # Check if CSV has title banner in first few rows
         df_raw = pd.read_csv(BytesIO(file_bytes), header=None, nrows=10)
         skip = 0
         for idx, row in df_raw.iterrows():
             vals = [normalize_header(str(v)) for v in row.values if pd.notna(v)]
-            if any(k in vals for k in ["UNIQUEID", "EMPLOYEENAME", "EMPNAME", "SRNO"]):
+            if any(k in vals for k in ["UNIQUEID", "EMPLOYEENAME", "EMPNAME", "SRNO", "NO"]):
                 skip = idx
                 break
+        
+        # Check rows above the main header for embedded dates (e.g. row 0 having 2026-11-01)
+        if skip > 0:
+            for r_idx in range(skip):
+                brow = df_raw.iloc[r_idx]
+                for c_idx, val in enumerate(brow.values):
+                    p_dt = parse_date_str(val)
+                    if p_dt:
+                        banner_dates_by_col[c_idx] = p_dt
+
         df = pd.read_csv(BytesIO(file_bytes), skiprows=skip)
     else:
-        # Check if Excel has title banner in first few rows
         df_raw = pd.read_excel(BytesIO(file_bytes), sheet_name=0, header=None, nrows=10)
         skip = 0
         for idx, row in df_raw.iterrows():
             vals = [normalize_header(str(v)) for v in row.values if pd.notna(v)]
-            if any(k in vals for k in ["UNIQUEID", "EMPLOYEENAME", "EMPNAME", "SRNO"]):
+            if any(k in vals for k in ["UNIQUEID", "EMPLOYEENAME", "EMPNAME", "SRNO", "NO"]):
                 skip = idx
                 break
+
+        # Check rows above the main header for embedded dates (e.g. row 0 having 2026-11-01)
+        if skip > 0:
+            for r_idx in range(skip):
+                brow = df_raw.iloc[r_idx]
+                for c_idx, val in enumerate(brow.values):
+                    p_dt = parse_date_str(val)
+                    if p_dt:
+                        banner_dates_by_col[c_idx] = p_dt
+
         df = pd.read_excel(BytesIO(file_bytes), sheet_name=0, skiprows=skip)
 
     # Clean header mapping with priority for exact matches
     col_mapping = {}
     date_cols = []
 
-    for col in df.columns:
+    for col_idx, col in enumerate(df.columns):
         norm = normalize_header(str(col))
         if norm in ["UNIQUEID", "EMPID", "EMPLOYEEID"]:
             col_mapping["unique_id"] = col
         elif norm in ["EMPLOYEENAME", "EMPNAME", "NAME"]:
             col_mapping["name"] = col
-        elif norm in ["EMAILID", "EMAIL"]:
+        elif norm in ["EMAILID", "EMAIL", "MAILID"]:
             col_mapping["email"] = col
         elif norm in ["CRMID", "CRM"]:
             col_mapping["crm_id"] = col
@@ -92,8 +132,12 @@ def import_roster_file(file_bytes: bytes, filename: str, db: Session, updated_by
         elif norm in ["CO"]:
             col_mapping["co_count"] = col
         else:
-            # Check if this column is a date
+            # First check if the header itself has a valid date
             dt_str = parse_date_str(col)
+            # Second check if banner row above had a date for this column
+            if not dt_str and col_idx in banner_dates_by_col:
+                dt_str = banner_dates_by_col[col_idx]
+
             if dt_str:
                 date_cols.append((col, dt_str))
 
