@@ -33,6 +33,7 @@ from excel_service import (
     calculate_daily_capacity,
     offboard_employee
 )
+import mongo_service
 
 # Initialize Tables
 Base.metadata.create_all(bind=engine)
@@ -2497,6 +2498,29 @@ def delete_holiday(
             status_code=302
         )
     return RedirectResponse(url="/admin/settings?alert_msg=Holiday+not+found&alert_type=error", status_code=302)
+
+# ================= MONGODB ATLAS INTEGRATION & SYNC APIS ================= #
+
+@app.get("/api/admin/mongodb/status")
+def api_get_mongodb_status(
+    user: models.User = Depends(require_admin_or_manager)
+):
+    """Returns live connection status of MongoDB Atlas cluster"""
+    connected = mongo_service.is_mongo_connected()
+    return {
+        "connected": connected,
+        "database": mongo_service.MONGODB_DB_NAME,
+        "configured_uri": bool(os.getenv("MONGODB_URI"))
+    }
+
+@app.post("/api/admin/mongodb/sync")
+def api_sync_mongodb_data(
+    user: models.User = Depends(require_admin_or_manager),
+    db: Session = Depends(get_db)
+):
+    """Triggers snapshot synchronization from primary database to MongoDB Atlas collections"""
+    result = mongo_service.sync_all_sqlite_to_mongodb(db)
+    return result
 
 # ================= IP WHITELISTING MANAGEMENT APIS ================= #
 

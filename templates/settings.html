@@ -373,6 +373,51 @@
                 </table>
             </div>
         </div>
+
+        <!-- MongoDB Atlas Integration Card -->
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg">
+                        <i data-lucide="database" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <span>MongoDB Atlas Database Mirror</span>
+                            <span id="mongo-status-pill" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700">
+                                Checking...
+                            </span>
+                        </h2>
+                        <p class="text-xs text-slate-500">Live document mirror for workforce rosters, telephony session logs, and audit trails</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="triggerMongoSync()" id="mongo-sync-btn"
+                        class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition flex items-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="mongo-sync-icon"></i>
+                        <span>Sync Now to MongoDB</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Target Cluster</span>
+                    <span class="font-mono font-semibold text-slate-800 dark:text-slate-200">msedcl.yyvse8h.mongodb.net</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Database Namespace</span>
+                    <span class="font-mono font-semibold text-emerald-600 dark:text-emerald-400">msedcl_workforce</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block mb-1">Collections</span>
+                    <span class="font-semibold text-slate-700 dark:text-slate-300">users, roster_entries, leave_requests, audit_logs</span>
+                </div>
+            </div>
+
+            <div id="mongo-sync-alert" class="hidden p-3 rounded-xl text-xs font-semibold"></div>
+        </div>
     </div>
 </div>
 
@@ -418,4 +463,56 @@
         </form>
     </div>
 </div>
+
+<script>
+async function checkMongoStatus() {
+    const pill = document.getElementById('mongo-status-pill');
+    try {
+        const res = await fetch('/api/admin/mongodb/status');
+        const data = await res.json();
+        if (data.connected) {
+            pill.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300';
+            pill.innerHTML = '● Connected & Active';
+        } else {
+            pill.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300';
+            pill.innerHTML = 'Standby (Password Required in ENV)';
+        }
+    } catch(e) {
+        if (pill) {
+            pill.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-300';
+            pill.innerHTML = 'Offline';
+        }
+    }
+}
+
+async function triggerMongoSync() {
+    const btn = document.getElementById('mongo-sync-btn');
+    const icon = document.getElementById('mongo-sync-icon');
+    const alertBox = document.getElementById('mongo-sync-alert');
+    btn.disabled = true;
+    if (icon) icon.classList.add('animate-spin');
+
+    try {
+        const res = await fetch('/api/admin/mongodb/sync', { method: 'POST' });
+        const data = await res.json();
+        alertBox.classList.remove('hidden');
+        if (data.status === 'success') {
+            alertBox.className = 'p-3 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200';
+            alertBox.innerText = `Successfully synced to MongoDB! Users: ${data.counts.users}, Roster Entries: ${data.counts.roster_entries}, Leave Requests: ${data.counts.leave_requests}`;
+        } else {
+            alertBox.className = 'p-3 rounded-xl text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200';
+            alertBox.innerText = `MongoDB sync standby: ${data.message || 'Set MONGODB_URI in Render environment to activate sync.'}`;
+        }
+    } catch(err) {
+        alertBox.classList.remove('hidden');
+        alertBox.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200';
+        alertBox.innerText = 'Network error while triggering MongoDB sync: ' + err.message;
+    } finally {
+        btn.disabled = false;
+        if (icon) icon.classList.remove('animate-spin');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', checkMongoStatus);
+</script>
 {% endblock %}
