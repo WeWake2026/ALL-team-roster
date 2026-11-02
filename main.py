@@ -3315,6 +3315,7 @@ def user_accounts_page(
 @app.get("/api/dashboard/metrics")
 def get_dashboard_metrics(
     date_str: Optional[str] = None,
+    location: Optional[str] = "All",
     shifts: Optional[str] = None,
     roles: Optional[str] = None,
     user: models.User = Depends(require_auth),
@@ -3336,8 +3337,17 @@ def get_dashboard_metrics(
     shift_filter_list = [s.strip().upper() for s in shifts.split(",") if s.strip()] if shifts else []
     role_filter_list = [r.strip() for r in roles.split(",") if r.strip()] if roles else []
 
-    # Query active employees
-    u_query = db.query(models.User).filter(models.User.is_active == True)
+    # Query active employees with optional location filter
+    u_query = db.query(models.User).filter(
+        models.User.is_active == True,
+        models.User.unique_id != "ADMIN001"
+    )
+    if location and location not in ["All", "ALL", ""]:
+        loc_clean = location.strip().upper()
+        if loc_clean in ["MUMBAI"]:
+            u_query = u_query.filter(models.User.location.ilike("Mumbai"))
+        else:
+            u_query = u_query.filter(models.User.location.ilike(f"%{location.strip()}%"))
     if role_filter_list:
         u_query = u_query.filter(models.User.role_title.in_(role_filter_list))
     all_users = u_query.all()
@@ -3391,6 +3401,10 @@ def get_dashboard_metrics(
         if shift_filter_list and not any(sf in code for sf in shift_filter_list):
             continue
 
+        if not e and not al:
+            # If no roster entry exists for this employee on target_date, do not falsely count as absent
+            continue
+
         if code == "WO":
             wo_count += 1
         elif code in ["CO", "COMP-OFF"]:
@@ -3400,15 +3414,24 @@ def get_dashboard_metrics(
         elif code in ["SL"]:
             sl_count += 1
         elif code in ["PL", "LEAVE", "UNPAID"]:
-            # Counted as leave (can classify under CL or absent)
             cl_count += 1
-        elif code in ["P", "S"] or any(t in code for t in ["07:00", "09:00", "11:00", "13:00", "16:00", "18:00", "20:00", "22:00"]):
+        elif code in ["HD", "HALF-DAY", "HALF DAY", "P+HD"]:
+            present_count += 1
+        elif code in ["P", "S", "PRESENT"] or any(t in code for t in [":", "07:00", "09:00", "11:00", "13:00", "16:00", "18:00", "20:00", "22:00"]):
             present_count += 1
         elif code in ["A", "ABSENT", "LEFT"]:
             absent_count += 1
         else:
-            if e and e.status == "Present":
+            if e and e.status in ["Present", "Scheduled"]:
                 present_count += 1
+            elif e and e.status == "WO":
+                wo_count += 1
+            elif e and e.status == "CO":
+                co_count += 1
+            elif e and e.status in ["CL", "SL", "PL", "Leave"]:
+                cl_count += 1
+            elif e and e.status == "Absent":
+                absent_count += 1
             else:
                 absent_count += 1
 
