@@ -1,5 +1,51 @@
 {% extends "base.html" %}
-{% block title %}24/7 Operations Rules, Holidays & Quota Master - ShiftFlow Pro{% endblock %}
+{% block title %}24/7 Operations Rules, Holidays & Quota Master - ShiftFlow Pro
+<!-- ADD LOCATION MODAL -->
+<div id="add-location-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md shadow-2xl p-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="map-pin-plus" class="w-5 h-5 text-emerald-600"></i>
+                <span>Add Operational Location / Circle</span>
+            </h3>
+            <button onclick="document.getElementById('add-location-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <form action="/admin/locations/create" method="POST" class="mt-4 space-y-4 text-xs">
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Location / Circle Name *</label>
+                <input type="text" name="name" required placeholder="e.g. Pune, Nashik, Aurangabad, Navi Mumbai"
+                    class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-emerald-500">
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Short Code (Optional)</label>
+                <input type="text" name="code" placeholder="e.g. PUN, NSK, ABN, N-MUM"
+                    class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono uppercase focus:ring-2 focus:ring-emerald-500">
+                <span class="text-[10px] text-slate-400 mt-1 block">Leave empty to auto-generate from the first 3 letters.</span>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Office / Facility Address</label>
+                <textarea name="address" rows="2" placeholder="e.g. MSEDCL Circle Office, Substation Road"
+                    class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500"></textarea>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onclick="document.getElementById('add-location-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-500/20 transition">
+                    Create Location
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -274,6 +320,61 @@
         </div>
     </div>
 
+
+    <!-- OPERATIONAL LOCATIONS & CIRCLES MASTER -->
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="map-pin" class="w-5 h-5 text-emerald-600"></i>
+                    <span>Operational Locations & Circles ({{ locations|length }})</span>
+                </h2>
+                <p class="text-xs text-slate-500">Add and manage corporate operational circles, offices, and regional call dispatch centres</p>
+            </div>
+            <button type="button" onclick="document.getElementById('add-location-modal').classList.remove('hidden')" class="px-3.5 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-xs border border-emerald-200 dark:border-emerald-900 transition flex items-center gap-1.5">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>Add Operational Location</span>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {% for loc in locations %}
+            <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex flex-col justify-between space-y-3">
+                <div>
+                    <div class="flex items-center justify-between">
+                        <span class="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                            <i data-lucide="building-2" class="w-4 h-4 text-emerald-500"></i>
+                            <span>{{ loc.name }}</span>
+                        </span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                            {{ loc.code }}
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-2">
+                        {{ loc.address or 'MSEDCL Continuous Operations Facility' }}
+                    </p>
+                </div>
+                <div class="pt-2 border-t border-slate-200/60 dark:border-slate-700 flex items-center justify-between text-xs">
+                    <span class="text-slate-600 dark:text-slate-400 font-semibold">
+                        {{ loc_user_counts.get(loc.id, 0) if loc_user_counts else 0 }} Staff Assigned
+                    </span>
+                    {% if loc_user_counts and loc_user_counts.get(loc.id, 0) == 0 %}
+                    <form action="/admin/locations/delete" method="POST" class="inline" onsubmit="return confirm('Remove location {{ loc.name }}?');">
+                        <input type="hidden" name="location_id" value="{{ loc.id }}">
+                        <button type="submit" class="p-1 rounded text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition" title="Delete Location">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </form>
+                    {% else %}
+                    <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Active</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+
     <!-- ADMIN IP ADDRESS WHITELISTING SECURITY SECTION -->
     <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-5">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
@@ -515,4 +616,50 @@ async function triggerMongoSync() {
 
 document.addEventListener('DOMContentLoaded', checkMongoStatus);
 </script>
+
+<!-- ADD LOCATION MODAL -->
+<div id="add-location-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md shadow-2xl p-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="map-pin-plus" class="w-5 h-5 text-emerald-600"></i>
+                <span>Add Operational Location / Circle</span>
+            </h3>
+            <button onclick="document.getElementById('add-location-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <form action="/admin/locations/create" method="POST" class="mt-4 space-y-4 text-xs">
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Location / Circle Name *</label>
+                <input type="text" name="name" required placeholder="e.g. Pune, Nashik, Aurangabad, Navi Mumbai"
+                    class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-emerald-500">
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Short Code (Optional)</label>
+                <input type="text" name="code" placeholder="e.g. PUN, NSK, ABN, N-MUM"
+                    class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono uppercase focus:ring-2 focus:ring-emerald-500">
+                <span class="text-[10px] text-slate-400 mt-1 block">Leave empty to auto-generate from the first 3 letters.</span>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Office / Facility Address</label>
+                <textarea name="address" rows="2" placeholder="e.g. MSEDCL Circle Office, Substation Road"
+                    class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500"></textarea>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onclick="document.getElementById('add-location-modal').classList.add('hidden')" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-md shadow-emerald-500/20 transition">
+                    Create Location
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}

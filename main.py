@@ -603,6 +603,22 @@ def dashboard(
 
     today_online_hours = round(today_online_seconds / 3600.0, 1)
 
+    # Pre-fetch operational locations and calculate initial headcount metrics for instant display
+    operational_locations = db.query(models.Location).filter(models.Location.is_active == True).order_by(models.Location.name.asc()).all()
+    loc_user_counts = {
+        loc.name: db.query(models.User).filter(models.User.location_id == loc.id, models.User.is_active == True).count()
+        for loc in operational_locations
+    }
+    default_loc = "Nagpur" if any(loc.name == "Nagpur" for loc in operational_locations) else "All"
+    
+    # Calculate server-side initial metrics so KPI cards are instantly filled without waiting for JavaScript fetch
+    initial_metrics = get_dashboard_metrics(
+        date_str=today.strftime("%Y-%m-%d"),
+        location=default_loc,
+        user=user,
+        db=db
+    )
+
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
@@ -623,7 +639,11 @@ def dashboard(
             "recent_session_logs": recent_session_logs,
             "today_online_hours": today_online_hours,
             "active_net_display": active_net_display,
-            "timedelta": timedelta
+            "timedelta": timedelta,
+            "operational_locations": operational_locations,
+            "loc_user_counts": loc_user_counts,
+            "selected_location": default_loc,
+            "kpi_metrics": initial_metrics
         }
     )
 
@@ -2610,6 +2630,7 @@ def admin_shifts_page(
             "active_page": "shifts",
             "shifts": shifts,
             "locations": locations,
+            "loc_user_counts": {loc.id: db.query(models.User).filter(models.User.location_id == loc.id).count() for loc in locations},
             "coverage_map": coverage_map,
             "pending_leave_count": get_pending_leave_count(db)
         }
@@ -3242,6 +3263,83 @@ def delete_ip_whitelist(
 
 
 
+
+# ================= DYNAMIC LOCATION CREATION & MANAGEMENT ================= #
+
+@app.post("/admin/locations/create")
+def create_operational_location(
+    request: Request,
+    name: str = Form(...),
+    code: Optional[str] = Form(None),
+    address: Optional[str] = Form(None),
+    user: models.User = Depends(require_admin_or_manager),
+    db: Session = Depends(get_db)
+):
+    clean_name = name.strip()
+    if not clean_name:
+        return RedirectResponse(
+            url="/admin/settings?alert_msg=Location+name+cannot+be+empty.&alert_type=error",
+            status_code=302
+        )
+    
+    # Check if location already exists
+    existing = db.query(models.Location).filter(
+        models.Location.name.ilike(clean_name)
+    ).first()
+    if existing:
+        return RedirectResponse(
+            url=f"/admin/settings?alert_msg=Location+{clean_name}+already+exists.&alert_type=error",
+            status_code=302
+        )
+    
+    clean_code = code.strip().upper() if code and code.strip() else clean_name[:3].upper()
+    # Check if code already exists
+    existing_code = db.query(models.Location).filter(
+        models.Location.code == clean_code
+    ).first()
+    if existing_code:
+        clean_code = f"{clean_code[:2]}{db.query(models.Location).count() + 1}"
+
+    new_loc = models.Location(
+        name=clean_name,
+        code=clean_code,
+        address=address.strip() if address else f"MSEDCL Operational Circle - {clean_name}",
+        is_active=True
+    )
+    db.add(new_loc)
+    db.commit()
+    db.refresh(new_loc)
+
+    return RedirectResponse(
+        url=f"/admin/settings?alert_msg=Operational+location+{clean_name}+({clean_code})+created+successfully.&alert_type=success",
+        status_code=302
+    )
+
+@app.post("/admin/locations/delete")
+def delete_operational_location(
+    location_id: int = Form(...),
+    user: models.User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    loc = db.query(models.Location).filter(models.Location.id == location_id).first()
+    if not loc:
+        return RedirectResponse(url="/admin/settings?alert_msg=Location+not+found.&alert_type=error", status_code=302)
+    
+    assigned_users = db.query(models.User).filter(models.User.location_id == location_id).count()
+    if assigned_users > 0:
+        return RedirectResponse(
+            url=f"/admin/settings?alert_msg=Cannot+delete+{loc.name}:+{assigned_users}+employees+are+assigned+to+this+location.&alert_type=error",
+            status_code=302
+        )
+    
+    loc_name = loc.name
+    db.delete(loc)
+    db.commit()
+    return RedirectResponse(
+        url=f"/admin/settings?alert_msg=Location+{loc_name}+removed+successfully.&alert_type=success",
+        status_code=302
+    )
+
 @app.post("/admin/add-shift")
 def add_shift(
     name: str = Form(...),
@@ -3351,14 +3449,16 @@ def get_dashboard_metrics(
     Computes Headcount & Attendance metrics for a given date, with optional multi-shift and multi-role filters.
     """
     if date_str:
-        try:
-            target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-        except Exception:
-            target_date = date.today()
+        parsed = None
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d", "%d/%m/%Y"):
+            try:
+                parsed = datetime.strptime(date_str.strip(), fmt).date()
+                break
+            except Exception:
+                continue
+        target_date = parsed if parsed else date.today()
     else:
-        # Check if database has any roster entry dates
-        first_entry = db.query(models.RosterEntry).order_by(models.RosterEntry.date.asc()).first()
-        target_date = first_entry.date if first_entry else date.today()
+        target_date = date.today()
 
     shift_filter_list = [s.strip().upper() for s in shifts.split(",") if s.strip()] if shifts else []
     role_filter_list = [r.strip() for r in roles.split(",") if r.strip()] if roles else []

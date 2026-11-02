@@ -51,9 +51,11 @@
                     <select id="kpi-location-picker" onchange="fetchHeadcountMetrics()"
                         class="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold">
                         <option value="All">🌐 All Locations</option>
-                        <option value="Nagpur" selected>📍 Nagpur (186 Active)</option>
-                        <option value="Mumbai">📍 Mumbai</option>
-                        <option value="Pune">📍 Pune</option>
+                        {% for loc in operational_locations %}
+                        <option value="{{ loc.name }}" {% if (selected_location == loc.name) or (not selected_location and loc.name == 'Nagpur') %}selected{% endif %}>
+                            📍 {{ loc.name }}{% if loc_user_counts and loc.name in loc_user_counts %} ({{ loc_user_counts[loc.name] }} Active){% endif %}
+                        </option>
+                        {% endfor %}
                     </select>
                 </div>
 
@@ -74,7 +76,7 @@
             <!-- Total Planned -->
             <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                 <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Planned</span>
-                <span id="kpi-total" class="text-xl font-extrabold text-slate-900 dark:text-white block my-0.5">--</span>
+                <span id="kpi-total" class="text-xl font-extrabold text-slate-900 dark:text-white block my-0.5">{{ kpi_metrics.total_planned if kpi_metrics else 0 }}</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 font-semibold inline-block">Staff</span>
             </div>
 
@@ -84,49 +86,49 @@
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span>In Office</span>
                 </span>
-                <span id="kpi-in-office" class="text-xl font-extrabold text-blue-600 dark:text-blue-400 block my-0.5">--</span>
+                <span id="kpi-in-office" class="text-xl font-extrabold text-blue-600 dark:text-blue-400 block my-0.5">{{ kpi_metrics.in_office_live if kpi_metrics else 0 }}</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 font-bold inline-block">Live Punched</span>
             </div>
 
             <!-- Present -->
             <div class="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60">
                 <span class="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Present</span>
-                <span id="kpi-present" class="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 block my-0.5">--</span>
+                <span id="kpi-present" class="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 block my-0.5">{{ kpi_metrics.present if kpi_metrics else 0 }}</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold inline-block">Active Shifts</span>
             </div>
 
             <!-- Week Off -->
             <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
                 <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Week Off (WO)</span>
-                <span id="kpi-wo" class="text-xl font-extrabold text-slate-700 dark:text-slate-300 block my-0.5">--</span>
+                <span id="kpi-wo" class="text-xl font-extrabold text-slate-700 dark:text-slate-300 block my-0.5">{{ kpi_metrics.wo if kpi_metrics else 0 }}</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-semibold inline-block">Weekly Rest</span>
             </div>
 
             <!-- Casual Leave -->
             <div class="p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/60">
                 <span class="block text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Casual Leave</span>
-                <span id="kpi-cl" class="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 block my-0.5">--</span>
+                <span id="kpi-cl" class="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 block my-0.5">{{ kpi_metrics.cl if kpi_metrics else 0 }}</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300 font-bold inline-block">CL</span>
             </div>
 
             <!-- Sick Leave -->
             <div class="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/60">
                 <span class="block text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Sick Leave</span>
-                <span id="kpi-sl" class="text-xl font-extrabold text-rose-600 dark:text-rose-400 block my-0.5">--</span>
+                <span id="kpi-sl" class="text-xl font-extrabold text-rose-600 dark:text-rose-400 block my-0.5">{{ kpi_metrics.sl if kpi_metrics else 0 }}</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300 font-bold inline-block">SL</span>
             </div>
 
             <!-- Comp-Off -->
             <div class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60">
                 <span class="block text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Comp-Off</span>
-                <span id="kpi-co" class="text-xl font-extrabold text-amber-600 dark:text-amber-400 block my-0.5">--</span>
+                <span id="kpi-co" class="text-xl font-extrabold text-amber-600 dark:text-amber-400 block my-0.5">{{ kpi_metrics.co if kpi_metrics else 0 }}</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 font-bold inline-block">CO Accrued</span>
             </div>
 
             <!-- Absent / Unplanned -->
             <div class="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/60">
                 <span class="block text-[10px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Absent / Unplanned</span>
-                <span id="kpi-absent" class="text-xl font-extrabold text-red-600 dark:text-red-400 block my-0.5">--</span>
+                <span id="kpi-absent" class="text-xl font-extrabold text-red-600 dark:text-red-400 block my-0.5">{{ kpi_metrics.absent if kpi_metrics else 0 }}</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300 font-bold inline-block">Coverage Gap</span>
             </div>
         </div>
