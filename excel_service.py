@@ -986,19 +986,18 @@ def calculate_daily_capacity(
     leave_cap_percentage: float = 15.0
 ) -> Dict[str, Any]:
     """
-    Feature 1: Daily Leave Quota & Mandays Capacity Tracker
-    Calculates dynamically per day:
+    Feature 1: Daily Leave Quota & Mandays Capacity Tracker (Enhanced Dynamic Engine)
+    Accurately computes across each date:
       - Active Headcount (users active on that date, excluding offboarded users where exit_date <= target_date)
-      - Eligible Leave: maximum allowed leaves computed dynamically as:
-            round(Active Headcount * (leave_cap_percentage / 100))
-        or uses explicit eligible_leave_quota if provided.
-      - Total Leave: approved leaves count/days on that date
-      - Mandays Available: Active Headcount - Total Leave
-      - Pending Leave Slots: Eligible Leave - Total Leave
-      - Status:
-          'available' (Green) if Pending > 0
-          'full' (Amber) if Pending == 0
-          'shortage' (Red alert) if Pending < 0
+      - Week Off (WO) count
+      - Present Scheduled (P, P+HD, Shift windows)
+      - Absent (A) count
+      - Total Leave (Approved Leaves + CL / SL / PL / Leave)
+      - Live In Office (WorkSession status in ['ACTIVE', 'ON_BREAK'])
+      - Net Available Working Mandays: Active Headcount - Total Leave - WO - Absent
+      - Eligible Leave Quota: round(Active Headcount * (leave_cap_percentage / 100))
+      - Pending Leave Slots: Eligible Leave Quota - Total Leave
+      - Visual Status: 'available' (Green), 'full' (Amber), 'shortage' (Red alert)
     """
     # 1. Base query for users
     query = db.query(models.User)
@@ -1031,10 +1030,11 @@ def calculate_daily_capacity(
                 (models.User.role_title.ilike("%QA%")) |
                 (models.User.role_title.ilike("%Auditor%")) |
                 (models.User.role_title.ilike("%CSA%")) |
-                (models.User.role_title.ilike("%MIS%"))
+                (models.User.role_title.ilike("%MIS%")) |
+                (models.User.role_title.ilike("%CCE%")) |
+                (models.User.role_title.ilike("%TR%"))
             )
         else:
-            # Exact or partial role_title match
             query = query.filter(models.User.role_title == role_filter)
     else:
         # Default All view excludes non-operational System Administrator
@@ -1061,10 +1061,9 @@ def calculate_daily_capacity(
 
     # Pre-index approved leaves by date from LeaveRequest table
     leaves_by_date = {d: 0.0 for d in dates}
-    user_leave_dates = set() # (user_id, date) to prevent double counting if in both LeaveRequest and RosterEntry
+    user_leave_dates = set() # (user_id, date) to prevent double counting
 
     for lv in approved_leaves:
-        # Check employee exit date: ignore leaves on or after exit_date
         emp = lv.user
         emp_exit = emp.exit_date if emp else None
 
@@ -1072,58 +1071,110 @@ def calculate_daily_capacity(
         e_d = min(lv.end_date, end_d)
         while c_d <= e_d:
             if c_d in leaves_by_date:
-                # If employee exited on or before this day, exclude
                 if not (emp_exit and c_d >= emp_exit):
-                    # Half-day vs full-day
                     leave_weight = 0.5 if (getattr(lv, 'duration_days', 1.0) == 0.5 or getattr(lv, 'day_part', '') in ['half_first', 'half_second']) else 1.0
                     leaves_by_date[c_d] += leave_weight
                     user_leave_dates.add((lv.user_id, c_d))
             c_d += timedelta(days=1)
 
-    # Also capture leaves / half-days designated directly on RosterEntry table
+    # Fetch roster entries and work sessions in bulk
+    roster_entries = []
+    work_sessions = []
     if user_ids:
-        roster_leaves = db.query(models.RosterEntry).filter(
+        roster_entries = db.query(models.RosterEntry).filter(
             models.RosterEntry.user_id.in_(user_ids),
             models.RosterEntry.date >= start_d,
             models.RosterEntry.date <= end_d
         ).all()
 
-        for re in roster_leaves:
-            if (re.user_id, re.date) in user_leave_dates:
-                continue # Already counted via formal approved LeaveRequest
-            
-            val = str(re.shift_code_or_time or "").strip().upper()
-            status_val = str(re.status or "").strip().upper()
+        work_sessions = db.query(models.WorkSession).filter(
+            models.WorkSession.user_id.in_(user_ids),
+            models.WorkSession.session_date >= start_d,
+            models.WorkSession.session_date <= end_d
+        ).all()
 
-            if val in ["CL", "SL", "PL", "LEAVE"] or status_val == "LEAVE":
-                leaves_by_date[re.date] = leaves_by_date.get(re.date, 0.0) + 1.0
-                user_leave_dates.add((re.user_id, re.date))
-            elif val in ["HD", "HALF-DAY", "HALF DAY"] or status_val in ["HALF-DAY", "HD"]:
-                leaves_by_date[re.date] = leaves_by_date.get(re.date, 0.0) + 0.5
-                user_leave_dates.add((re.user_id, re.date))
+    # Organize entries by date: {date: {user_id: entry}}
+    re_map_by_date = {d: {} for d in dates}
+    for re in roster_entries:
+        if re.date in re_map_by_date:
+            re_map_by_date[re.date][re.user_id] = re
+
+    # Organize sessions by date: {date: {user_id: session}}
+    ws_map_by_date = {d: {} for d in dates}
+    for ws in work_sessions:
+        if ws.session_date in ws_map_by_date:
+            ws_map_by_date[ws.session_date][ws.user_id] = ws
 
     daily_results = []
+    today = date.today()
+
     for d in dates:
-        # Active headcount on this specific date
-        # Exclude users who were marked inactive with exit_date <= d
         active_users_today = [
             u for u in all_filtered_users
             if (u.is_active or (u.exit_date and d < u.exit_date)) and
                not (u.exit_date and d >= u.exit_date)
         ]
         headcount = len(active_users_today)
-        total_leave = leaves_by_date.get(d, 0.0)
-        mandays = max(0.0, float(headcount) - total_leave)
-        
-        # Determine day's eligible leave quota: either explicit quota or calculated from company leave cap %
+
+        # Count shifts, attendance statuses, WOs, Absents, and live in-office counts
+        wo_count = 0.0
+        absent_count = 0.0
+        scheduled_present_count = 0.0
+        in_office_live_count = 0
+        punched_completed_count = 0
+        day_leave = leaves_by_date.get(d, 0.0)
+
+        for u in active_users_today:
+            re = re_map_by_date[d].get(u.id)
+            ws = ws_map_by_date[d].get(u.id)
+
+            # Check live punch status
+            if ws:
+                if ws.status in ["ACTIVE", "ON_BREAK"]:
+                    in_office_live_count += 1
+                elif ws.status == "COMPLETED":
+                    punched_completed_count += 1
+
+            # Check roster shift code and status
+            val = str(re.shift_code_or_time or "").strip().upper() if re else ""
+            status_val = str(re.status or "").strip().upper() if re else ""
+
+            # Check if user has approved leave first
+            if (u.id, d) in user_leave_dates:
+                pass # Already counted in day_leave
+            elif val in ["CL", "SL", "PL", "LEAVE"] or status_val == "LEAVE":
+                day_leave += 1.0
+                user_leave_dates.add((u.id, d))
+            elif val in ["HD", "HALF-DAY", "HALF DAY", "P+HD"] or status_val in ["HALF-DAY", "HD"]:
+                day_leave += 0.5
+                scheduled_present_count += 0.5
+                user_leave_dates.add((u.id, d))
+            elif val == "WO" or status_val == "WO":
+                wo_count += 1.0
+            elif val == "CO" or status_val == "CO":
+                wo_count += 1.0
+            elif val in ["A", "ABSENT"] or status_val == "ABSENT":
+                absent_count += 1.0
+            elif val in ["P", "PRESENT", "S"] or any(t in val for t in [":", "07:00", "09:00", "11:00", "13:00", "16:00", "18:00", "20:00", "22:00"]):
+                scheduled_present_count += 1.0
+            elif status_val == "PRESENT":
+                scheduled_present_count += 1.0
+            else:
+                # Default if not scheduled: if day is in past/today and not punched/rostered, count as non-working
+                scheduled_present_count += 1.0
+
+        # Dynamic Mandays: Actual available operational capacity on that date
+        mandays = max(0.0, float(headcount) - (day_leave + wo_count + absent_count))
+
+        # Eligible Leave Quota: based on configured company leave cap %
         if eligible_leave_quota is not None and eligible_leave_quota > 0:
             day_quota = float(eligible_leave_quota)
         else:
-            # Dynamic calculation from headcount: e.g. 15% of 40 = 6 slots
             computed = round(headcount * (leave_cap_percentage / 100.0), 1)
             day_quota = max(1.0, computed) if headcount > 0 else 0.0
 
-        pending = float(day_quota) - total_leave
+        # Pending Leave Slots = Quota - Total Leaves taken
+        pending = float(day_quota) - day_leave
 
         if pending > 0:
             status = "available" # Green
@@ -1145,7 +1196,12 @@ def calculate_daily_capacity(
             "formatted_date": d.strftime("%d %b"),
             "active_headcount": headcount,
             "eligible_leave": day_quota,
-            "total_leave": round(total_leave, 2),
+            "total_leave": round(day_leave, 2),
+            "week_off_count": int(wo_count),
+            "absent_count": int(absent_count),
+            "scheduled_present": int(scheduled_present_count),
+            "in_office_live": in_office_live_count,
+            "punched_completed": punched_completed_count,
             "mandays": round(mandays, 2),
             "pending": round(pending, 2),
             "status": status,
@@ -1156,6 +1212,8 @@ def calculate_daily_capacity(
     # Summary aggregations
     avg_headcount = round(sum(r["active_headcount"] for r in daily_results) / len(daily_results), 1) if daily_results else 0
     total_leaves_taken = round(sum(r["total_leave"] for r in daily_results), 2)
+    total_wo_period = sum(r["week_off_count"] for r in daily_results)
+    total_absent_period = sum(r["absent_count"] for r in daily_results)
     total_mandays = round(sum(r["mandays"] for r in daily_results), 2)
     shortage_days = sum(1 for r in daily_results if r["status"] == "shortage")
 
@@ -1164,6 +1222,8 @@ def calculate_daily_capacity(
         "summary": {
             "avg_headcount": avg_headcount,
             "total_leaves_period": total_leaves_taken,
+            "total_wo_period": total_wo_period,
+            "total_absent_period": total_absent_period,
             "total_mandays": total_mandays,
             "shortage_days_count": shortage_days,
             "quota_per_day": eligible_leave_quota

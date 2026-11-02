@@ -3068,8 +3068,9 @@ def get_dashboard_metrics(
     sl_count = 0
     co_count = 0
     absent_count = 0
+    in_office_live = 0
 
-    # Also fetch all approved leaves for target_date
+    # Also fetch all approved leaves and live sessions for target_date
     approved_leaves_today = db.query(models.LeaveRequest).filter(
         models.LeaveRequest.status == "Approved",
         models.LeaveRequest.start_date <= target_date,
@@ -3078,9 +3079,19 @@ def get_dashboard_metrics(
     ).all()
     leave_by_user = {al.user_id: al for al in approved_leaves_today}
 
+    work_sessions_today = db.query(models.WorkSession).filter(
+        models.WorkSession.session_date == target_date,
+        models.WorkSession.user_id.in_(user_ids)
+    ).all()
+    session_by_user = {ws.user_id: ws for ws in work_sessions_today}
+
     for u in all_users:
         e = entry_by_user.get(u.id)
         al = leave_by_user.get(u.id)
+        ws = session_by_user.get(u.id)
+
+        if ws and ws.status in ["ACTIVE", "ON_BREAK"]:
+            in_office_live += 1
         
         # If approved leave exists, it takes precedence
         if al:
@@ -3103,7 +3114,7 @@ def get_dashboard_metrics(
         elif code in ["PL", "LEAVE", "UNPAID"]:
             # Counted as leave (can classify under CL or absent)
             cl_count += 1
-        elif code in ["P", "S"] or any(t in code for t in ["07:00", "09:00", "11:00", "13:00", "20:00", "22:00"]):
+        elif code in ["P", "S"] or any(t in code for t in ["07:00", "09:00", "11:00", "13:00", "16:00", "18:00", "20:00", "22:00"]):
             present_count += 1
         elif code in ["A", "ABSENT", "LEFT"]:
             absent_count += 1
@@ -3121,7 +3132,8 @@ def get_dashboard_metrics(
         "cl": cl_count,
         "sl": sl_count,
         "co": co_count,
-        "absent": absent_count
+        "absent": absent_count,
+        "in_office_live": in_office_live
     }
 
 class ResetPasswordPayload(models.Base.__class__):
