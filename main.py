@@ -984,8 +984,9 @@ def roster_matrix(
         if ar not in role_categories:
             role_categories.append(ar)
 
-    # Compute Feature 1: Daily Leave Quota & Mandays Capacity Tracker
-    capacity_data = calculate_daily_capacity(date_list, role, db, eligible_leave_quota=5.0)
+    # Compute Feature 1: Daily Leave Quota & Mandays Capacity Tracker using configured daily_leave_cap_percentage
+    configured_cap_pct = float(get_company_setting_val("daily_leave_cap_percentage", "15.0", db))
+    capacity_data = calculate_daily_capacity(date_list, role, db, leave_cap_percentage=configured_cap_pct)
 
     pending_count = get_pending_leave_count(db)
 
@@ -3405,7 +3406,8 @@ def api_get_roster_capacity(
 
     count = min(31, max(1, num_days or 7))
     dates = [s_date + timedelta(days=i) for i in range(count)]
-    res = calculate_daily_capacity(dates, role, db, eligible_leave_quota=quota or 5.0)
+    configured_cap_pct = float(get_company_setting_val("daily_leave_cap_percentage", "15.0", db))
+    res = calculate_daily_capacity(dates, role, db, eligible_leave_quota=quota, leave_cap_percentage=configured_cap_pct)
     return res
 
 # ================= LOCATION-WISE ROSTER MODULE ================= #

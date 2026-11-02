@@ -982,13 +982,16 @@ def calculate_daily_capacity(
     dates: List[date],
     role_filter: Optional[str],
     db: Session,
-    eligible_leave_quota: float = 5.0
+    eligible_leave_quota: Optional[float] = None,
+    leave_cap_percentage: float = 15.0
 ) -> Dict[str, Any]:
     """
     Feature 1: Daily Leave Quota & Mandays Capacity Tracker
-    Calculates for each day in dates:
+    Calculates dynamically per day:
       - Active Headcount (users active on that date, excluding offboarded users where exit_date <= target_date)
-      - Eligible Leave: maximum allowed leaves (configurable quota, default 5.0)
+      - Eligible Leave: maximum allowed leaves computed dynamically as:
+            round(Active Headcount * (leave_cap_percentage / 100))
+        or uses explicit eligible_leave_quota if provided.
       - Total Leave: approved leaves count/days on that date
       - Mandays Available: Active Headcount - Total Leave
       - Pending Leave Slots: Eligible Leave - Total Leave
@@ -1111,7 +1114,16 @@ def calculate_daily_capacity(
         headcount = len(active_users_today)
         total_leave = leaves_by_date.get(d, 0.0)
         mandays = max(0.0, float(headcount) - total_leave)
-        pending = float(eligible_leave_quota) - total_leave
+        
+        # Determine day's eligible leave quota: either explicit quota or calculated from company leave cap %
+        if eligible_leave_quota is not None and eligible_leave_quota > 0:
+            day_quota = float(eligible_leave_quota)
+        else:
+            # Dynamic calculation from headcount: e.g. 15% of 40 = 6 slots
+            computed = round(headcount * (leave_cap_percentage / 100.0), 1)
+            day_quota = max(1.0, computed) if headcount > 0 else 0.0
+
+        pending = float(day_quota) - total_leave
 
         if pending > 0:
             status = "available" # Green
@@ -1132,7 +1144,7 @@ def calculate_daily_capacity(
             "day_name": d.strftime("%a"),
             "formatted_date": d.strftime("%d %b"),
             "active_headcount": headcount,
-            "eligible_leave": eligible_leave_quota,
+            "eligible_leave": day_quota,
             "total_leave": round(total_leave, 2),
             "mandays": round(mandays, 2),
             "pending": round(pending, 2),
