@@ -1,12 +1,10 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# Database URL: Reads DATABASE_URL from environment (e.g. Render PostgreSQL), falls back to local SQLite
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if DATABASE_URL:
-    # Render provides postgres:// which SQLAlchemy 1.4+ expects as postgresql://
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     
@@ -26,6 +24,16 @@ else:
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
     )
+
+    # SQLite High-Performance PRAGMA Tuning (Zero Disk Bottleneck)
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode = WAL")       # Write-Ahead Logging for non-blocking concurrent reads
+        cursor.execute("PRAGMA synchronous = NORMAL")     # Faster commits with safe crash-recovery
+        cursor.execute("PRAGMA cache_size = -64000")      # 64MB In-Memory Page Cache
+        cursor.execute("PRAGMA temp_store = MEMORY")      # Keep temporary tables/indices in RAM
+        cursor.close()
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
