@@ -28,6 +28,7 @@ from auth import (
 from excel_service import (
     import_roster_file,
     export_roster_excel,
+    export_monthly_payroll_muster,
     import_leave_statement_file,
     export_leave_master_excel,
     calculate_daily_capacity,
@@ -1047,6 +1048,276 @@ def export_roster(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+@app.get("/payroll/export")
+def export_payroll(
+    month: Optional[str] = None, # e.g. "2026-11"
+    location: Optional[str] = "All",
+    user: models.User = Depends(require_auth),
+    perms: get_user_perms = Depends(get_user_perms),
+    db: Session = Depends(get_db)
+):
+    """
+    Feature 7: Export monthly muster roll & payable days statement (.xlsx)
+    for HR and accounts payroll processing.
+    """
+    if not (perms.is_admin or perms.is_hr or perms.is_manager):
+        raise HTTPException(status_code=403, detail="Access restricted to HR and Management.")
+
+    try:
+        if month:
+            m_date = datetime.strptime(month.strip(), "%Y-%m").date()
+        else:
+            m_date = date.today().replace(day=1)
+    except Exception:
+        m_date = date.today().replace(day=1)
+
+    excel_stream = export_monthly_payroll_muster(m_date, location, db)
+    filename = f"MSEDCL_Muster_Roll_{m_date.strftime('%b_%Y')}_{(location or 'All').replace(' ', '_')}.xlsx"
+
+    return StreamingResponse(
+        excel_stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+# ================= SHIFT SWAP EXCHANGE DESK ROUTES ================= #
+
+@app.get("/roster/swaps")
+def shift_swaps_desk(
+    request: Request,
+    alert_msg: Optional[str] = None,
+    alert_type: Optional[str] = "success",
+    user: models.User = Depends(require_auth),
+    perms: get_user_perms = Depends(get_user_perms),
+    db: Session = Depends(get_db)
+):
+    incoming_peer_requests = db.query(models.ShiftSwapRequest).filter(
+        models.ShiftSwapRequest.target_user_id == user.id,
+        models.ShiftSwapRequest.peer_status == "PENDING_PEER"
+    ).order_by(models.ShiftSwapRequest.created_at.desc()).all()
+
+    sup_query = db.query(models.ShiftSwapRequest).filter(
+        models.ShiftSwapRequest.peer_status == "PEER_ACCEPTED",
+        models.ShiftSwapRequest.supervisor_status == "PENDING_APPROVAL"
+    )
+    if perms.is_team_leader and not (perms.is_admin or perms.is_hr or perms.is_manager):
+        if perms.assigned_employee_ids:
+            sup_query = sup_query.filter(models.ShiftSwapRequest.requestor_id.in_(perms.assigned_employee_ids))
+    pending_supervisor_approvals = sup_query.order_by(models.ShiftSwapRequest.created_at.desc()).all()
+
+    my_requests = db.query(models.ShiftSwapRequest).filter(
+        models.ShiftSwapRequest.requestor_id == user.id
+    ).order_by(models.ShiftSwapRequest.created_at.desc()).limit(30).all()
+
+    peer_candidates = db.query(models.User).filter(
+        models.User.is_active == True,
+        models.User.id != user.id,
+        models.User.unique_id != "ADMIN001"
+    ).order_by(models.User.name.asc()).all()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="shift_swaps.html",
+        context={
+            "user": user,
+            "perms": perms,
+            "active_page": "roster",
+            "alert_msg": alert_msg,
+            "alert_type": alert_type,
+            "incoming_peer_requests": incoming_peer_requests,
+            "pending_supervisor_approvals": pending_supervisor_approvals,
+            "my_requests": my_requests,
+            "peer_candidates": peer_candidates
+        }
+    )
+
+@app.post("/roster/swap/create")
+def create_shift_swap(
+    target_user_id: int = Form(...),
+    shift_date: str = Form(...),
+    my_shift: str = Form(...),
+    target_shift: str = Form(...),
+    reason: Optional[str] = Form(None),
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    try:
+        s_date = datetime.strptime(shift_date.strip(), "%Y-%m-%d").date()
+    except Exception:
+        return RedirectResponse("/roster/swaps?alert_msg=Invalid+date+format&alert_type=error", status_code=302)
+
+    target_emp = db.query(models.User).filter(models.User.id == target_user_id).first()
+    if not target_emp:
+        return RedirectResponse("/roster/swaps?alert_msg=Target+colleague+not+found&alert_type=error", status_code=302)
+
+    swap_req = models.ShiftSwapRequest(
+        requestor_id=user.id,
+        target_user_id=target_user_id,
+        shift_date=s_date,
+        requestor_shift=my_shift.strip(),
+        target_shift=target_shift.strip(),
+        reason=reason.strip() if reason else None,
+        peer_status="PENDING_PEER",
+        supervisor_status="PENDING_APPROVAL"
+    )
+    db.add(swap_req)
+
+    notif = models.Notification(
+        user_id=target_user_id,
+        title="Shift Swap Request",
+        message=f"{user.name} proposed to swap shifts with you on {s_date.strftime('%d %b %Y')} ({my_shift} <-> {target_shift}).",
+        category="shift_change"
+    )
+    db.add(notif)
+    db.commit()
+
+    return RedirectResponse("/roster/swaps?alert_msg=Swap+proposal+submitted+successfully!+Awaiting+peer+acceptance.&alert_type=success", status_code=302)
+
+@app.post("/roster/swap/respond")
+def respond_shift_swap(
+    swap_id: int = Form(...),
+    action: str = Form(...),
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    swap = db.query(models.ShiftSwapRequest).filter(models.ShiftSwapRequest.id == swap_id).first()
+    if not swap or swap.target_user_id != user.id:
+        return RedirectResponse("/roster/swaps?alert_msg=Swap+request+not+found+or+unauthorized&alert_type=error", status_code=302)
+
+    if action == "accept":
+        swap.peer_status = "PEER_ACCEPTED"
+        swap.supervisor_status = "PENDING_APPROVAL"
+        msg = f"You accepted the swap with {swap.requestor.name}. Request sent to Supervisor for final approval."
+        
+        notif = models.Notification(
+            user_id=swap.requestor_id,
+            title="Swap Accepted by Peer",
+            message=f"{user.name} accepted your shift swap proposal for {swap.shift_date.strftime('%d %b %Y')}. Awaiting TL approval.",
+            category="shift_change"
+        )
+        db.add(notif)
+    else:
+        swap.peer_status = "PEER_DECLINED"
+        swap.supervisor_status = "REJECTED"
+        msg = f"You declined the swap request from {swap.requestor.name}."
+
+        notif = models.Notification(
+            user_id=swap.requestor_id,
+            title="Swap Declined by Peer",
+            message=f"{user.name} declined your shift swap proposal for {swap.shift_date.strftime('%d %b %Y')}.",
+            category="shift_change"
+        )
+        db.add(notif)
+
+    db.commit()
+    return RedirectResponse(f"/roster/swaps?alert_msg={msg.replace(' ', '+')}&alert_type=success", status_code=302)
+
+@app.post("/roster/swap/approve")
+def approve_shift_swap(
+    swap_id: int = Form(...),
+    action: str = Form(...),
+    user: models.User = Depends(require_admin_or_manager),
+    perms: get_user_perms = Depends(get_user_perms),
+    db: Session = Depends(get_db)
+):
+    swap = db.query(models.ShiftSwapRequest).filter(models.ShiftSwapRequest.id == swap_id).first()
+    if not swap:
+        return RedirectResponse("/roster/swaps?alert_msg=Swap+request+not+found&alert_type=error", status_code=302)
+
+    if action == "approve":
+        swap.supervisor_status = "APPROVED"
+        swap.approved_by_user_id = user.id
+        swap.approved_at = datetime.utcnow()
+
+        req_entry = db.query(models.RosterEntry).filter(
+            models.RosterEntry.user_id == swap.requestor_id,
+            models.RosterEntry.date == swap.shift_date
+        ).first()
+
+        tgt_entry = db.query(models.RosterEntry).filter(
+            models.RosterEntry.user_id == swap.target_user_id,
+            models.RosterEntry.date == swap.shift_date
+        ).first()
+
+        prev_req_shift = req_entry.shift_code_or_time if req_entry else swap.requestor_shift
+        prev_tgt_shift = tgt_entry.shift_code_or_time if tgt_entry else swap.target_shift
+
+        if req_entry:
+            req_entry.shift_code_or_time = swap.target_shift
+            req_entry.status = "Scheduled" if swap.target_shift not in ["WO", "CO"] else swap.target_shift
+            req_entry.updated_by = user.name
+        else:
+            req_entry = models.RosterEntry(
+                user_id=swap.requestor_id,
+                date=swap.shift_date,
+                shift_code_or_time=swap.target_shift,
+                status="Scheduled" if swap.target_shift not in ["WO", "CO"] else swap.target_shift,
+                updated_by=user.name
+            )
+            db.add(req_entry)
+
+        if tgt_entry:
+            tgt_entry.shift_code_or_time = swap.requestor_shift
+            tgt_entry.status = "Scheduled" if swap.requestor_shift not in ["WO", "CO"] else swap.requestor_shift
+            tgt_entry.updated_by = user.name
+        else:
+            tgt_entry = models.RosterEntry(
+                user_id=swap.target_user_id,
+                date=swap.shift_date,
+                shift_code_or_time=swap.requestor_shift,
+                status="Scheduled" if swap.requestor_shift not in ["WO", "CO"] else swap.requestor_shift,
+                updated_by=user.name
+            )
+            db.add(tgt_entry)
+
+        h1 = models.ShiftChangeHistory(
+            user_id=swap.requestor_id,
+            roster_date=swap.shift_date,
+            previous_shift=prev_req_shift,
+            new_shift=swap.target_shift,
+            previous_timings=prev_req_shift,
+            new_timings=swap.target_shift,
+            changed_by_id=user.id,
+            changed_by_name=user.name,
+            change_reason=f"Shift Swap with {swap.target_user.name} approved by {user.name}",
+            approval_status="Approved"
+        )
+        h2 = models.ShiftChangeHistory(
+            user_id=swap.target_user_id,
+            roster_date=swap.shift_date,
+            previous_shift=prev_tgt_shift,
+            new_shift=swap.requestor_shift,
+            previous_timings=prev_tgt_shift,
+            new_timings=swap.requestor_shift,
+            changed_by_id=user.id,
+            changed_by_name=user.name,
+            change_reason=f"Shift Swap with {swap.requestor.name} approved by {user.name}",
+            approval_status="Approved"
+        )
+        db.add(h1)
+        db.add(h2)
+
+        db.add(models.Notification(
+            user_id=swap.requestor_id,
+            title="Shift Swap Approved",
+            message=f"Supervisor {user.name} approved your shift swap with {swap.target_user.name} for {swap.shift_date.strftime('%d %b %Y')}.",
+            category="shift_change"
+        ))
+        db.add(models.Notification(
+            user_id=swap.target_user_id,
+            title="Shift Swap Approved",
+            message=f"Supervisor {user.name} approved your shift swap with {swap.requestor.name} for {swap.shift_date.strftime('%d %b %Y')}.",
+            category="shift_change"
+        ))
+
+        msg = f"Swap approved! {swap.requestor.name} and {swap.target_user.name} shifts exchanged successfully."
+    else:
+        swap.supervisor_status = "REJECTED"
+        msg = "Swap rejected by supervisor."
+
+    db.commit()
+    return RedirectResponse(f"/roster/swaps?alert_msg={msg.replace(' ', '+')}&alert_type=success", status_code=302)
 
 # ================= LEAVE PORTAL ROUTES ================= #
 
@@ -2246,11 +2517,28 @@ def supervisor_mark_attendance(
     )
     db.add(history_record)
 
+    # Auto-Comp Off (CO) Accrual Engine:
+    # If the employee was scheduled for a Week Off ('WO') or Holiday, and is now marked Present ('P'),
+    # automatically credit +1.0 Compensatory Off (CO) balance to reward holiday/rest-day duty!
+    prev_was_wo = (prev_shift and "WO" in prev_shift.upper()) or (prev_status and "WO" in prev_status.upper())
+    is_holiday = db.query(models.Holiday).filter(models.Holiday.date == t_date).first() is not None
+    co_credited = False
+
+    if status_category == "Present" and (prev_was_wo or is_holiday):
+        target_emp.balance_co = round((target_emp.balance_co or 0.0) + 1.0, 2)
+        target_emp.co_balance = target_emp.balance_co
+        co_credited = True
+        audit_notes += " | Auto-credited +1.0 CO for duty on Week Off / Holiday"
+
     # Notification
+    notif_msg = f"Your attendance for {t_date.strftime('%d %b %Y')} was marked as '{status_category} ({shift_code_val})' by {user.name}."
+    if co_credited:
+        notif_msg += " +1.0 Comp-Off (CO) was automatically credited to your leave balance!"
+
     notif = models.Notification(
         user_id=user_id,
-        title="Floor Attendance Marked",
-        message=f"Your attendance for {t_date.strftime('%d %b %Y')} was marked as '{status_category} ({shift_code_val})' by {user.name}.",
+        title="Floor Attendance Marked" + (" (+1 CO Credited)" if co_credited else ""),
+        message=notif_msg,
         category="shift_change"
     )
     db.add(notif)

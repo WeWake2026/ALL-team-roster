@@ -483,6 +483,38 @@ class AllowedIpWhitelist(Base):
 
     created_by = relationship("User")
 
+class ShiftSwapRequest(Base):
+    """
+    Agent-to-Agent Shift & Week-off Swap Exchange with Supervisor (TL/Manager) approval.
+    """
+    __tablename__ = "shift_swap_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    requestor_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    target_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    shift_date = Column(Date, nullable=False, index=True) # Target date of swap
+    
+    requestor_shift = Column(String(50), nullable=False) # e.g. "07:00 To 16:00"
+    target_shift = Column(String(50), nullable=False) # e.g. "WO" or "13:00 To 22:00"
+    
+    reason = Column(Text, nullable=True)
+    # Peer status: 'PENDING_PEER', 'PEER_ACCEPTED', 'PEER_DECLINED'
+    peer_status = Column(String(30), default="PENDING_PEER", index=True)
+    # Supervisor status: 'PENDING_APPROVAL', 'APPROVED', 'REJECTED'
+    supervisor_status = Column(String(30), default="PENDING_APPROVAL", index=True)
+    
+    approved_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    supervisor_notes = Column(String(255), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    requestor = relationship("User", foreign_keys=[requestor_id])
+    target_user = relationship("User", foreign_keys=[target_user_id])
+    approver = relationship("User", foreign_keys=[approved_by_user_id])
+
+
 
 
 

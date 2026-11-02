@@ -1,0 +1,12 @@
+,,,,,,,,,,,,,,=,2026-11-01' to the end of csv
+    start_pos = found_csv.find(',,,,,,,,,,,,,,=,2026-11-01')
+    if start_pos != -1:
+        csv_text = found_csv[start_pos:]
+        with open('data/nagpur_roster_data.csv', 'w', encoding='utf-8') as out_f:
+            out_f.write(csv_text)
+        print('Extracted and saved data/nagpur_roster_data.csv successfully! Size:', len(csv_text))
+    else:
+        print('Header start not found in matching content')
+else:
+    print('Matching content not found in transcript')
+"

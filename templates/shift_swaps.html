@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block title %}Shift & Week-off Swap Exchange Desk | MSEDCL ShiftFlow{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- Header Banner -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                    <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i>
+                    Peer Shift Exchange
+                </span>
+                <span class="text-xs text-slate-400">Two-Tier Protocol (Peer Agreement &rarr; TL Approval)</span>
+            </div>
+            <h1 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Shift & Week-off Swap Desk</h1>
+            <p class="text-xs text-slate-500 mt-1">
+                Request duty or week-off swaps with teammates. Swapping auto-updates roster records upon Supervisor approval.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button type="button" onclick="openNewSwapModal()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm transition flex items-center gap-2">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                <span>Create Swap Request</span>
+            </button>
+            <a href="/roster" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 text-xs font-semibold transition flex items-center gap-1.5">
+                <i data-lucide="calendar" class="w-4 h-4"></i>
+                <span>View Full Roster</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert Messaging -->
+    {% if alert_msg %}
+    <div class="p-4 rounded-xl {% if alert_type == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800{% else %}bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800{% endif %} flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+            <i data-lucide="{% if alert_type == 'success' %}check-circle{% else %}alert-triangle{% endif %}" class="w-4 h-4"></i>
+            <span>{{ alert_msg }}</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 1. Incoming Requests to Current User (Peer Approval Required) -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="inbox" class="w-4 h-4 text-blue-500"></i>
+                <span>Requests From Peers (Awaiting Your Acceptance)</span>
+            </h2>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                {{ incoming_peer_requests|length }}
+            </span>
+        </div>
+
+        {% if incoming_peer_requests %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 border-b border-slate-200 dark:border-slate-700 font-semibold">
+                        <th class="p-3">Requested By</th>
+                        <th class="p-3">Shift Date</th>
+                        <th class="p-3">Their Shift</th>
+                        <th class="p-3">Your Shift to Trade</th>
+                        <th class="p-3">Reason</th>
+                        <th class="p-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for s in incoming_peer_requests %}
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td class="p-3 font-semibold text-slate-800 dark:text-slate-200">
+                            {{ s.requestor.name }}
+                            <span class="block text-[10px] text-slate-400 font-normal">{{ s.requestor.unique_id }} ({{ s.requestor.role_title }})</span>
+                        </td>
+                        <td class="p-3 font-bold text-slate-700 dark:text-slate-300">
+                            {{ s.shift_date.strftime('%d %B %Y (%a)') }}
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-bold font-mono">
+                                {{ s.requestor_shift }}
+                            </span>
+                        </td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 font-bold font-mono">
+                                {{ s.target_shift }}
+                            </span>
+                        </td>
+                        <td class="p-3 text-slate-500 max-w-xs truncate">{{ s.reason or '--' }}</td>
+                        <td class="p-3 text-right space-x-2">
+                            <form action="/roster/swap/respond" method="POST" class="inline">
+                                <input type="hidden" name="swap_id" value="{{ s.id }}">
+                                <input type="hidden" name="action" value="accept">
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition">
+                                    Accept Swap
+                                </button>
+                            </form>
+                            <form action="/roster/swap/respond" method="POST" class="inline">
+                                <input type="hidden" name="swap_id" value="{{ s.id }}">
+                                <input type="hidden" name="action" value="decline">
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 text-xs font-semibold transition">
+                                    Decline
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-xs text-slate-400 italic py-2">No pending swap requests directed to you.</p>
+        {% endif %}
+    </div>
+
+    <!-- 2. Supervisor Approval Queue (TL / Manager / Admin Only) -->
+    {% if perms.can_edit or user.access_level in ['Admin', 'Manager', 'Team Leader', 'HR'] %}
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+        <div class="flex items-center justify-between">
+            <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500"></i>
+                <span>Supervisor Approval Queue (Both Peers Agreed)</span>
+            </h2>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                {{ pending_supervisor_approvals|length }} Pending
+            </span>
+        </div>
+
+        {% if pending_supervisor_approvals %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 border-b border-slate-200 dark:border-slate-700 font-semibold">
+                        <th class="p-3">Staff Member 1</th>
+                        <th class="p-3">Staff Member 2</th>
+                        <th class="p-3">Date</th>
+                        <th class="p-3">Swap Exchange Details</th>
+                        <th class="p-3">Reason</th>
+                        <th class="p-3 text-right">Decision</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for s in pending_supervisor_approvals %}
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td class="p-3 font-semibold text-slate-800 dark:text-slate-200">
+                            {{ s.requestor.name }}
+                            <span class="block text-[10px] text-slate-400 font-normal font-mono">{{ s.requestor.unique_id }}</span>
+                        </td>
+                        <td class="p-3 font-semibold text-slate-800 dark:text-slate-200">
+                            {{ s.target_user.name }}
+                            <span class="block text-[10px] text-slate-400 font-normal font-mono">{{ s.target_user.unique_id }}</span>
+                        </td>
+                        <td class="p-3 font-bold text-slate-700 dark:text-slate-300">
+                            {{ s.shift_date.strftime('%d %b %Y') }}
+                        </td>
+                        <td class="p-3 font-mono text-[11px]">
+                            <span class="text-blue-600 font-bold">{{ s.requestor.name[:10] }}: {{ s.requestor_shift }}</span> &harr;
+                            <span class="text-purple-600 font-bold">{{ s.target_user.name[:10] }}: {{ s.target_shift }}</span>
+                        </td>
+                        <td class="p-3 text-slate-500 max-w-xs truncate">{{ s.reason or '--' }}</td>
+                        <td class="p-3 text-right space-x-2">
+                            <form action="/roster/swap/approve" method="POST" class="inline">
+                                <input type="hidden" name="swap_id" value="{{ s.id }}">
+                                <input type="hidden" name="action" value="approve">
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition">
+                                    Approve & Apply
+                                </button>
+                            </form>
+                            <form action="/roster/swap/approve" method="POST" class="inline">
+                                <input type="hidden" name="swap_id" value="{{ s.id }}">
+                                <input type="hidden" name="action" value="reject">
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 text-xs font-semibold transition">
+                                    Reject
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-xs text-slate-400 italic py-2">No swap requests currently awaiting supervisor sign-off.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- 3. My Submitted Swap Requests History -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <i data-lucide="history" class="w-4 h-4 text-slate-500"></i>
+            <span>My Submitted Swap Requests</span>
+        </h2>
+
+        {% if my_requests %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 border-b border-slate-200 dark:border-slate-700 font-semibold">
+                        <th class="p-3">Target Colleague</th>
+                        <th class="p-3">Shift Date</th>
+                        <th class="p-3">My Shift</th>
+                        <th class="p-3">Requested Shift</th>
+                        <th class="p-3">Peer Response</th>
+                        <th class="p-3">Supervisor Decision</th>
+                        <th class="p-3 text-right">Created</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for s in my_requests %}
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                        <td class="p-3 font-semibold text-slate-800 dark:text-slate-200">
+                            {{ s.target_user.name }}
+                        </td>
+                        <td class="p-3 font-bold text-slate-700 dark:text-slate-300">
+                            {{ s.shift_date.strftime('%d %b %Y') }}
+                        </td>
+                        <td class="p-3 font-mono text-slate-600 dark:text-slate-300">{{ s.requestor_shift }}</td>
+                        <td class="p-3 font-mono text-slate-600 dark:text-slate-300">{{ s.target_shift }}</td>
+                        <td class="p-3">
+                            {% if s.peer_status == 'PEER_ACCEPTED' %}
+                            <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold">
+                                Accepted
+                            </span>
+                            {% elif s.peer_status == 'PEER_DECLINED' %}
+                            <span class="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950 dark:text-rose-300 text-[10px] font-bold">
+                                Declined
+                            </span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-bold">
+                                Pending Peer
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3">
+                            {% if s.supervisor_status == 'APPROVED' %}
+                            <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold">
+                                Approved & Swapped
+                            </span>
+                            {% elif s.supervisor_status == 'REJECTED' %}
+                            <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950 dark:text-rose-300 text-[10px] font-bold">
+                                Rejected
+                            </span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 text-[10px] font-semibold">
+                                Pending Approval
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="p-3 text-right text-slate-400">{{ s.created_at.strftime('%d %b %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-xs text-slate-400 italic py-2">You have not submitted any shift swap requests yet.</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Modal: Create New Shift Swap Request -->
+<div id="new-swap-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 max-w-lg w-full shadow-2xl space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="arrow-left-right" class="w-4 h-4 text-blue-600"></i>
+                <span>Propose Shift / Week-off Swap</span>
+            </h3>
+            <button type="button" onclick="closeNewSwapModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form action="/roster/swap/create" method="POST" class="space-y-4 text-xs">
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Colleague (Peer to trade with) *</label>
+                <select name="target_user_id" required class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500">
+                    <option value="">-- Choose Peer Employee --</option>
+                    {% for p in peer_candidates %}
+                    <option value="{{ p.id }}">{{ p.name }} ({{ p.unique_id }}) - {{ p.role_title or p.access_level }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Shift Date to Swap *</label>
+                <input type="date" name="shift_date" required class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Your Current Shift *</label>
+                    <input type="text" name="my_shift" placeholder="e.g. 07:00 To 16:00 or WO" required class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Their Shift to Take *</label>
+                    <input type="text" name="target_shift" placeholder="e.g. 16:00 To 01:00 or WO" required class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Reason for Swap Request</label>
+                <textarea name="reason" rows="2" placeholder="e.g. Family emergency, medical appointment, transport schedule" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" onclick="closeNewSwapModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-200">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+                    Submit Swap Proposal
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openNewSwapModal() {
+    const m = document.getElementById('new-swap-modal');
+    if (m) {
+        m.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+}
+function closeNewSwapModal() {
+    const m = document.getElementById('new-swap-modal');
+    if (m) m.classList.add('hidden');
+}
+</script>
+{% endblock %}

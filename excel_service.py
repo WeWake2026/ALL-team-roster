@@ -1176,13 +1176,23 @@ def calculate_daily_capacity(
         ]
         headcount = len(active_users_today)
 
-        # Count shifts, attendance statuses, WOs, Absents, and live in-office counts
+        # Count shifts, attendance statuses, WOs, Absents, live in-office counts, and shift slots
         wo_count = 0.0
         absent_count = 0.0
         scheduled_present_count = 0.0
         in_office_live_count = 0
         punched_completed_count = 0
         day_leave = leaves_by_date.get(d, 0.0)
+
+        # Shift Slots Capacity Distribution Tracking
+        slots_count = {
+            "07:00-16:00": 0,
+            "09:00-18:00": 0,
+            "16:00-01:00": 0,
+            "18:00-03:00": 0,
+            "22:00-07:00": 0,
+            "other": 0
+        }
 
         for u in active_users_today:
             re = re_map_by_date[d].get(u.id)
@@ -1222,6 +1232,20 @@ def calculate_daily_capacity(
             else:
                 # Default if not scheduled: if day is in past/today and not punched/rostered, count as non-working
                 scheduled_present_count += 1.0
+
+            # Slot categorization
+            if "07:00" in val:
+                slots_count["07:00-16:00"] += 1
+            elif "09:00" in val:
+                slots_count["09:00-18:00"] += 1
+            elif "16:00" in val:
+                slots_count["16:00-01:00"] += 1
+            elif "18:00" in val:
+                slots_count["18:00-03:00"] += 1
+            elif "22:00" in val:
+                slots_count["22:00-07:00"] += 1
+            elif val not in ["WO", "CO", "A", "ABSENT", "CL", "SL", "PL", "LEAVE", "HD", "-", ""]:
+                slots_count["other"] += 1
 
         # Dynamic Mandays: Actual available operational capacity on that date
         mandays = max(0.0, float(headcount) - (day_leave + wo_count + absent_count))
@@ -1266,7 +1290,8 @@ def calculate_daily_capacity(
             "pending": round(pending, 2),
             "status": status,
             "badge_class": badge_class,
-            "badge_label": badge_label
+            "badge_label": badge_label,
+            "slots": slots_count
         })
 
     # Summary aggregations
@@ -1364,3 +1389,233 @@ def offboard_employee(
         "cancelled_leaves": cancelled_leaves_count,
         "updated_roster_entries": updated_roster_count
     }
+
+
+def export_monthly_payroll_muster(month_date: date, location_filter: Optional[str], db: Session) -> BytesIO:
+    """
+    Feature 7: Enterprise Monthly Muster Roll & Payroll Statement Exporter (.xlsx)
+    Calculates for each employee across the target month:
+      - Total Calendar Days
+      - Present Full Days (P)
+      - Half-Days (HD * 0.5)
+      - Approved Paid Leaves (CL + SL + PL + Leave)
+      - Paid Week Offs (WO)
+      - Paid Compensatory Offs (CO)
+      - Unplanned Absences / LOP (A)
+      - Overtime (OT) Hours
+      - Net Total Payable Mandays (Present + Half-Days + Paid Leaves + WO + CO)
+    """
+    import calendar
+    import openpyxl
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    year = month_date.year
+    month = month_date.month
+    num_days = calendar.monthrange(year, month)[1]
+    month_start = date(year, month, 1)
+    month_end = date(year, month, num_days)
+    month_dates = [date(year, month, d) for d in range(1, num_days + 1)]
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    month_name_str = month_start.strftime("%B %Y")
+    ws.title = f"Payroll {month_start.strftime('%b %Y')}"
+    ws.views.sheetView[0].showGridLines = True
+
+    # Styling Palette
+    navy_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+    indigo_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    payable_fill = PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid") # Emerald 100
+    lop_fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid") # Rose 100
+    stripe_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+
+    title_font = Font(name="Segoe UI", size=14, bold=True, color="FFFFFF")
+    sub_font = Font(name="Segoe UI", size=10, italic=True, color="94A3B8")
+    header_font = Font(name="Segoe UI", size=10, bold=True, color="FFFFFF")
+    bold_font = Font(name="Segoe UI", size=10, bold=True, color="0F172A")
+    cell_font = Font(name="Segoe UI", size=9, color="334155")
+    payable_font = Font(name="Segoe UI", size=10, bold=True, color="166534")
+    lop_font = Font(name="Segoe UI", size=10, bold=True, color="991B1B")
+
+    thin_border = Border(
+        left=Side(style="thin", color="CBD5E1"),
+        right=Side(style="thin", color="CBD5E1"),
+        top=Side(style="thin", color="CBD5E1"),
+        bottom=Side(style="thin", color="CBD5E1")
+    )
+
+    # 1. Company Banner Header
+    ws.merge_cells("A1:N1")
+    t_cell = ws["A1"]
+    t_cell.value = f"MSEDCL Workforce Operations — Monthly Muster Roll & Payroll Statement ({month_name_str})"
+    t_cell.font = title_font
+    t_cell.fill = navy_fill
+    t_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[1].height = 36
+
+    ws.merge_cells("A2:N2")
+    s_cell = ws["A2"]
+    s_cell.value = f"Generated on {date.today().strftime('%d %B %Y')} | Location: {location_filter or 'All Operational Circles'} | Total Calendar Days: {num_days}"
+    s_cell.font = sub_font
+    s_cell.fill = navy_fill
+    s_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[2].height = 20
+
+    # 2. Table Headers
+    headers = [
+        "SR NO.", "EMPLOYEE NAME", "UNIQUE ID", "BM ID", "DESIGNATION", "LOCATION",
+        "PRESENT (P)", "HALF-DAY (HD)", "WEEK OFF (WO)", "COMP-OFF (CO)",
+        "PAID LEAVES", "ABSENT / LOP", "OT HOURS", "TOTAL PAYABLE MANDAYS"
+    ]
+    ws.row_dimensions[3].height = 26
+    for col_idx, h_text in enumerate(headers, start=1):
+        c = ws.cell(row=3, column=col_idx, value=h_text)
+        c.font = header_font
+        c.fill = header_fill if col_idx <= 6 else (indigo_fill if col_idx < 14 else payable_fill)
+        if col_idx == 14:
+            c.font = payable_font
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        c.border = thin_border
+
+    # 3. Query Employees
+    u_query = db.query(models.User).filter(
+        ((models.User.is_active == True) | (models.User.exit_date >= month_start)),
+        models.User.unique_id != "ADMIN001"
+    )
+    if location_filter and location_filter != "All":
+        u_query = u_query.filter(models.User.location.ilike(f"%{location_filter}%"))
+
+    users = u_query.order_by(models.User.name.asc()).all()
+    user_ids = [u.id for u in users]
+
+    # Pre-fetch Roster Entries & WorkSessions
+    all_entries = db.query(models.RosterEntry).filter(
+        models.RosterEntry.user_id.in_(user_ids),
+        models.RosterEntry.date >= month_start,
+        models.RosterEntry.date <= month_end
+    ).all() if user_ids else []
+    entry_map = {(e.user_id, e.date): e for e in all_entries}
+
+    all_sessions = db.query(models.WorkSession).filter(
+        models.WorkSession.user_id.in_(user_ids),
+        models.WorkSession.session_date >= month_start,
+        models.WorkSession.session_date <= month_end
+    ).all() if user_ids else []
+    session_map = {(s.user_id, s.session_date): s for s in all_sessions}
+
+    all_leaves = db.query(models.LeaveRequest).filter(
+        models.LeaveRequest.user_id.in_(user_ids),
+        models.LeaveRequest.status == "Approved",
+        models.LeaveRequest.start_date <= month_end,
+        models.LeaveRequest.end_date >= month_start
+    ).all() if user_ids else []
+
+    curr_row = 4
+    for idx, u in enumerate(users, start=1):
+        row_fill = stripe_fill if idx % 2 == 0 else None
+        p_count = 0.0
+        hd_count = 0.0
+        wo_count = 0.0
+        co_count = 0.0
+        leave_count = 0.0
+        absent_count = 0.0
+        ot_minutes = 0
+
+        # Leave dates set
+        u_leaves = {d for lv in all_leaves if lv.user_id == u.id for d in month_dates if lv.start_date <= d <= lv.end_date}
+
+        for d in month_dates:
+            # Check exit date
+            if u.exit_date and d >= u.exit_date:
+                continue
+
+            entry = entry_map.get((u.id, d))
+            sess = session_map.get((u.id, d))
+
+            if sess and sess.net_work_mins > 480: # Standard 8h = 480m
+                ot_minutes += (sess.net_work_mins - 480)
+
+            if d in u_leaves:
+                leave_count += 1.0
+                continue
+
+            val = str(entry.shift_code_or_time or "").strip().upper() if entry else ""
+            status_val = str(entry.status or "").strip().upper() if entry else ""
+
+            if val in ["WO", "WEEK OFF"] or status_val == "WO":
+                wo_count += 1.0
+            elif val in ["CO", "COMP-OFF", "COMP OFF"] or status_val == "CO":
+                co_count += 1.0
+            elif val in ["CL", "SL", "PL", "LEAVE"] or status_val == "LEAVE":
+                leave_count += 1.0
+            elif val in ["HD", "HALF-DAY", "HALF DAY", "P+HD"] or status_val in ["HALF-DAY", "HD"]:
+                hd_count += 1.0
+            elif val in ["A", "ABSENT"] or status_val == "ABSENT":
+                absent_count += 1.0
+            elif val in ["P", "PRESENT", "S"] or any(ch in val for ch in [":", "07:00", "09:00", "16:00", "18:00", "22:00"]):
+                p_count += 1.0
+            elif sess and sess.status in ["ACTIVE", "COMPLETED"]:
+                p_count += 1.0
+            else:
+                # Default present if rostered
+                p_count += 1.0
+
+        # Total Payable Mandays = Present + (HD * 0.5) + WO + CO + Paid Leaves
+        total_payable = p_count + (hd_count * 0.5) + wo_count + co_count + leave_count
+        ot_hours = round(ot_minutes / 60.0, 1)
+
+        row_vals = [
+            idx,
+            u.name,
+            u.unique_id,
+            u.bm_id or "-",
+            u.role_title or u.access_level,
+            u.location or "Nagpur",
+            int(p_count),
+            int(hd_count),
+            int(wo_count),
+            int(co_count),
+            int(leave_count),
+            int(absent_count),
+            ot_hours,
+            round(total_payable, 1)
+        ]
+
+        ws.row_dimensions[curr_row].height = 20
+        for col_idx, r_val in enumerate(row_vals, start=1):
+            c = ws.cell(row=curr_row, column=col_idx, value=r_val)
+            c.border = thin_border
+            if row_fill and col_idx < 14:
+                c.fill = row_fill
+
+            if col_idx in [1, 3, 4, 7, 8, 9, 10, 11, 12, 13]:
+                c.alignment = Alignment(horizontal="center", vertical="center")
+            elif col_idx == 2:
+                c.alignment = Alignment(horizontal="left", vertical="center")
+            else:
+                c.alignment = Alignment(horizontal="center", vertical="center")
+
+            if col_idx == 12 and r_val > 0:
+                c.fill = lop_fill
+                c.font = lop_font
+            elif col_idx == 14:
+                c.fill = payable_fill
+                c.font = payable_font
+                c.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                c.font = cell_font
+
+        curr_row += 1
+
+    # Column dimensions auto-fit
+    widths = [8, 28, 16, 12, 18, 15, 14, 14, 14, 14, 14, 14, 12, 22]
+    for i, w in enumerate(widths, start=1):
+        col_letter = get_column_letter(i)
+        ws.column_dimensions[col_letter].width = w
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output

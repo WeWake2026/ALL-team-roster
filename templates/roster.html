@@ -142,6 +142,18 @@
                 <span class="hidden sm:inline">Export XLSX</span>
             </a>
 
+            <!-- Monthly Muster Roll / Payroll Export Button -->
+            <a href="/payroll/export?month={{ date_list[0].strftime('%Y-%m') }}&location=All" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-emerald-400 border border-emerald-500/30 text-xs font-semibold shadow-sm transition flex items-center gap-1.5" title="Download Monthly Muster Roll & Payable Days Statement (.xlsx)">
+                <i data-lucide="calculator" class="w-4 h-4 text-emerald-400"></i>
+                <span class="hidden sm:inline">Muster Roll</span>
+            </a>
+
+            <!-- Shift Swap Requests Desk Button -->
+            <a href="/roster/swaps" class="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border dark:border-indigo-800 text-xs font-semibold shadow-sm transition flex items-center gap-1.5" title="Peer Shift & Week-off Swap Exchange Desk">
+                <i data-lucide="arrow-left-right" class="w-4 h-4 text-indigo-600 dark:text-indigo-400"></i>
+                <span class="hidden sm:inline">Shift Swaps</span>
+            </a>
+
             {% if user.access_level in ['Admin', 'Manager'] %}
             <!-- Fast Upload Roster -->
             <a href="/admin/sync" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5" title="Upload new roster spreadsheet">
@@ -490,6 +502,38 @@
                             <span class="inline-block px-2 py-1 rounded-lg text-[10px] font-bold border {{ day_stat.badge_class }}">
                                 {{ day_stat.badge_label }}
                             </span>
+                        </td>
+                        {% endfor %}
+                    </tr>
+
+                    <!-- Row 9: Shift Time Slots Distribution Breakdown -->
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 bg-blue-50/20 dark:bg-blue-950/10 border-t border-slate-200 dark:border-slate-700">
+                        <td class="p-2.5 pl-3 font-semibold font-sans text-slate-800 dark:text-slate-200 border-r border-slate-200 dark:border-slate-700 flex items-center gap-1.5">
+                            <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-500"></i>
+                            <div>
+                                <span class="block text-xs font-bold">Shift Slots Distribution</span>
+                                <span class="block text-[10px] text-slate-400 font-normal">07-16 | 09-18 | 16-01 | 18-03 | 22-07</span>
+                            </div>
+                        </td>
+                        {% for day_stat in capacity_data.days %}
+                        <td class="p-1.5 text-center border-r border-slate-200 dark:border-slate-700">
+                            <div class="flex flex-col gap-0.5 text-[10px]">
+                                <span class="px-1 py-0.2 rounded bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 font-mono font-bold" title="Morning 07:00-16:00">
+                                    M: {{ day_stat.slots.get('07:00-16:00', 0) }}
+                                </span>
+                                <span class="px-1 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-mono font-bold" title="General 09:00-18:00">
+                                    G: {{ day_stat.slots.get('09:00-18:00', 0) }}
+                                </span>
+                                <span class="px-1 py-0.2 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-mono font-bold" title="Evening 16:00-01:00">
+                                    E: {{ day_stat.slots.get('16:00-01:00', 0) }}
+                                </span>
+                                <span class="px-1 py-0.2 rounded bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 font-mono font-bold" title="Late 18:00-03:00">
+                                    L: {{ day_stat.slots.get('18:00-03:00', 0) }}
+                                </span>
+                                <span class="px-1 py-0.2 rounded bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-mono font-bold" title="Night 22:00-07:00">
+                                    N: {{ day_stat.slots.get('22:00-07:00', 0) }}
+                                </span>
+                            </div>
                         </td>
                         {% endfor %}
                     </tr>

@@ -115,7 +115,7 @@
             <i data-lucide="download-cloud" class="w-4 h-4 text-emerald-600"></i>
             <span>Authorized Operations Report Exports</span>
         </h2>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
                 <div>
                     <p class="font-bold text-slate-800 dark:text-white">Location-Wise Roster Master</p>
@@ -135,6 +135,17 @@
                 <a href="/admin/export-leave-master" class="mt-4 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-1.5 transition">
                     <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
                     <span>Export Ledger</span>
+                </a>
+            </div>
+
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
+                <div>
+                    <p class="font-bold text-slate-800 dark:text-white">Monthly Muster Roll & Payroll</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Payable days, Present, WO, CO, Leaves & LOP muster roll.</p>
+                </div>
+                <a href="/payroll/export?month={{ today.strftime('%Y-%m') }}&location=All" class="mt-4 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold flex items-center justify-center gap-1.5 transition">
+                    <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
+                    <span>Export Payroll</span>
                 </a>
             </div>
 
