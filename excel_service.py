@@ -107,8 +107,13 @@ def import_roster_file(file_bytes: bytes, filename: str, db: Session, updated_by
 
     for col_idx, col in enumerate(df.columns):
         norm = normalize_header(str(col))
-        if norm in ["UNIQUEID", "EMPID", "EMPLOYEEID"]:
+        # Exact matching with strict priority for UNIQUEID
+        if norm == "UNIQUEID":
             col_mapping["unique_id"] = col
+        elif norm in ["EMPLOYEEID", "EMPID"]:
+            col_mapping["employee_id"] = col
+            if "unique_id" not in col_mapping:
+                col_mapping["unique_id"] = col
         elif norm in ["EMPLOYEENAME", "EMPNAME", "NAME"]:
             col_mapping["name"] = col
         elif norm in ["EMAILID", "EMAIL", "MAILID"]:
@@ -125,6 +130,8 @@ def import_roster_file(file_bytes: bytes, filename: str, db: Session, updated_by
             col_mapping["ecn"] = col
         elif norm in ["GENDER"]:
             col_mapping["gender"] = col
+        elif norm in ["SRNO", "NO"]:
+            col_mapping["sr_no"] = col
         elif norm in ["SHIFTS", "SHIFT", "SHIFTTEMP"]:
             col_mapping["default_shift"] = col
         elif norm in ["WO"]:
@@ -170,14 +177,23 @@ def import_roster_file(file_bytes: bytes, filename: str, db: Session, updated_by
     default_hashed_pwd = get_password_hash("Welcome@123")
 
     for _, row in df.iterrows():
-        unique_id = str(row.get(col_mapping.get("unique_id", ""), "")).strip()
         name = str(row.get(col_mapping.get("name", ""), "")).strip()
+        if not name or name in ["nan", "None", "-", ""] or name.upper() in ["EMPLOYEE NAME", "TOTAL", "PENDING", "ELIGIBLE LEAVE", "MANDAYS", "SHIFT"]:
+            continue
 
-        # Filter out NaN, empty, header artifacts like '-' or summary rows
+        unique_id = str(row.get(col_mapping.get("unique_id", ""), "")).strip()
+        # If unique_id is empty or '-', check employee_id or fallback to sr_no/name
         if not unique_id or unique_id in ["nan", "None", "-", ""]:
-            continue
-        if not name or name in ["nan", "None", "-", ""]:
-            continue
+            emp_id_val = str(row.get(col_mapping.get("employee_id", ""), "")).strip()
+            if emp_id_val and emp_id_val not in ["nan", "None", "-", ""]:
+                unique_id = emp_id_val
+            else:
+                sr_val = str(row.get(col_mapping.get("sr_no", ""), "")).strip()
+                if sr_val and sr_val.replace(".0", "").isdigit():
+                    unique_id = f"EMP_{int(sr_val.replace('.0', '')):03d}"
+                else:
+                    clean_n = re.sub(r'[^a-zA-Z0-9]', '', name).upper()[:12]
+                    unique_id = f"EMP_{clean_n}"
         if unique_id.upper() in ["UNIQUE ID", "ID", "TOTAL", "PENDING", "ELIGIBLE LEAVE", "MANDAYS"]:
             continue
         if name.upper() in ["EMPLOYEE NAME", "TOTAL", "PENDING", "ELIGIBLE LEAVE", "MANDAYS"]:
