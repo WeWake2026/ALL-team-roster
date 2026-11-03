@@ -37,16 +37,23 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Instant Theme Detection (Eliminates Flash/Clash on Page Refresh) -->
+    <!-- Instant Theme & Sidebar State Detection (Eliminates Flash/Clash & Sidebar Jump on Page Refresh) -->
     <script>
         (function() {
             try {
+                // Theme detection
                 const storedTheme = localStorage.getItem('theme');
                 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                 if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
                     document.documentElement.classList.add('dark');
                 } else {
                     document.documentElement.classList.remove('dark');
+                }
+
+                // Sidebar mode detection - inject instant inline style to prevent layout jump
+                const sidebarMode = localStorage.getItem('sidebar_mode');
+                if (sidebarMode === 'compact') {
+                    document.documentElement.classList.add('sidebar-compact-active');
                 }
             } catch (e) {}
         })();
@@ -85,7 +92,20 @@
             background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(10px);
         }
-        /* Disable transition during page load to prevent theme flash */
+        /* Immediate compact sidebar handling to prevent layout jumps/flicker */
+        html.sidebar-compact-active #main-sidebar {
+            width: 5rem !important; /* 80px / w-20 */
+        }
+        html.sidebar-compact-active #main-sidebar .sidebar-text {
+            display: none !important;
+        }
+        html.sidebar-compact-active #main-sidebar .sidebar-user-card {
+            justify-content: center !important;
+            padding: 0.5rem !important;
+            margin-left: 0.5rem !important;
+            margin-right: 0.5rem !important;
+        }
+        /* Disable transition during page load to prevent theme flash and layout pop */
         .preload * {
             -webkit-transition: none !important;
             -moz-transition: none !important;
@@ -139,9 +159,41 @@
         <!-- Navigation Container (No Internal Scrollbars, Smooth Transitions) -->
         <nav class="flex-1 px-3 py-2 space-y-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" id="sidebar-nav-container">
             
-            <!-- SECTION 1: PRIMARY PINNED ITEMS (4 to 5 core modules) -->
+            <!-- SECTION 1: PRIMARY PINNED ITEMS (Pre-rendered for zero layout flicker, dynamically adjusted by user preference) -->
             <div id="primary-pinned-nav" class="space-y-1">
-                <!-- Dynamically populated or server rendered -->
+                <a href="/dashboard" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group {% if active_page == 'dashboard' %}bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/20{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}" title="Dashboard">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        {% if active_page == 'dashboard' %}<span class="w-1.5 h-1.5 rounded-full bg-white shrink-0 animate-pulse"></span>{% endif %}
+                        <i data-lucide="layout-dashboard" class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"></i>
+                        <span class="sidebar-text truncate">Dashboard</span>
+                    </div>
+                </a>
+                <a href="/roster" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group {% if active_page in ['roster', 'my_roster'] %}bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/20{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}" title="Team Roster">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        {% if active_page in ['roster', 'my_roster'] %}<span class="w-1.5 h-1.5 rounded-full bg-white shrink-0 animate-pulse"></span>{% endif %}
+                        <i data-lucide="calendar-check" class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"></i>
+                        <span class="sidebar-text truncate">Team Roster</span>
+                    </div>
+                </a>
+                <a href="/leaves" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group {% if active_page == 'leaves' %}bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/20{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}" title="Leave Approvals">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        {% if active_page == 'leaves' %}<span class="w-1.5 h-1.5 rounded-full bg-white shrink-0 animate-pulse"></span>{% endif %}
+                        <i data-lucide="file-check" class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"></i>
+                        <span class="sidebar-text truncate">Leave Approvals</span>
+                    </div>
+                    {% if pending_leave_count and pending_leave_count > 0 %}
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-900 animate-pulse ml-auto">{{ pending_leave_count }}</span>
+                    {% endif %}
+                </a>
+                {% if user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader', 'Quality', 'QA', 'SME'] %}
+                <a href="/roster/manage" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group {% if active_page == 'manage_roster' %}bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/20{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}" title="Floor Attendance & Shifts">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        {% if active_page == 'manage_roster' %}<span class="w-1.5 h-1.5 rounded-full bg-white shrink-0 animate-pulse"></span>{% endif %}
+                        <i data-lucide="sliders" class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"></i>
+                        <span class="sidebar-text truncate">Floor Attendance & Shifts</span>
+                    </div>
+                </a>
+                {% endif %}
             </div>
 
             <!-- SECTION 2: MORE MODULES COLLAPSIBLE DRAWER -->
@@ -617,12 +669,13 @@
             const icon = document.getElementById('sidebar-toggle-icon');
             if (!sb) return;
 
-            const isCompact = sb.classList.contains('w-20');
+            const isCompact = sb.classList.contains('w-20') || document.documentElement.classList.contains('sidebar-compact-active');
             
             if (!isCompact) {
                 // Collapse to compact size
                 sb.classList.remove('w-80', 'w-72', 'w-64');
                 sb.classList.add('w-20');
+                document.documentElement.classList.add('sidebar-compact-active');
                 document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = 'none');
                 document.querySelectorAll('.sidebar-user-card').forEach(el => {
                     el.classList.add('justify-center', 'p-2', 'mx-2');
@@ -634,6 +687,7 @@
                 // Expand to large spacious width
                 sb.classList.remove('w-20');
                 sb.classList.add('w-72');
+                document.documentElement.classList.remove('sidebar-compact-active');
                 document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = '');
                 document.querySelectorAll('.sidebar-user-card').forEach(el => {
                     el.classList.remove('justify-center', 'p-2', 'mx-2');
@@ -652,6 +706,7 @@
             if (sb && mode === 'compact') {
                 sb.classList.remove('w-80', 'w-72', 'w-64');
                 sb.classList.add('w-20');
+                document.documentElement.classList.add('sidebar-compact-active');
                 document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = 'none');
                 document.querySelectorAll('.sidebar-user-card').forEach(el => {
                     el.classList.add('justify-center', 'p-2', 'mx-2');
@@ -659,6 +714,8 @@
                 });
                 if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
                 if (typeof lucide !== 'undefined') lucide.createIcons();
+            } else {
+                document.documentElement.classList.remove('sidebar-compact-active');
             }
         }
 
@@ -912,7 +969,13 @@
             const pinnedModules = effectivePinnedIds.map(id => permittedMap.get(id)).filter(Boolean);
             const primaryContainer = document.getElementById('primary-pinned-nav');
             if (primaryContainer) {
-                primaryContainer.innerHTML = pinnedModules.map(m => createSidebarItemHtml(m)).join('');
+                // Check if user is using default pinned layout to avoid unnecessary DOM repaint
+                const isDefaultList = effectivePinnedIds.length === DEFAULT_PINNED_MODULES.length && 
+                                      effectivePinnedIds.every((id, idx) => id === DEFAULT_PINNED_MODULES[idx]);
+                // If it already contains elements and matches default, skip innerHTML overwrite to prevent flicker
+                if (!isDefaultList || primaryContainer.children.length === 0) {
+                    primaryContainer.innerHTML = pinnedModules.map(m => createSidebarItemHtml(m)).join('');
+                }
             }
 
             // 2. Unpinned More Modules (Collapsible Drawer)

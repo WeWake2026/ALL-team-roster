@@ -1043,7 +1043,8 @@ def calculate_daily_capacity(
     role_filter: Optional[str],
     db: Session,
     eligible_leave_quota: Optional[float] = None,
-    leave_cap_percentage: float = 15.0
+    leave_cap_percentage: float = 15.0,
+    location_filter: Optional[str] = "All"
 ) -> Dict[str, Any]:
     """
     Feature 1: Daily Leave Quota & Mandays Capacity Tracker (Enhanced Dynamic Engine)
@@ -1061,6 +1062,9 @@ def calculate_daily_capacity(
     """
     # 1. Base query for users
     query = db.query(models.User)
+
+    if location_filter and location_filter not in ["All", "ALL", ""]:
+        query = query.filter(models.User.location.ilike(f"%{location_filter.strip()}%"))
 
     if role_filter and role_filter != "All":
         r_clean = role_filter.strip().upper()
