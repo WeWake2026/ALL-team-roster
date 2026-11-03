@@ -596,7 +596,7 @@
                                 </div>
                                 <div class="overflow-hidden">
                                     {% if user.access_level in ['Admin', 'Manager', 'Team Leader', 'HR', 'Quality', 'QA', 'SME'] %}
-                                    <button type="button" onclick="openBatchShiftModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}')" class="font-semibold text-slate-800 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 text-xs truncate flex items-center gap-1.5 text-left transition" title="Click to edit schedule timetable for week/period">
+                                    <button type="button" onclick="openBatchShiftModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}', '{{ row.user.location }}')" class="font-semibold text-slate-800 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400 text-xs truncate flex items-center gap-1.5 text-left transition" title="Click to edit schedule timetable for week/period">
                                         <span>{{ row.user.name }}</span>
                                         <i data-lucide="calendar-days" class="w-3 h-3 text-blue-500 opacity-70"></i>
                                         {% if is_current_user %}
@@ -622,7 +622,7 @@
 
                         <td class="p-2.5 border-r border-slate-200 dark:border-slate-700 text-center font-mono text-[11px] text-slate-600 dark:text-slate-300 font-semibold">
                             {% if user.access_level in ['Admin', 'Manager', 'Team Leader', 'HR', 'Quality', 'QA', 'SME'] %}
-                            <button type="button" onclick="openBatchShiftModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}')" class="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-800 hover:underline transition" title="Click to edit schedule timetable">
+                            <button type="button" onclick="openBatchShiftModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}', '{{ row.user.location }}')" class="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-800 hover:underline transition" title="Click to edit schedule timetable">
                                 {{ row.user.unique_id }}
                             </button>
                             {% else %}
@@ -645,7 +645,7 @@
                         <td class="p-1 text-center border-r border-slate-200 dark:border-slate-700 {% if d == today %}bg-blue-50/30 dark:bg-blue-950/20{% endif %}">
                             {% if perms.can_edit or user.access_level in ['Admin', 'Manager', 'Team Leader', 'Quality', 'SME'] %}
                             <button type="button" id="roster-cell-btn-{{ row.user.id }}-{{ d.strftime('%Y-%m-%d') }}"
-                                onclick="openRosterCellModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}', '{{ d.strftime('%Y-%m-%d') }}', '{{ shift_val }}')"
+                                onclick="openRosterCellModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}', '{{ d.strftime('%Y-%m-%d') }}', '{{ shift_val }}', '{{ row.user.location }}')"
                                 class="w-full py-1 px-0.5 rounded font-bold text-[11px] transition hover:scale-105 shadow-2xs
                                 {% if u_val == 'WO' %}bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300
                                 {% elif u_val == 'CO' %}bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300
@@ -721,7 +721,7 @@
                         <!-- Actions Column: Change Shift & Offboard -->
                         <td class="p-2 text-center whitespace-nowrap space-y-1">
                             <button type="button"
-                                onclick="openChangeShiftModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}')"
+                                onclick="openChangeShiftModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}', '{{ row.user.location }}')"
                                 class="px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-[10px] transition border border-blue-200 flex items-center gap-1 mx-auto"
                                 title="Change Employee Shift Schedule">
                                 <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
@@ -1369,12 +1369,55 @@ function closeOffboardModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-function openBatchShiftModal(userId, userName, uniqueId) {
+
+// Location-specific Timetable Slots definitions
+const LOCATION_SHIFTS_CONFIG = {
+    'Mumbai': [
+        { code: '07:00 To 16:00', label: '07:00 - 16:00 (Morning)', color: 'slate' },
+        { code: '09:00 To 18:00', label: '09:00 - 18:00 (General)', color: 'slate' },
+        { code: '11:00 To 20:00', label: '11:00 - 20:00 (Mid-Day)', color: 'sky' },
+        { code: '13:00 To 22:00', label: '13:00 - 22:00 (Afternoon)', color: 'orange' },
+        { code: '20:00 To 05:00', label: '20:00 - 05:00 (Late Night)', color: 'indigo' },
+        { code: '22:00 To 07:00', label: '22:00 - 07:00 (Night)', color: 'purple' },
+        { code: 'WO', label: 'WO (Week Off)', color: 'purple' },
+        { code: 'CO', label: 'CO (Comp Off)', color: 'purple' }
+    ],
+    'Nagpur': [
+        { code: '07:00 To 16:00', label: '07:00 - 16:00 (Morning)', color: 'slate' },
+        { code: '09:00 To 18:00', label: '09:00 - 18:00 (General)', color: 'slate' },
+        { code: '16:00 To 01:00', label: '16:00 - 01:00 (Evening)', color: 'amber' },
+        { code: '18:00 To 03:00', label: '18:00 - 03:00 (Late Eve)', color: 'violet' },
+        { code: '22:00 To 07:00', label: '22:00 - 07:00 (Night)', color: 'purple' },
+        { code: 'WO', label: 'WO (Week Off)', color: 'purple' },
+        { code: 'CO', label: 'CO (Comp Off)', color: 'purple' }
+    ]
+};
+
+function getShiftsForLocation(loc) {
+    const locClean = String(loc || '').trim().toLowerCase();
+    if (locClean.includes('mumbai')) return LOCATION_SHIFTS_CONFIG['Mumbai'];
+    return LOCATION_SHIFTS_CONFIG['Nagpur'];
+}
+
+function populateShiftSelect(selectElement, location, selectedVal = '') {
+    if (!selectElement) return;
+    const shifts = getShiftsForLocation(location);
+    selectElement.innerHTML = shifts.map(s => `
+        <option value="${s.code}" ${s.code === selectedVal ? 'selected' : ''}>${s.label}</option>
+    `).join('') + `
+        <option value="CL">Casual Leave (CL)</option>
+        <option value="SL">Sick Leave (SL)</option>
+    `;
+}
+
+function openBatchShiftModal(userId, userName, uniqueId, userLoc = 'Nagpur') {
     const modal = document.getElementById('batch-timetable-modal');
     if (!modal) return;
     document.getElementById('batch-user-id').value = userId;
     document.getElementById('batch-user-name').textContent = userName;
-    document.getElementById('batch-user-uid').textContent = uniqueId;
+    document.getElementById('batch-user-uid').textContent = uniqueId + (userLoc ? ` • ${userLoc}` : '');
+    const shiftSelect = document.getElementById('batch-shift-name');
+    populateShiftSelect(shiftSelect, userLoc, '09:00 To 18:00');
     modal.classList.remove('hidden');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -1384,15 +1427,34 @@ function closeBatchShiftModal() {
     if (modal) modal.classList.add('hidden');
 }
 
-function openRosterCellModal(userId, userName, uniqueId, targetDate, currentShift) {
+function openRosterCellModal(userId, userName, uniqueId, targetDate, currentShift, userLoc = 'Nagpur') {
     const modal = document.getElementById('roster-cell-quick-modal');
     if (!modal) return;
     document.getElementById('cell-user-id').value = userId;
     document.getElementById('cell-target-date').value = targetDate;
     document.getElementById('cell-emp-name').textContent = userName;
-    document.getElementById('cell-emp-uid').textContent = uniqueId;
+    document.getElementById('cell-emp-uid').textContent = uniqueId + (userLoc ? ` • ${userLoc}` : '');
     document.getElementById('cell-date-display').textContent = targetDate;
     document.getElementById('cell-current-shift').textContent = currentShift || 'Not set';
+
+    const container = document.getElementById('cell-shift-buttons-container');
+    if (container) {
+        const shifts = getShiftsForLocation(userLoc);
+        container.innerHTML = shifts.map(s => {
+            let bgClass = 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700';
+            if (s.color === 'amber') bgClass = 'bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200 border-amber-300 dark:border-amber-700';
+            else if (s.color === 'violet') bgClass = 'bg-violet-50 hover:bg-violet-100 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200 border-violet-300 dark:border-violet-700';
+            else if (s.color === 'purple') bgClass = 'bg-purple-50 hover:bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-200 border-purple-300 dark:border-purple-700';
+            else if (s.color === 'sky') bgClass = 'bg-sky-50 hover:bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-200 border-sky-300 dark:border-sky-700';
+            else if (s.color === 'orange') bgClass = 'bg-orange-50 hover:bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-200 border-orange-300 dark:border-orange-700';
+            else if (s.color === 'indigo') bgClass = 'bg-indigo-50 hover:bg-indigo-100 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 border-indigo-300 dark:border-indigo-700';
+
+            return `<button type="button" onclick="submitCellAttendance('${s.code}')" class="p-2 rounded-xl ${bgClass} font-bold border transition text-xs truncate">
+                ${s.label}
+            </button>`;
+        }).join('');
+    }
+
     modal.classList.remove('hidden');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -1766,30 +1828,9 @@ async function executeGranularClear(e) {
             <div>
                 <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">2. Shift Slots & Offs</label>
                 <div class="grid grid-cols-3 gap-2 text-xs">
-                    <button type="button" onclick="submitCellAttendance('07:00 To 16:00')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-700 transition">
-                        07:00 - 16:00
-                    </button>
-                    <button type="button" onclick="submitCellAttendance('09:00 To 18:00')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-700 transition">
-                        09:00 - 18:00
-                    </button>
-                    <button type="button" onclick="submitCellAttendance('13:00 To 22:00')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-700 transition">
-                        13:00 - 22:00
-                    </button>
-                    <button type="button" onclick="submitCellAttendance('16:00 To 01:00')" class="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200 font-bold border border-amber-300 dark:border-amber-700 transition">
-                        16:00 - 01:00 (Eve)
-                    </button>
-                    <button type="button" onclick="submitCellAttendance('18:00 To 03:00')" class="p-2 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200 font-bold border border-violet-300 dark:border-violet-700 transition">
-                        18:00 - 03:00 (Late)
-                    </button>
-                    <button type="button" onclick="submitCellAttendance('22:00 To 07:00')" class="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-200 font-bold border border-purple-300 dark:border-purple-700 transition">
-                        22:00 - 07:00 (Night)
-                    </button>
-                    <button type="button" onclick="submitCellAttendance('WO')" class="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800 transition">
-                        WO (Week Off)
-                    </button>
-                    <button type="button" onclick="submitCellAttendance('CO')" class="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800 transition">
-                        CO (Comp Off)
-                    </button>
+                    <div id="cell-shift-buttons-container" class="col-span-3 grid grid-cols-3 gap-2">
+                        <!-- Populated dynamically based on employee location -->
+                    </div>
                 </div>
             </div>
         </div>

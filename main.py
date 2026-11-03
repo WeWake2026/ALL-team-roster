@@ -4019,7 +4019,7 @@ def get_dashboard_metrics_users(
         elif cat == "co":
             matches = (code in ["CO", "COMP-OFF"]) or (e and e.status == "CO")
         elif cat == "cl":
-            matches = (code in ["CL", "PL", "LEAVE", "UNPAID"]) or (e and e.status in ["CL", "PL", "Leave"])
+            matches = (code in ["CL", "PL", "LEAVE", "UNPAID"]) or (e and e.status in ["CL", "PL", "Leave"] and code not in ["SL", "CO", "COMP-OFF", "WO"])
         elif cat == "sl":
             matches = (code == "SL") or (e and e.status == "SL")
         elif cat == "absent":
