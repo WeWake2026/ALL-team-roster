@@ -1237,17 +1237,17 @@ def calculate_daily_capacity(
                 # Default if not scheduled: if day is in past/today and not punched/rostered, count as non-working
                 scheduled_present_count += 1.0
 
-            # Slot categorization
-            if "07:00" in val:
-                slots_count["07:00-16:00"] += 1
-            elif "09:00" in val:
-                slots_count["09:00-18:00"] += 1
-            elif "16:00" in val:
-                slots_count["16:00-01:00"] += 1
+            # Slot categorization (22:00 must be checked before 07:00 to avoid false morning classification)
+            if "22:00" in val:
+                slots_count["22:00-07:00"] += 1
             elif "18:00" in val:
                 slots_count["18:00-03:00"] += 1
-            elif "22:00" in val:
-                slots_count["22:00-07:00"] += 1
+            elif "16:00" in val and not ("07:00" in val and "16:00" in val and not val.strip().startswith("16")):
+                slots_count["16:00-01:00"] += 1
+            elif "09:00" in val:
+                slots_count["09:00-18:00"] += 1
+            elif "07:00" in val:
+                slots_count["07:00-16:00"] += 1
             elif val not in ["WO", "CO", "A", "ABSENT", "CL", "SL", "PL", "LEAVE", "HD", "-", ""]:
                 slots_count["other"] += 1
 

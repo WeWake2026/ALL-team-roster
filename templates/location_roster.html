@@ -251,9 +251,9 @@
                                 {% if shift in ['WO'] %}bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700
                                 {% elif shift in ['CO'] %}bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800
                                 {% elif shift in ['CL', 'SL', 'Leave', 'PL'] %}bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800
-                                {% elif '07:00' in shift %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800
+                                {% elif '22:00' in shift %}bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-800
                                 {% elif '13:00' in shift %}bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800
-                                {% elif '22:00' in shift %}bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800
+                                {% elif '07:00' in shift %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800
                                 {% else %}bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800{% endif %}" title="Click to edit shift for {{ d.strftime('%d %b') }}">
                                 {{ shift }}
                             </button>
