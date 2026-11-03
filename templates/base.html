@@ -37,6 +37,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Instant Theme Detection (Eliminates Flash/Clash on Page Refresh) -->
+    <script>
+        (function() {
+            try {
+                const storedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            } catch (e) {}
+        })();
+    </script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -71,10 +85,18 @@
             background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(10px);
         }
+        /* Disable transition during page load to prevent theme flash */
+        .preload * {
+            -webkit-transition: none !important;
+            -moz-transition: none !important;
+            -ms-transition: none !important;
+            -o-transition: none !important;
+            transition: none !important;
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
-<body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col md:flex-row antialiased selection:bg-blue-500 selection:text-white transition-colors duration-200">
+<body class="preload h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col md:flex-row antialiased selection:bg-blue-500 selection:text-white transition-colors duration-200">
 
     {% if user %}
     <!-- DESKTOP EXPANDABLE / COLLAPSIBLE SIDEBAR WITH ROLE-BASED DYNAMIC NAVIGATION -->
@@ -1101,6 +1123,12 @@
 
         initTheme();
         restoreSidebarState();
+        // Remove preload class to safely re-enable intentional UI transitions
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.body.classList.remove('preload');
+            }, 50);
+        });
     </script>
     {% block extra_scripts %}{% endblock %}
 </body>

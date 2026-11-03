@@ -1091,6 +1091,61 @@ function highlightSpecificEmployee() {
     });
 }
 
+// Save and restore roster filter state
+function saveRosterFilterState() {
+    try {
+        const selectedShifts = getSelectedCheckboxes('shift-checkbox');
+        const selectedRoles = Array.from(document.querySelectorAll('.role-checkbox:checked')).map(c => c.value.trim());
+        const state = {
+            search: document.getElementById('filter-search')?.value || '',
+            location: document.getElementById('filter-location')?.value || 'All',
+            timingCategory: document.getElementById('filter-timing-category')?.value || 'ALL',
+            shifts: selectedShifts,
+            roles: selectedRoles,
+            windowStart: document.getElementById('window-start')?.value || '09:00',
+            windowEnd: document.getElementById('window-end')?.value || '17:00',
+            scrollY: window.scrollY || 0
+        };
+        sessionStorage.setItem('shiftflow_roster_filter_state', JSON.stringify(state));
+    } catch(e) {}
+}
+
+function restoreRosterFilterState() {
+    try {
+        const raw = sessionStorage.getItem('shiftflow_roster_filter_state');
+        if (!raw) return;
+        const state = JSON.parse(raw);
+        if (state.search !== undefined && document.getElementById('filter-search')) {
+            document.getElementById('filter-search').value = state.search;
+        }
+        if (state.location !== undefined && document.getElementById('filter-location')) {
+            document.getElementById('filter-location').value = state.location;
+        }
+        if (state.timingCategory !== undefined && document.getElementById('filter-timing-category')) {
+            document.getElementById('filter-timing-category').value = state.timingCategory;
+        }
+        if (state.windowStart !== undefined && document.getElementById('window-start')) {
+            document.getElementById('window-start').value = state.windowStart;
+        }
+        if (state.windowEnd !== undefined && document.getElementById('window-end')) {
+            document.getElementById('window-end').value = state.windowEnd;
+        }
+        if (Array.isArray(state.shifts)) {
+            document.querySelectorAll('.shift-checkbox').forEach(c => {
+                c.checked = state.shifts.includes(c.value);
+            });
+        }
+        if (Array.isArray(state.roles)) {
+            document.querySelectorAll('.role-checkbox').forEach(c => {
+                c.checked = state.roles.includes(c.value);
+            });
+        }
+        if (state.scrollY !== undefined) {
+            setTimeout(() => window.scrollTo({ top: state.scrollY, behavior: 'instant' }), 50);
+        }
+    } catch(e) {}
+}
+
 function applyDynamicFilters() {
     const searchVal = (document.getElementById('filter-search')?.value || '').toLowerCase().trim();
     const locationVal = document.getElementById('filter-location')?.value || 'All';
@@ -1116,6 +1171,8 @@ function applyDynamicFilters() {
     if (roleLabel) {
         roleLabel.textContent = selectedRoles.length === 0 ? 'All Roles' : `${selectedRoles.length} Role(s) Selected`;
     }
+
+    saveRosterFilterState();
 
     let visibleCount = 0;
     let sumPresent = 0;
@@ -1200,6 +1257,9 @@ function applyDynamicFilters() {
 }
 
 function clearAllFilters() {
+    try {
+        sessionStorage.removeItem('shiftflow_roster_filter_state');
+    } catch(e) {}
     const sInput = document.getElementById('filter-search');
     if (sInput) sInput.value = '';
     const locInput = document.getElementById('filter-location');
@@ -1303,6 +1363,7 @@ async function submitCellAttendance(statusMark) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    restoreRosterFilterState();
     applyDynamicFilters();
 });
 </script>

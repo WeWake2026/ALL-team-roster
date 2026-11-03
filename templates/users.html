@@ -399,16 +399,69 @@
 <script>
     let currentStatusFilter = 'ALL';
 
+    // Save active filter state and scroll position to sessionStorage
+    function saveUsersFilterState() {
+        try {
+            const state = {
+                search: document.getElementById('filter-search')?.value || '',
+                loc: document.getElementById('filter-loc')?.value || 'ALL',
+                dept: document.getElementById('filter-dept')?.value || 'ALL',
+                tl: document.getElementById('filter-tl')?.value || 'ALL',
+                status: currentStatusFilter || 'ALL',
+                scrollY: window.scrollY || 0
+            };
+            sessionStorage.setItem('shiftflow_users_filter_state', JSON.stringify(state));
+        } catch (e) {}
+    }
+
+    function restoreUsersFilterState() {
+        try {
+            const raw = sessionStorage.getItem('shiftflow_users_filter_state');
+            if (!raw) return;
+            const state = JSON.parse(raw);
+            if (state.search !== undefined && document.getElementById('filter-search')) {
+                document.getElementById('filter-search').value = state.search;
+            }
+            if (state.loc !== undefined && document.getElementById('filter-loc')) {
+                document.getElementById('filter-loc').value = state.loc;
+            }
+            if (state.dept !== undefined && document.getElementById('filter-dept')) {
+                document.getElementById('filter-dept').value = state.dept;
+            }
+            if (state.tl !== undefined && document.getElementById('filter-tl')) {
+                document.getElementById('filter-tl').value = state.tl;
+            }
+            if (state.status !== undefined) {
+                currentStatusFilter = state.status;
+                ['all', 'active', 'offboarded'].forEach(f => {
+                    const btn = document.getElementById(`btn-status-${f}`);
+                    if (btn) {
+                        if (f === state.status.toLowerCase()) {
+                            btn.className = 'py-1 rounded-lg transition text-[11px] bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs font-bold';
+                        } else {
+                            btn.className = 'py-1 rounded-lg transition text-[11px] text-slate-600 dark:text-slate-400 hover:text-blue-600 font-medium';
+                        }
+                    }
+                });
+            }
+            if (state.scrollY !== undefined) {
+                setTimeout(() => window.scrollTo({ top: state.scrollY, behavior: 'instant' }), 50);
+            }
+        } catch (e) {}
+    }
+
     function setStatusFilter(filterVal) {
         currentStatusFilter = filterVal;
         
         // Update button styles
         ['all', 'active', 'offboarded'].forEach(f => {
             const btn = document.getElementById(`btn-status-${f}`);
-            if (f === filterVal.toLowerCase()) {
-                btn.className = 'py-1 rounded-lg transition text-[11px] bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs font-bold';
-            } else {
-                btn.className = 'py-1 rounded-lg transition text-[11px] text-slate-600 dark:text-slate-400 hover:text-blue-600 font-medium';
+            if (btn) {
+                if (f === filterVal.toLowerCase()) {
+                    btn.className = 'py-1 rounded-lg transition text-[11px] bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs font-bold';
+                } else {
+                    btn.className = 'py-1 rounded-lg transition text-[11px] text-slate-600 dark:text-slate-400 hover:text-blue-600 font-medium';
+                }
             }
         });
 
@@ -416,10 +469,10 @@
     }
 
     function applyEmployeeFilters() {
-        const query = document.getElementById('filter-search').value.toLowerCase().trim();
-        const loc = document.getElementById('filter-loc').value.toLowerCase();
-        const dept = document.getElementById('filter-dept').value.toLowerCase();
-        const tl = document.getElementById('filter-tl').value.toLowerCase();
+        const query = (document.getElementById('filter-search')?.value || '').toLowerCase().trim();
+        const loc = (document.getElementById('filter-loc')?.value || 'ALL').toLowerCase();
+        const dept = (document.getElementById('filter-dept')?.value || 'ALL').toLowerCase();
+        const tl = (document.getElementById('filter-tl')?.value || 'ALL').toLowerCase();
         const rows = document.querySelectorAll('.account-row');
         let visibleCount = 0;
 
@@ -446,16 +499,27 @@
             }
         });
 
-        document.getElementById('filtered-count-badge').innerText = `Showing ${visibleCount} Employees`;
+        const badge = document.getElementById('filtered-count-badge');
+        if (badge) badge.innerText = `Showing ${visibleCount} Employees`;
+
+        saveUsersFilterState();
     }
 
     function resetEmployeeFilters() {
-        document.getElementById('filter-search').value = '';
-        document.getElementById('filter-loc').value = 'ALL';
-        document.getElementById('filter-dept').value = 'ALL';
-        document.getElementById('filter-tl').value = 'ALL';
+        try {
+            sessionStorage.removeItem('shiftflow_users_filter_state');
+        } catch(e) {}
+        if (document.getElementById('filter-search')) document.getElementById('filter-search').value = '';
+        if (document.getElementById('filter-loc')) document.getElementById('filter-loc').value = 'ALL';
+        if (document.getElementById('filter-dept')) document.getElementById('filter-dept').value = 'ALL';
+        if (document.getElementById('filter-tl')) document.getElementById('filter-tl').value = 'ALL';
         setStatusFilter('ALL');
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        restoreUsersFilterState();
+        applyEmployeeFilters();
+    });
 
     function openUsersOffboardModal(userId, userName, uniqueId, roleTitle) {
         document.getElementById('users-offboard-user-id').value = userId;
