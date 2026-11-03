@@ -357,42 +357,10 @@
         document.getElementById('cell-edit-modal').classList.add('hidden');
     }
 
-    function saveLocationFilters() {
-        try {
-            const state = {
-                search: document.getElementById('filter-search')?.value || '',
-                dept: document.getElementById('filter-dept')?.value || 'ALL',
-                shift: document.getElementById('filter-shift')?.value || 'ALL',
-                scrollY: window.scrollY || 0
-            };
-            sessionStorage.setItem('shiftflow_location_roster_filters', JSON.stringify(state));
-        } catch(e) {}
-    }
-
-    function restoreLocationFilters() {
-        try {
-            const raw = sessionStorage.getItem('shiftflow_location_roster_filters');
-            if (!raw) return;
-            const state = JSON.parse(raw);
-            if (state.search !== undefined && document.getElementById('filter-search')) {
-                document.getElementById('filter-search').value = state.search;
-            }
-            if (state.dept !== undefined && document.getElementById('filter-dept')) {
-                document.getElementById('filter-dept').value = state.dept;
-            }
-            if (state.shift !== undefined && document.getElementById('filter-shift')) {
-                document.getElementById('filter-shift').value = state.shift;
-            }
-            if (state.scrollY !== undefined) {
-                setTimeout(() => window.scrollTo({ top: state.scrollY, behavior: 'instant' }), 50);
-            }
-        } catch(e) {}
-    }
-
     function applyLocationTableFilters() {
-        const query = (document.getElementById('filter-search')?.value || '').toLowerCase().trim();
-        const dept = (document.getElementById('filter-dept')?.value || 'ALL').toLowerCase();
-        const shift = (document.getElementById('filter-shift')?.value || 'ALL').toLowerCase();
+        const query = document.getElementById('filter-search').value.toLowerCase().trim();
+        const dept = document.getElementById('filter-dept').value.toLowerCase();
+        const shift = document.getElementById('filter-shift').value.toLowerCase();
         const rows = document.querySelectorAll('.roster-row');
         let visible = 0;
 
@@ -414,24 +382,14 @@
             }
         });
 
-        const badge = document.getElementById('filtered-count-badge');
-        if (badge) badge.innerText = `Showing ${visible} Employees`;
-        saveLocationFilters();
+        document.getElementById('filtered-count-badge').innerText = `Showing ${visible} Employees`;
     }
 
     function clearLocationFilters() {
-        try {
-            sessionStorage.removeItem('shiftflow_location_roster_filters');
-        } catch(e) {}
-        if (document.getElementById('filter-search')) document.getElementById('filter-search').value = '';
-        if (document.getElementById('filter-dept')) document.getElementById('filter-dept').value = 'ALL';
-        if (document.getElementById('filter-shift')) document.getElementById('filter-shift').value = 'ALL';
+        document.getElementById('filter-search').value = '';
+        document.getElementById('filter-dept').value = 'ALL';
+        document.getElementById('filter-shift').value = 'ALL';
         applyLocationTableFilters();
     }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        restoreLocationFilters();
-        applyLocationTableFilters();
-    });
 </script>
 {% endblock %}
