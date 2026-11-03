@@ -59,15 +59,8 @@
                     </select>
                 </div>
 
-                <!-- Date Picker -->
-                <div class="flex items-center gap-1.5">
-                    <button type="button" onclick="setKpiToday()" class="px-2.5 py-1 text-xs rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-300 font-semibold border border-blue-200 dark:border-blue-900 transition">
-                        Today
-                    </button>
-                    <label class="text-xs font-semibold text-slate-500">Date:</label>
-                    <input type="date" id="kpi-date-picker" value="{{ today.strftime('%Y-%m-%d') }}" onchange="fetchHeadcountMetrics()"
-                        class="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
+                <!-- Weekly Date Range Filter (Monday-Sunday Navigation) -->
+                <div id="weekly-range-container"></div>
             </div>
         </div>
 
@@ -705,44 +698,238 @@
 
 {% block extra_scripts %}
 <script>
-function setKpiToday() {
-    const picker = document.getElementById('kpi-date-picker');
-    if (!picker) return;
-    const today = new Date().toISOString().split('T')[0];
-    picker.value = today;
-    fetchHeadcountMetrics();
+// ================= RESILIENT DATA CLIENT (Safe Caching & Error Containment) ================= //
+class ResilientDataClient {
+    constructor() {
+        this.cache = new Map();
+        this.activeControllers = new Map();
+    }
+
+    async query(url, options = {}) {
+        const { ttl = 30000, force = false, key = url } = options;
+        const now = Date.now();
+
+        // 1. Return fresh cached response immediately (eliminates flicker)
+        if (!force && this.cache.has(key)) {
+            const cached = this.cache.get(key);
+            if (now - cached.timestamp < ttl) {
+                return cached.data;
+            }
+        }
+
+        // 2. Abort only pending duplicate requests for this exact key
+        if (this.activeControllers.has(key)) {
+            this.activeControllers.get(key).abort();
+        }
+
+        const controller = new AbortController();
+        this.activeControllers.set(key, controller);
+
+        try {
+            const res = await fetch(url, {
+                credentials: 'same-origin',
+                signal: controller.signal,
+                headers: {
+                    'Accept': 'application/json',
+                    ...(options.headers || {})
+                }
+            });
+
+            // 3. Fallback on restricted or auth responses without throwing layout-tearing exceptions
+            if (res.status === 401 || res.status === 403) {
+                console.warn(`[DataClient] Access restricted (${res.status}) for ${url}`);
+                return this.cache.get(key)?.data || null;
+            }
+
+            if (!res.ok) throw new Error(`HTTP_${res.status}`);
+
+            const data = await res.json();
+            this.cache.set(key, { data, timestamp: Date.now() });
+            return data;
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                return this.cache.get(key)?.data || null;
+            }
+            console.error(`[DataClient] Fetch error on ${url}:`, err);
+            return this.cache.get(key)?.data || null;
+        } finally {
+            if (this.activeControllers.get(key) === controller) {
+                this.activeControllers.delete(key);
+            }
+        }
+    }
+
+    // Background poller that halts execution when browser tab is inactive
+    registerPoll(key, fetcher, intervalMs = 60000) {
+        let timer = null;
+        const run = async () => {
+            if (!document.hidden) {
+                try {
+                    await fetcher();
+                } catch (e) {
+                    console.error('[DataClient Poll Error]', e);
+                }
+            }
+            timer = setTimeout(run, intervalMs);
+        };
+        timer = setTimeout(run, intervalMs);
+        return () => clearTimeout(timer);
+    }
 }
+
+window.apiClient = new ResilientDataClient();
+
+// ================= WEEKLY DATE RANGE PICKER (Monday-Sunday, Local Timezone Safe) ================= //
+class WeeklyDateRangePicker {
+    constructor(containerId, options = {}) {
+        this.container = document.getElementById(containerId);
+        this.onChange = options.onChange || (() => {});
+        
+        const params = new URLSearchParams(window.location.search);
+        const urlStart = params.get('start_date');
+        this.currentDate = urlStart ? this.parseLocalDate(urlStart) : new Date();
+        this.init();
+    }
+
+    // Prevents UTC shift by parsing explicitly in local time
+    parseLocalDate(dateStr) {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    }
+
+    // Outputs YYYY-MM-DD in local time
+    formatDateLocal(d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    getMondaySundayRange(date) {
+        const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const day = d.getDay(); // 0 is Sunday, 1 is Monday...
+        const diffToMonday = (day === 0 ? -6 : 1) - day;
+        
+        const monday = new Date(d);
+        monday.setDate(d.getDate() + diffToMonday);
+        
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        
+        return { monday, sunday };
+    }
+
+    formatDisplay(d) {
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    }
+
+    setWeek(targetDate) {
+        this.currentDate = targetDate;
+        const { monday, sunday } = this.getMondaySundayRange(this.currentDate);
+        
+        const startStr = this.formatDateLocal(monday);
+        const endStr = this.formatDateLocal(sunday);
+
+        const displayLabel = this.container.querySelector('.week-display-label');
+        if (displayLabel) {
+            displayLabel.textContent = `${this.formatDisplay(monday)} – ${this.formatDisplay(sunday)} ${sunday.getFullYear()}`;
+        }
+
+        const picker = this.container.querySelector('.week-native-picker');
+        if (picker) picker.value = startStr;
+
+        // Sync with browser URL without reloading page
+        const url = new URL(window.location);
+        url.searchParams.set('start_date', startStr);
+        url.searchParams.set('end_date', endStr);
+        window.history.replaceState({}, '', url);
+
+        this.onChange({ startDate: startStr, endDate: endStr, monday, sunday });
+    }
+
+    prevWeek() {
+        const prev = new Date(this.currentDate);
+        prev.setDate(prev.getDate() - 7);
+        this.setWeek(prev);
+    }
+
+    nextWeek() {
+        const next = new Date(this.currentDate);
+        next.setDate(next.getDate() + 7);
+        this.setWeek(next);
+    }
+
+    init() {
+        if (!this.container) return;
+        this.container.innerHTML = `
+            <div class="inline-flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-xs text-xs font-semibold">
+                <button type="button" class="btn-prev-week p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition" title="Previous Week (←)">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                </button>
+                <div class="relative flex items-center px-2 cursor-pointer group">
+                    <span class="week-display-label text-slate-800 dark:text-slate-100 font-semibold"></span>
+                    <input type="date" class="week-native-picker absolute inset-0 opacity-0 cursor-pointer w-full">
+                </div>
+                <button type="button" class="btn-next-week p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition" title="Next Week (→)">
+                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `;
+
+        this.container.querySelector('.btn-prev-week').onclick = () => this.prevWeek();
+        this.container.querySelector('.btn-next-week').onclick = () => this.nextWeek();
+        this.container.querySelector('.week-native-picker').onchange = (e) => {
+            if (e.target.value) this.setWeek(this.parseLocalDate(e.target.value));
+        };
+
+        this.setWeek(this.currentDate);
+        if (window.lucide) lucide.createIcons();
+    }
+}
+
+// Active week date state
+let activeWeekRange = null;
 
 async function fetchHeadcountMetrics() {
-    const dateInput = document.getElementById('kpi-date-picker');
-    if (!dateInput) return;
-    const dateStr = dateInput.value;
     const locInput = document.getElementById('kpi-location-picker');
     const locVal = locInput ? locInput.value : 'All';
-    try {
-        const resp = await fetch(`/api/dashboard/metrics?date_str=${encodeURIComponent(dateStr)}&location=${encodeURIComponent(locVal)}`);
-        if (!resp.ok) return;
-        const data = await resp.json();
-        
-        document.getElementById('kpi-total').textContent = data.total_planned ?? 0;
-        const inOfficeEl = document.getElementById('kpi-in-office');
-        if (inOfficeEl) inOfficeEl.textContent = data.in_office_live ?? 0;
-        document.getElementById('kpi-present').textContent = data.present ?? 0;
-        document.getElementById('kpi-wo').textContent = data.wo ?? 0;
-        document.getElementById('kpi-cl').textContent = data.cl ?? 0;
-        document.getElementById('kpi-sl').textContent = data.sl ?? 0;
-        document.getElementById('kpi-co').textContent = data.co ?? 0;
-        document.getElementById('kpi-absent').textContent = data.absent ?? 0;
-    } catch (err) {
-        console.error('Failed to fetch headcount metrics:', err);
-    }
+    const dateStr = activeWeekRange ? activeWeekRange.startDate : new Date().toISOString().split('T')[0];
+    
+    const url = `/api/dashboard/metrics?date_str=${encodeURIComponent(dateStr)}&location=${encodeURIComponent(locVal)}`;
+    const data = await window.apiClient.query(url, { ttl: 15000 });
+    if (!data) return;
+
+    const totalEl = document.getElementById('kpi-total');
+    if (totalEl) totalEl.textContent = data.total_planned ?? 0;
+    const inOfficeEl = document.getElementById('kpi-in-office');
+    if (inOfficeEl) inOfficeEl.textContent = data.in_office_live ?? 0;
+    const presentEl = document.getElementById('kpi-present');
+    if (presentEl) presentEl.textContent = data.present ?? 0;
+    const woEl = document.getElementById('kpi-wo');
+    if (woEl) woEl.textContent = data.wo ?? 0;
+    const clEl = document.getElementById('kpi-cl');
+    if (clEl) clEl.textContent = data.cl ?? 0;
+    const slEl = document.getElementById('kpi-sl');
+    if (slEl) slEl.textContent = data.sl ?? 0;
+    const coEl = document.getElementById('kpi-co');
+    if (coEl) coEl.textContent = data.co ?? 0;
+    const absentEl = document.getElementById('kpi-absent');
+    if (absentEl) absentEl.textContent = data.absent ?? 0;
 }
 
-// Initial fetch on page load if widget exists
+// Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
-    if (document.getElementById('kpi-date-picker')) {
-        fetchHeadcountMetrics();
+    if (document.getElementById('weekly-range-container')) {
+        new WeeklyDateRangePicker('weekly-range-container', {
+            onChange: (range) => {
+                activeWeekRange = range;
+                fetchHeadcountMetrics();
+            }
+        });
     }
+
+    // Register safe background poller every 60 seconds (halts when tab is hidden)
+    window.apiClient.registerPoll('dashboard_metrics', () => fetchHeadcountMetrics(), 60000);
 });
 
 // Alerts Filtering & Show More Handlers

@@ -92,6 +92,22 @@
             background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(10px);
         }
+    <!-- Hardware-accelerated sidebar transitions without margin-shift reflow -->
+    <style>
+        #main-sidebar {
+            will-change: transform;
+            transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Off-canvas translation */
+        .sidebar-closed #main-sidebar {
+            transform: translateX(-100%);
+        }
+
+        #sidebar-backdrop {
+            transition: opacity 220ms ease-in-out;
+        }
+
         /* Immediate compact sidebar handling to prevent layout jumps/flicker */
         html.sidebar-compact-active #main-sidebar {
             width: 5rem !important; /* 80px / w-20 */
@@ -118,6 +134,9 @@
 </head>
 <body class="preload h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col md:flex-row antialiased selection:bg-blue-500 selection:text-white transition-colors duration-200">
 
+    <!-- Backdrop Overlay for Mobile/Tablet -->
+    <div id="sidebar-backdrop" onclick="closeSidebar()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 hidden opacity-0 transition-opacity"></div>
+
     {% if user %}
     <!-- DESKTOP EXPANDABLE / COLLAPSIBLE SIDEBAR WITH ROLE-BASED DYNAMIC NAVIGATION -->
     <aside id="main-sidebar" class="hidden md:flex flex-col w-72 transition-all duration-300 bg-[#0B1120] border-r border-slate-800 text-slate-300 select-none shrink-0 z-30">
@@ -134,7 +153,7 @@
                     <p class="text-[10px] text-slate-400">Workforce & Leave ERP</p>
                 </div>
             </div>
-            <button type="button" onclick="toggleSidebarWidth()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition" title="Toggle Sidebar Width">
+            <button type="button" id="sidebar-toggle-btn" onclick="toggleSidebar()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition" title="Toggle Sidebar">
                 <i data-lucide="panel-left-close" id="sidebar-toggle-icon" class="w-4 h-4"></i>
             </button>
         </div>
@@ -663,60 +682,51 @@
             menu.classList.toggle('hidden');
         }
 
-        // Sidebar Width Expander / Minimizer
-        function toggleSidebarWidth() {
-            const sb = document.getElementById('main-sidebar');
-            const icon = document.getElementById('sidebar-toggle-icon');
-            if (!sb) return;
+        // Sidebar State Manager & Auto-Close Controller
+        function isSidebarOpen() {
+            return !document.documentElement.classList.contains('sidebar-closed');
+        }
 
-            const isCompact = sb.classList.contains('w-20') || document.documentElement.classList.contains('sidebar-compact-active');
-            
-            if (!isCompact) {
-                // Collapse to compact size
-                sb.classList.remove('w-80', 'w-72', 'w-64');
-                sb.classList.add('w-20');
-                document.documentElement.classList.add('sidebar-compact-active');
-                document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = 'none');
-                document.querySelectorAll('.sidebar-user-card').forEach(el => {
-                    el.classList.add('justify-center', 'p-2', 'mx-2');
-                    el.classList.remove('p-3', 'mx-3');
-                });
-                if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
-                localStorage.setItem('sidebar_mode', 'compact');
-            } else {
-                // Expand to large spacious width
-                sb.classList.remove('w-20');
-                sb.classList.add('w-72');
-                document.documentElement.classList.remove('sidebar-compact-active');
-                document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = '');
-                document.querySelectorAll('.sidebar-user-card').forEach(el => {
-                    el.classList.remove('justify-center', 'p-2', 'mx-2');
-                    el.classList.add('p-3', 'mx-3');
-                });
-                if (icon) icon.setAttribute('data-lucide', 'panel-left-close');
-                localStorage.setItem('sidebar_mode', 'expanded');
+        function openSidebar() {
+            document.documentElement.classList.remove('sidebar-closed');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (backdrop && window.innerWidth < 1024) {
+                backdrop.classList.remove('hidden');
+                requestAnimationFrame(() => backdrop.classList.remove('opacity-0'));
             }
+            const icon = document.getElementById('sidebar-toggle-icon');
+            if (icon) icon.setAttribute('data-lucide', 'panel-left-close');
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
-        function restoreSidebarState() {
-            const mode = localStorage.getItem('sidebar_mode');
-            const sb = document.getElementById('main-sidebar');
-            const icon = document.getElementById('sidebar-toggle-icon');
-            if (sb && mode === 'compact') {
-                sb.classList.remove('w-80', 'w-72', 'w-64');
-                sb.classList.add('w-20');
-                document.documentElement.classList.add('sidebar-compact-active');
-                document.querySelectorAll('.sidebar-text').forEach(el => el.style.display = 'none');
-                document.querySelectorAll('.sidebar-user-card').forEach(el => {
-                    el.classList.add('justify-center', 'p-2', 'mx-2');
-                    el.classList.remove('p-3', 'mx-3');
-                });
-                if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-            } else {
-                document.documentElement.classList.remove('sidebar-compact-active');
+        function closeSidebar() {
+            document.documentElement.classList.add('sidebar-closed');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (backdrop) {
+                backdrop.classList.add('opacity-0');
+                setTimeout(() => backdrop.classList.add('hidden'), 220);
             }
+            const icon = document.getElementById('sidebar-toggle-icon');
+            if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function toggleSidebar() {
+            if (isSidebarOpen()) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        }
+
+        function toggleSidebarWidth() {
+            toggleSidebar();
+        }
+
+        function restoreSidebarState() {
+            // Default open state; keep sidebar fully expanded and visible
+            const backdrop = document.getElementById('sidebar-backdrop');
+            if (backdrop) backdrop.classList.add('hidden');
         }
 
         // Quick Options Modal Handlers
@@ -1191,6 +1201,26 @@
             setTimeout(() => {
                 document.body.classList.remove('preload');
             }, 50);
+
+            const sidebar = document.getElementById('main-sidebar');
+
+            // Auto-close whenever any navigation link inside sidebar is clicked
+            if (sidebar) {
+                sidebar.querySelectorAll('a[href]').forEach(link => {
+                    link.addEventListener('click', () => {
+                        closeSidebar();
+                    });
+                });
+            }
+
+            // Auto-close on click outside (mobile & tablet viewports)
+            document.addEventListener('click', (event) => {
+                const toggleBtn = document.getElementById('sidebar-toggle-btn');
+                if (!sidebar || !isSidebarOpen()) return;
+                if (window.innerWidth < 1024 && !sidebar.contains(event.target) && (!toggleBtn || !toggleBtn.contains(event.target))) {
+                    closeSidebar();
+                }
+            });
         });
     </script>
     {% block extra_scripts %}{% endblock %}
