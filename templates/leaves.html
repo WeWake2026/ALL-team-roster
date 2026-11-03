@@ -447,7 +447,7 @@
                     </label>
                     <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">Admin / Management Action</span>
                 </div>
-                <select name="target_user_id" id="target_user_id" class="w-full p-2.5 bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-semibold focus:ring-2 focus:ring-indigo-500">
+                <select name="target_user_id" id="target_user_id" onchange="handleTargetEmployeeChange(this.value)" class="w-full p-2.5 bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-semibold focus:ring-2 focus:ring-indigo-500">
                     <option value="{{ user.id }}">Apply For Myself ({{ user.name }} - {{ user.unique_id }})</option>
                     {% for emp in all_staff %}
                     {% if emp.id != user.id %}
@@ -469,20 +469,28 @@
                 <label class="block font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                     Leave Duration Type
                 </label>
-                <div class="grid grid-cols-2 gap-3">
-                    <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition bg-blue-50/40 dark:bg-blue-950/20 border-blue-300 dark:border-blue-800" id="label-full-day">
+                <div class="grid grid-cols-3 gap-2.5">
+                    <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition bg-blue-50/40 dark:bg-blue-950/20 border-blue-300 dark:border-blue-800" id="label-full-day">
                         <input type="radio" name="day_part" value="full" checked class="text-blue-600 focus:ring-blue-500" onchange="handleDayPartChange(this.value)">
                         <div>
-                            <span class="font-bold text-slate-800 dark:text-slate-100 block">Full Day (1.0 Day)</span>
-                            <span class="text-[10px] text-slate-500">Regular multi-day or single day</span>
+                            <span class="font-bold text-slate-800 dark:text-slate-100 text-xs block">Full Day</span>
+                            <span class="text-[10px] text-slate-500">1.0 Day</span>
                         </div>
                     </label>
 
-                    <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition" id="label-half-day">
-                        <input type="radio" name="day_part" value="half" class="text-blue-600 focus:ring-blue-500" onchange="handleDayPartChange(this.value)">
+                    <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition" id="label-half-first">
+                        <input type="radio" name="day_part" value="half_first" class="text-blue-600 focus:ring-blue-500" onchange="handleDayPartChange(this.value)">
                         <div>
-                            <span class="font-bold text-slate-800 dark:text-slate-100 block">Half Day (0.5 Day)</span>
-                            <span class="text-[10px] text-slate-500">First / Second half shift</span>
+                            <span class="font-bold text-slate-800 dark:text-slate-100 text-xs block">1st Half (0.5)</span>
+                            <span class="text-[10px] text-slate-500">Morning Slot</span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 transition" id="label-half-second">
+                        <input type="radio" name="day_part" value="half_second" class="text-blue-600 focus:ring-blue-500" onchange="handleDayPartChange(this.value)">
+                        <div>
+                            <span class="font-bold text-slate-800 dark:text-slate-100 text-xs block">2nd Half (0.5)</span>
+                            <span class="text-[10px] text-slate-500">Post-Lunch</span>
                         </div>
                     </label>
                 </div>
@@ -854,26 +862,65 @@
         }
     }
 
+        async function handleTargetEmployeeChange(targetUserId) {
+        if (!targetUserId) return;
+        try {
+            const resp = await fetch(`/api/leaves/balance/${targetUserId}`);
+            const data = await resp.json();
+            if (data.status === 'success' || data.cl_balance !== undefined) {
+                const select = document.getElementById('leave_type_select');
+                if (select) {
+                    const clOpt = select.querySelector('option[value="CL"]');
+                    if (clOpt) {
+                        clOpt.setAttribute('data-balance', data.cl_balance);
+                        clOpt.textContent = `Casual Leave (CL) • Available Balance: ${data.cl_balance} Days`;
+                    }
+                    const slOpt = select.querySelector('option[value="SL"]');
+                    if (slOpt) {
+                        slOpt.setAttribute('data-balance', data.sl_balance);
+                        slOpt.textContent = `Sick Leave (SL) • Available Balance: ${data.sl_balance} Days`;
+                    }
+                    const coOpt = select.querySelector('option[value="Comp-Off"]');
+                    if (coOpt) {
+                        coOpt.setAttribute('data-balance', data.co_balance);
+                        coOpt.textContent = `Compensatory Off (CO) • Available Balance: ${data.co_balance} Days`;
+                    }
+                    const plOpt = select.querySelector('option[value="PL"]');
+                    if (plOpt) {
+                        plOpt.setAttribute('data-balance', data.pl_balance);
+                        plOpt.textContent = `Paid Leave (PL) • Available Balance: ${data.pl_balance} Days`;
+                    }
+                }
+                calculateDuration();
+            }
+        } catch(e) {
+            console.error("Failed to fetch target employee balance", e);
+        }
+    }
+
     function handleDayPartChange(val) {
         const fullLabel = document.getElementById('label-full-day');
-        const halfLabel = document.getElementById('label-half-day');
+        const firstLabel = document.getElementById('label-half-first');
+        const secondLabel = document.getElementById('label-half-second');
         const endDateInput = document.getElementById('end_date');
         const startDateInput = document.getElementById('start_date');
 
-        if (val === 'half') {
-            halfLabel.classList.add('bg-blue-50/40', 'dark:bg-blue-950/20', 'border-blue-300', 'dark:border-blue-800');
-            fullLabel.classList.remove('bg-blue-50/40', 'dark:bg-blue-950/20', 'border-blue-300', 'dark:border-blue-800');
+        [fullLabel, firstLabel, secondLabel].forEach(l => {
+            if (l) l.classList.remove('bg-blue-50/40', 'dark:bg-blue-950/20', 'border-blue-300', 'dark:border-blue-800');
+        });
+
+        if (val === 'half_first' || val === 'half_second' || val === 'half') {
+            const targetLabel = val === 'half_second' ? secondLabel : firstLabel;
+            if (targetLabel) targetLabel.classList.add('bg-blue-50/40', 'dark:bg-blue-950/20', 'border-blue-300', 'dark:border-blue-800');
             endDateInput.value = startDateInput.value;
             endDateInput.disabled = true;
         } else {
-            fullLabel.classList.add('bg-blue-50/40', 'dark:bg-blue-950/20', 'border-blue-300', 'dark:border-blue-800');
-            halfLabel.classList.remove('bg-blue-50/40', 'dark:bg-blue-950/20', 'border-blue-300', 'dark:border-blue-800');
+            if (fullLabel) fullLabel.classList.add('bg-blue-50/40', 'dark:bg-blue-950/20', 'border-blue-300', 'dark:border-blue-800');
             endDateInput.disabled = false;
         }
         calculateDuration();
     }
-
-    function handleEditDayPartChange(val) {
+function handleEditDayPartChange(val) {
         const endInput = document.getElementById('edit_end_date');
         const startInput = document.getElementById('edit_start_date');
         if (val === 'half') {
@@ -892,7 +939,7 @@
         const daysDisplay = document.getElementById('calculated-days');
 
         let duration = 1.0;
-        if (dayPart === 'half') {
+        if (dayPart === 'half' || dayPart === 'half_first' || dayPart === 'half_second') {
             duration = 0.5;
         } else if (startInput && endInput) {
             const s = new Date(startInput);

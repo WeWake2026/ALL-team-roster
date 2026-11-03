@@ -206,8 +206,8 @@
                     <i data-lucide="chevron-down" id="more-modules-chevron" class="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform sidebar-text"></i>
                 </button>
 
-                <!-- Collapsible Drawer Container -->
-                <div id="more-modules-drawer" class="hidden mt-1 pl-1 space-y-1">
+                <!-- Collapsible Drawer Container with Accordion & Scrollbar Containment -->
+                <div id="more-modules-drawer" class="hidden mt-1 pl-1 space-y-1 max-h-60 overflow-y-auto overflow-x-hidden [scrollbar-width:thin] transition-all duration-200">
                     <!-- Unpinned modules injected here dynamically -->
                 </div>
             </div>
@@ -884,7 +884,10 @@
 
         const CURRENT_USER_ROLE = "{{ user.access_level if user else 'Employee' }}";
         const CURRENT_ACTIVE_PAGE = "{{ active_page if active_page else '' }}";
-        const DEFAULT_PINNED_MODULES = ['dashboard', 'roster', 'attendance_swaps', 'leaves'];
+        const IS_ADMIN_LEAD = ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader'].includes(CURRENT_USER_ROLE);
+        const DEFAULT_PINNED_MODULES = IS_ADMIN_LEAD 
+            ? ['dashboard', 'roster', 'attendance_swaps', 'leaves']
+            : ['dashboard', 'roster', 'leaves'];
 
         // Get modules permitted for this user's role
         function getUserPermittedModules() {
@@ -969,13 +972,7 @@
             const pinnedModules = effectivePinnedIds.map(id => permittedMap.get(id)).filter(Boolean);
             const primaryContainer = document.getElementById('primary-pinned-nav');
             if (primaryContainer) {
-                // Check if user is using default pinned layout to avoid unnecessary DOM repaint
-                const isDefaultList = effectivePinnedIds.length === DEFAULT_PINNED_MODULES.length && 
-                                      effectivePinnedIds.every((id, idx) => id === DEFAULT_PINNED_MODULES[idx]);
-                // If it already contains elements and matches default, skip innerHTML overwrite to prevent flicker
-                if (!isDefaultList || primaryContainer.children.length === 0) {
-                    primaryContainer.innerHTML = pinnedModules.map(m => createSidebarItemHtml(m)).join('');
-                }
+primaryContainer.innerHTML = pinnedModules.map(m => createSidebarItemHtml(m)).join('');
             }
 
             // 2. Unpinned More Modules (Collapsible Drawer)

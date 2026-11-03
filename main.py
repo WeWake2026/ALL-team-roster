@@ -2507,9 +2507,12 @@ def manage_roster(
 
 @app.post("/roster/quick-assign")
 def quick_assign_shift(
+    request: Request,
     user_id: int = Form(...),
     date: Optional[str] = Form(None),
     roster_date: Optional[str] = Form(None),
+    end_date: Optional[str] = Form(None),
+    assign_mode: Optional[str] = Form("SINGLE"), # "SINGLE" or "RANGE"
     shift_code: Optional[str] = Form(None),
     shift_name: Optional[str] = Form(None),
     reason: Optional[str] = Form(None),
@@ -2527,8 +2530,19 @@ def quick_assign_shift(
         target_date_str = ""
 
     if not target_date_str:
+        if request.headers.get("accept") == "application/json":
+            return JSONResponse({"status": "error", "message": "Date is required"}, status_code=400)
         raise HTTPException(status_code=400, detail="Date is required")
-    t_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
+
+    start_d = datetime.strptime(target_date_str, "%Y-%m-%d").date()
+    end_d = start_d
+    if assign_mode == "RANGE" and end_date:
+        try:
+            end_d = datetime.strptime(end_date.strip(), "%Y-%m-%d").date()
+            if end_d < start_d:
+                end_d = start_d
+        except Exception:
+            end_d = start_d
 
     raw_shift = shift_name if shift_name is not None else shift_code
     if raw_shift is not None and not str(type(raw_shift)).startswith("<class 'fastapi.params"):
@@ -2539,6 +2553,8 @@ def quick_assign_shift(
         assigned_shift = ""
 
     if not assigned_shift:
+        if request.headers.get("accept") == "application/json":
+            return JSONResponse({"status": "error", "message": "Shift is required"}, status_code=400)
         raise HTTPException(status_code=400, detail="Shift is required")
 
     entry_status = "Scheduled"
@@ -2546,94 +2562,96 @@ def quick_assign_shift(
     elif "CO" in assigned_shift: entry_status = "CO"
     elif "Leave" in assigned_shift or "SL" in assigned_shift or "CL" in assigned_shift: entry_status = "Leave"
 
-    entry = db.query(models.RosterEntry).filter(
-        models.RosterEntry.user_id == user_id,
-        models.RosterEntry.date == t_date
-    ).first()
-
-    # Check if target employee is offboarded and reject assignments after exit date
     target_emp = db.query(models.User).filter(models.User.id == user_id).first()
     if target_emp:
-        if not target_emp.is_active or (target_emp.exit_date and t_date >= target_emp.exit_date):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot assign shifts to offboarded employee {target_emp.name}. Employee was offboarded effectively from {target_emp.exit_date}."
-            )
+        if not target_emp.is_active or (target_emp.exit_date and start_d >= target_emp.exit_date):
+            msg = f"Cannot assign shifts to offboarded employee {target_emp.name}."
+            if request.headers.get("accept") == "application/json":
+                return JSONResponse({"status": "error", "message": msg}, status_code=400)
+            raise HTTPException(status_code=400, detail=msg)
 
     is_override = str(override_leave).lower() in ["true", "1", "yes", "on"]
 
-    # Leave Conflict Verification (Section J & G):
-    approved_leave = db.query(models.LeaveRequest).filter(
-        models.LeaveRequest.user_id == user_id,
-        models.LeaveRequest.status == "Approved",
-        models.LeaveRequest.start_date <= t_date,
-        models.LeaveRequest.end_date >= t_date
-    ).first()
-    if approved_leave:
-        if not is_override:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot change shift: Employee {target_emp.name if target_emp else ''} has Approved {approved_leave.leave_type} Leave ({approved_leave.application_number or approved_leave.id}) covering {t_date}. Cancel or amend the leave first, or check 'Override Leave'."
-            )
+    curr = start_d
+    dates_assigned = []
+    while curr <= end_d:
+        t_date = curr
+        curr += timedelta(days=1)
+
+        # Leave Conflict Verification
+        approved_leave = db.query(models.LeaveRequest).filter(
+            models.LeaveRequest.user_id == user_id,
+            models.LeaveRequest.status == "Approved",
+            models.LeaveRequest.start_date <= t_date,
+            models.LeaveRequest.end_date >= t_date
+        ).first()
+
+        if approved_leave:
+            if not is_override:
+                msg = f"Employee {target_emp.name if target_emp else ''} has Approved {approved_leave.leave_type} Leave ({approved_leave.application_number or approved_leave.id}) covering {t_date}."
+                if request.headers.get("accept") == "application/json":
+                    return JSONResponse({"status": "error", "message": msg, "has_conflict": True}, status_code=400)
+                raise HTTPException(status_code=400, detail=msg)
+            else:
+                approved_leave.status = "Cancelled"
+                approved_leave.cancellation_reason = f"Overridden by shift change to '{assigned_shift}' by {user.name} on {t_date}"
+                approved_leave.cancelled_by = user.name
+                approved_leave.cancelled_at = datetime.utcnow()
+
+        entry = db.query(models.RosterEntry).filter(
+            models.RosterEntry.user_id == user_id,
+            models.RosterEntry.date == t_date
+        ).first()
+
+        prev_shift = entry.shift_code_or_time if entry else "None"
+        if entry:
+            entry.shift_code_or_time = assigned_shift
+            entry.status = entry_status
+            entry.updated_by = user.name
         else:
-            # Override enabled: Cancel conflicting leave and record in audit
-            approved_leave.status = "Cancelled"
-            approved_leave.cancellation_reason = f"Overridden by shift change to '{assigned_shift}' by {user.name} on {t_date}"
-            approved_leave.cancelled_by = user.name
-            approved_leave.cancelled_at = datetime.utcnow()
+            entry = models.RosterEntry(
+                user_id=user_id,
+                date=t_date,
+                shift_code_or_time=assigned_shift,
+                status=entry_status,
+                updated_by=user.name
+            )
+            db.add(entry)
 
-    # Pending Leave Warning Check
-    pending_leave = db.query(models.LeaveRequest).filter(
-        models.LeaveRequest.user_id == user_id,
-        models.LeaveRequest.status.in_(["Pending Approval", "Pending", "Under Review"]),
-        models.LeaveRequest.start_date <= t_date,
-        models.LeaveRequest.end_date >= t_date
-    ).first()
-    warning_note = ""
-    if pending_leave:
-        warning_note = f" (Note: Overwrote schedule with pending {pending_leave.leave_type} leave request {pending_leave.application_number or pending_leave.id})"
-
-    prev_shift = entry.shift_code_or_time if entry else "None"
-    if entry:
-        entry.shift_code_or_time = assigned_shift
-        entry.status = entry_status
-        entry.updated_by = user.name
-    else:
-        entry = models.RosterEntry(
+        safe_reason = str(reason).strip() if (reason is not None and not str(type(reason)).startswith("<class 'fastapi.params")) else None
+        final_reason = safe_reason if safe_reason else f"Shift updated from Roster desk by {user.name}"
+        history_record = models.ShiftChangeHistory(
             user_id=user_id,
-            date=t_date,
-            shift_code_or_time=assigned_shift,
-            status=entry_status,
-            updated_by=user.name
+            roster_date=t_date,
+            previous_shift=prev_shift,
+            new_shift=assigned_shift,
+            previous_timings=prev_shift,
+            new_timings=assigned_shift,
+            changed_by_id=user.id,
+            changed_by_name=user.name,
+            change_reason=final_reason,
+            approval_status="Approved"
         )
-        db.add(entry)
-
-    # Record Shift Change History Audit Trail (Section H):
-    safe_reason = str(reason).strip() if (reason is not None and not str(type(reason)).startswith("<class 'fastapi.params")) else None
-    final_reason = safe_reason if safe_reason else f"Shift updated from Roster desk by {user.name}{warning_note}"
-    history_record = models.ShiftChangeHistory(
-        user_id=user_id,
-        roster_date=t_date,
-        previous_shift=prev_shift,
-        new_shift=assigned_shift,
-        previous_timings=prev_shift,
-        new_timings=assigned_shift,
-        changed_by_id=user.id,
-        changed_by_name=user.name,
-        change_reason=final_reason,
-        approval_status="Approved"
-    )
-    db.add(history_record)
+        db.add(history_record)
+        dates_assigned.append(t_date.strftime("%Y-%m-%d"))
 
     # In-app notify affected staff
     notif = models.Notification(
         user_id=user_id,
         title="Shift Schedule Updated",
-        message=f"Your shift on {t_date.strftime('%d %b %Y')} has been updated from {prev_shift} to {assigned_shift} by {user.name}.",
+        message=f"Your shift from {start_d.strftime('%d %b')} to {end_d.strftime('%d %b %Y')} has been updated to {assigned_shift} by {user.name}.",
         category="shift_change"
     )
     db.add(notif)
     db.commit()
+
+    if request.headers.get("accept") == "application/json":
+        return JSONResponse({
+            "status": "success",
+            "message": f"Successfully updated shift to {assigned_shift} for {len(dates_assigned)} day(s).",
+            "assigned_dates": dates_assigned,
+            "shift_code": assigned_shift
+        })
 
     safe_return_url = str(return_url).strip() if (return_url is not None and not str(type(return_url)).startswith("<class 'fastapi.params")) else None
     redirect_target = safe_return_url if safe_return_url else "/roster"
@@ -3061,6 +3079,121 @@ async def upload_roster(
             url=f"/admin/sync?alert_msg=Sync+failed:+{str(e)}&alert_type=error",
             status_code=status.HTTP_302_FOUND
         )
+
+@app.post("/api/roster/clear/preview")
+def preview_granular_roster_clear(
+    request: Request,
+    clear_mode: str = Form("WEEK"), # "WEEK", "DAY", "SHIFT", "ALL"
+    target_date: Optional[str] = Form(None), # For DAY
+    start_date: Optional[str] = Form(None),  # For WEEK / SHIFT
+    end_date: Optional[str] = Form(None),    # For WEEK / SHIFT
+    target_shift: Optional[str] = Form(None),# For SHIFT (e.g. "22:00 To 07:00", "Night Shift", "07:00 To 16:00")
+    location: Optional[str] = Form(None),
+    user: models.User = Depends(require_admin_or_manager),
+    perms: get_user_perms = Depends(get_user_perms),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns exact count of roster assignments affected before user confirms deletion.
+    """
+    query = db.query(models.RosterEntry).join(models.User, models.RosterEntry.user_id == models.User.id)
+
+    # Location scope filtering
+    if not perms.can_view_all and not perms.is_admin:
+        query = query.filter(models.RosterEntry.user_id.in_(perms.assigned_employee_ids))
+    elif location and location != "All":
+        query = query.filter(models.User.location == location)
+
+    date_desc = "all historical periods"
+    if clear_mode == "DAY" and target_date:
+        t_d = datetime.strptime(target_date.strip(), "%Y-%m-%d").date()
+        query = query.filter(models.RosterEntry.date == t_d)
+        date_desc = f"single day {t_d.strftime('%d-%b-%Y')}"
+    elif clear_mode in ["WEEK", "SHIFT"] and start_date and end_date:
+        s_d = datetime.strptime(start_date.strip(), "%Y-%m-%d").date()
+        e_d = datetime.strptime(end_date.strip(), "%Y-%m-%d").date()
+        query = query.filter(models.RosterEntry.date >= s_d, models.RosterEntry.date <= e_d)
+        date_desc = f"date range {s_d.strftime('%d-%b')} to {e_d.strftime('%d-%b-%Y')}"
+
+    if clear_mode == "SHIFT" and target_shift and target_shift != "ALL":
+        query = query.filter(models.RosterEntry.shift_code_or_time.ilike(f"%{target_shift.strip()}%"))
+
+    count = query.count()
+    return JSONResponse({
+        "status": "success",
+        "affected_count": count,
+        "mode": clear_mode,
+        "date_description": date_desc,
+        "shift_filter": target_shift or "All Shifts"
+    })
+
+@app.post("/api/roster/clear/execute")
+def execute_granular_roster_clear(
+    clear_mode: str = Form("WEEK"), # "WEEK", "DAY", "SHIFT", "ALL"
+    target_date: Optional[str] = Form(None),
+    start_date: Optional[str] = Form(None),
+    end_date: Optional[str] = Form(None),
+    target_shift: Optional[str] = Form(None),
+    location: Optional[str] = Form(None),
+    return_url: Optional[str] = Form(None),
+    user: models.User = Depends(require_admin_or_manager),
+    perms: get_user_perms = Depends(get_user_perms),
+    db: Session = Depends(get_db)
+):
+    """
+    Safely executes granular deletion of shift allocations without wiping employee accounts or user master profiles.
+    """
+    query = db.query(models.RosterEntry).join(models.User, models.RosterEntry.user_id == models.User.id)
+
+    if not perms.can_view_all and not perms.is_admin:
+        query = query.filter(models.RosterEntry.user_id.in_(perms.assigned_employee_ids))
+    elif location and location != "All":
+        query = query.filter(models.User.location == location)
+
+    scope_details = f"Mode: {clear_mode}"
+    if clear_mode == "DAY" and target_date:
+        t_d = datetime.strptime(target_date.strip(), "%Y-%m-%d").date()
+        query = query.filter(models.RosterEntry.date == t_d)
+        scope_details += f", Date: {t_d}"
+    elif clear_mode in ["WEEK", "SHIFT"] and start_date and end_date:
+        s_d = datetime.strptime(start_date.strip(), "%Y-%m-%d").date()
+        e_d = datetime.strptime(end_date.strip(), "%Y-%m-%d").date()
+        query = query.filter(models.RosterEntry.date >= s_d, models.RosterEntry.date <= e_d)
+        scope_details += f", Range: {s_d} to {e_d}"
+
+    if clear_mode == "SHIFT" and target_shift and target_shift != "ALL":
+        query = query.filter(models.RosterEntry.shift_code_or_time.ilike(f"%{target_shift.strip()}%"))
+        scope_details += f", Shift: {target_shift}"
+
+    affected_entries = query.all()
+    affected_count = len(affected_entries)
+
+    for entry in affected_entries:
+        db.delete(entry)
+
+    db.commit()
+
+    log_audit_event(
+        db=db,
+        actor=user,
+        action="ROSTER_GRANULAR_CLEAR",
+        resource_type="RosterEntry",
+        resource_id="BATCH",
+        details=f"Supervisor {user.name} cleared {affected_count} roster records ({scope_details})."
+    )
+
+    if return_url:
+        delimiter = "&" if "?" in return_url else "?"
+        return RedirectResponse(
+            url=f"{return_url}{delimiter}alert_msg=Successfully+cleared+{affected_count}+shift+allocation+records!&alert_type=success",
+            status_code=status.HTTP_302_FOUND
+        )
+
+    return JSONResponse({
+        "status": "success",
+        "message": f"Successfully cleared {affected_count} shift allocations.",
+        "affected_count": affected_count
+    })
 
 @app.post("/admin/roster/clear")
 def clear_all_roster_data(
@@ -4198,6 +4331,77 @@ async def api_reset_password(
     except Exception as e:
         db.rollback()
         return {"success": False, "detail": str(e)}
+
+@app.get("/api/leaves/balance/{user_id}")
+def api_get_user_leave_balance(
+    user_id: int,
+    current_user: models.User = Depends(require_auth),
+    perms: get_user_perms = Depends(get_user_perms),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns live leave balances for a designated employee.
+    Admins and Supervisors can query assigned staff; regular employees can only query themselves.
+    """
+    if user_id != current_user.id and not (perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader):
+        raise HTTPException(status_code=403, detail="Access denied.")
+
+    target_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Employee not found.")
+
+    cl = target_user.balance_cl if target_user.balance_cl is not None else (target_user.cl_balance or 0.0)
+    sl = target_user.balance_sl if target_user.balance_sl is not None else (target_user.sl_balance or 0.0)
+    co = target_user.balance_co if target_user.balance_co is not None else (target_user.co_balance or 0.0)
+    pl = target_user.pl_balance or 0.0
+
+    return {
+        "status": "success",
+        "user_id": target_user.id,
+        "name": target_user.name,
+        "unique_id": target_user.unique_id,
+        "cl_balance": round(float(cl), 2),
+        "sl_balance": round(float(sl), 2),
+        "co_balance": round(float(co), 2),
+        "pl_balance": round(float(pl), 2)
+    }
+
+@app.get("/api/roster/check-conflict")
+def api_check_roster_conflict(
+    user_id: int,
+    start_date: str,
+    end_date: Optional[str] = None,
+    current_user: models.User = Depends(require_admin_or_manager),
+    db: Session = Depends(get_db)
+):
+    """
+    Live Leave Conflict Check: returns any active/approved leave overlapping the target range.
+    """
+    try:
+        s_d = datetime.strptime(start_date.strip(), "%Y-%m-%d").date()
+        e_d = datetime.strptime(end_date.strip(), "%Y-%m-%d").date() if end_date else s_d
+    except Exception:
+        return JSONResponse({"status": "error", "message": "Invalid date format"}, status_code=400)
+
+    conflict = db.query(models.LeaveRequest).filter(
+        models.LeaveRequest.user_id == user_id,
+        models.LeaveRequest.status.in_(["Approved", "Pending Approval", "Pending", "Under Review"]),
+        models.LeaveRequest.start_date <= e_d,
+        models.LeaveRequest.end_date >= s_d
+    ).first()
+
+    if conflict:
+        return {
+            "has_conflict": True,
+            "status": conflict.status,
+            "leave_type": conflict.leave_type,
+            "start_date": conflict.start_date.strftime("%Y-%m-%d"),
+            "end_date": conflict.end_date.strftime("%Y-%m-%d"),
+            "duration": conflict.duration_days,
+            "app_number": conflict.application_number or str(conflict.id)
+        }
+
+    return {"has_conflict": False}
 
 @app.get("/api/leaves/my-balance")
 def api_get_my_balance(

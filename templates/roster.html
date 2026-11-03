@@ -1,75 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Team Roster Matrix - ShiftFlow Pro<!-- BATCH TIMETABLE EDIT MODAL (WEEK / MONTH SHIFT SCHEDULER) -->
-<div id="batch-timetable-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-xl shadow-2xl p-6 sm:p-7 max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <i data-lucide="calendar-range" class="w-5 h-5 text-blue-600"></i>
-                    <span>Employee Shift Schedule & Timetable</span>
-                </h3>
-                <p class="text-xs text-slate-500 mt-0.5">Quickly assign single day or batch full-week / month time table shifts.</p>
-            </div>
-            <button type="button" onclick="closeBatchShiftModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-        </div>
-
-        <form action="/roster/quick-assign" method="POST" class="space-y-4 pt-3 text-xs">
-            <input type="hidden" name="user_id" id="batch-user-id">
-
-            <div class="p-3 bg-blue-50/60 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-900 flex items-center justify-between">
-                <div>
-                    <span class="text-[10px] uppercase font-bold text-blue-500 block">Staff Member</span>
-                    <span id="batch-user-name" class="font-bold text-sm text-slate-900 dark:text-white"></span>
-                </div>
-                <div class="text-right">
-                    <span class="text-[10px] uppercase font-bold text-blue-500 block">Unique Staff ID</span>
-                    <span id="batch-user-uid" class="font-mono font-bold text-xs text-blue-600 dark:text-blue-400"></span>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Target Date *</label>
-                    <input type="date" name="roster_date" id="batch-date" required value="{{ today.strftime('%Y-%m-%d') }}" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
-                </div>
-                <div>
-                    <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Shift Slot *</label>
-                    <select name="shift_name" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-semibold">
-                        <option value="Morning Shift (07:00 To 16:00)">Morning (07:00 To 16:00)</option>
-                        <option value="General Shift (09:00 To 18:00)" selected>General (09:00 To 18:00)</option>
-                        <option value="Afternoon Shift (13:00 To 22:00)">Afternoon (13:00 To 22:00)</option>
-                        <option value="Night Shift (22:00 To 07:00)">Night (22:00 To 07:00 - Overnight)</option>
-                        <option value="WO">Weekly Off (WO)</option>
-                        <option value="CO">Compensatory Off (CO)</option>
-                        <option value="CL">Casual Leave (CL)</option>
-                        <option value="SL">Sick Leave (SL)</option>
-                    </select>
-                </div>
-            </div>
-
-            <div>
-                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Reason / Shift Modification Justification *</label>
-                <input type="text" name="reason" required placeholder="e.g. Weekly operational rotation, coverage adjustment" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
-            </div>
-
-            <div class="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl text-xs text-amber-800 dark:text-amber-300">
-                <input type="checkbox" name="override_leave" id="batch-override-leave" value="true" class="rounded border-amber-400 text-blue-600 focus:ring-blue-500">
-                <label for="batch-override-leave" class="cursor-pointer select-none">
-                    <strong>Auto-Override Approved Leave:</strong> If employee already had an approved leave on this date, replace with this shift schedule.
-                </label>
-            </div>
-
-            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onclick="closeBatchShiftModal()" class="px-4 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-semibold">Cancel</button>
-                <button type="submit" class="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm">Save Timetable Update</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-{% endblock %}
+{% block title %}Team Roster Matrix - ShiftFlow Pro{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -174,14 +104,12 @@
                 <span class="hidden sm:inline">Upload Excel</span>
             </a>
 
-            <!-- Clear Existing Roster Button -->
-            <form action="/admin/roster/clear" method="POST" onsubmit="return confirm('Are you sure you want to remove all existing roster shift entries? This will clear the schedule so you can upload a completely fresh roster.');" class="inline">
-                <input type="hidden" name="return_url" value="/roster?view_mode={{ view_mode }}&role={{ current_role }}">
-                <button type="submit" class="px-3.5 py-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50 text-xs font-semibold shadow-sm transition flex items-center gap-1.5" title="Remove all existing roster entries">
-                    <i data-lucide="trash-2" class="w-4 h-4 text-rose-600"></i>
-                    <span class="hidden sm:inline">Clear Roster Data</span>
-                </button>
-            </form>
+            <!-- Granular Clear Schedule Data Dropdown / Action Trigger -->
+            <button type="button" onclick="openGranularClearModal()" class="px-3.5 py-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50 text-xs font-semibold shadow-sm transition flex items-center gap-1.5" title="Open granular cleanup tools (by Day, Shift, or Week)">
+                <i data-lucide="trash-2" class="w-4 h-4 text-rose-600"></i>
+                <span class="hidden sm:inline">Clear Schedule Data</span>
+                <i data-lucide="chevron-down" class="w-3.5 h-3.5 opacity-70"></i>
+            </button>
             {% endif %}
         </div>
     </div>
@@ -298,20 +226,48 @@
         </div>
 
         <!-- Filtered Subset Summary KPI Strip -->
-        <div id="filtered-kpi-bar" class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center flex-wrap gap-2 text-xs">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtered View Metrics:</span>
-            <span class="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
-                Total: <strong id="subset-total">{{ total_active_staff }}</strong>
-            </span>
-            <span class="px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold text-[11px]">
-                Present: <strong id="subset-present">0</strong>
-            </span>
-            <span class="px-2.5 py-0.5 rounded-md bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 font-semibold text-[11px]">
-                WO: <strong id="subset-wo">0</strong>
-            </span>
-            <span class="px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 font-semibold text-[11px]">
-                CO: <strong id="subset-co">0</strong>
-            </span>
+        <div id="filtered-kpi-bar" class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-2 text-xs">
+            <div class="flex items-center flex-wrap gap-2">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Filtered View Metrics:</span>
+                <span class="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                    Total: <strong id="subset-total">{{ total_active_staff }}</strong>
+                </span>
+                <span class="px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold text-[11px]">
+                    Scheduled / Present: <strong id="subset-present">0</strong>
+                </span>
+                <span class="px-2.5 py-0.5 rounded-md bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 font-semibold text-[11px]">
+                    WO: <strong id="subset-wo">0</strong>
+                </span>
+                <span class="px-2.5 py-0.5 rounded-md bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 font-semibold text-[11px]">
+                    CO: <strong id="subset-co">0</strong>
+                </span>
+                <span class="px-2.5 py-0.5 rounded-md bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 font-semibold text-[11px]">
+                    Leave: <strong id="subset-leave">0</strong>
+                </span>
+            </div>
+
+            <!-- Dynamic Shift Slot Distribution Counter Strip -->
+            <div class="flex items-center gap-1.5 flex-wrap font-mono text-[11px]">
+                <span class="text-[10px] font-bold text-slate-400 font-sans uppercase">Slots:</span>
+                <span class="px-2 py-0.5 rounded bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-bold border border-teal-200 dark:border-teal-800" title="Morning Shift (07-16)">
+                    M: <strong id="slot-count-m">0</strong>
+                </span>
+                <span class="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-800" title="General Shift (09-18)">
+                    G: <strong id="slot-count-g">0</strong>
+                </span>
+                <span class="px-2 py-0.5 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 font-bold border border-orange-200 dark:border-orange-800" title="Afternoon Shift (13-22)">
+                    A: <strong id="slot-count-a">0</strong>
+                </span>
+                <span class="px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-bold border border-amber-200 dark:border-amber-800" title="Evening Shift (16-01)">
+                    E: <strong id="slot-count-e">0</strong>
+                </span>
+                <span class="px-2 py-0.5 rounded bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 font-bold border border-violet-200 dark:border-violet-800" title="Late Shift (18-03)">
+                    L: <strong id="slot-count-l">0</strong>
+                </span>
+                <span class="px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800" title="Night Shift (22-07)">
+                    N: <strong id="slot-count-n">0</strong>
+                </span>
+            </div>
         </div>
     </div>
 
@@ -368,8 +324,14 @@
                     <i data-lucide="gauge" class="w-4 h-4 text-blue-600"></i>
                     <span>Daily Leave Quota & Mandays Capacity Tracker</span>
                 </h3>
-                <p class="text-xs text-slate-500">
-                    Calculates: $\text{Mandays} = \text{Active Headcount} - \text{Total Leave}$ and $\text{Pending} = \text{Eligible Leave} - \text{Total Leave}$.
+                <p class="text-xs text-slate-500 flex items-center gap-2 flex-wrap mt-0.5">
+                    <span class="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                        <strong>Mandays</strong> = Active Staff − Leaves
+                    </span>
+                    <span class="text-slate-400">•</span>
+                    <span class="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                        <strong>Pending Quota</strong> = Max Allowed − Leaves
+                    </span>
                 </p>
             </div>
 
@@ -1008,15 +970,16 @@
                     <i data-lucide="calendar-range" class="w-5 h-5 text-blue-600"></i>
                     <span>Employee Shift Schedule & Timetable</span>
                 </h3>
-                <p class="text-xs text-slate-500 mt-0.5">Quickly assign single day or batch full-week / month time table shifts.</p>
+                <p class="text-xs text-slate-500 mt-0.5">Quickly assign single day or batch full-week / date range time table shifts.</p>
             </div>
             <button type="button" onclick="closeBatchShiftModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
                 <i data-lucide="x" class="w-4 h-4"></i>
             </button>
         </div>
 
-        <form action="/roster/quick-assign" method="POST" class="space-y-4 pt-3 text-xs">
+        <form id="batch-shift-form" onsubmit="submitBatchShiftUpdate(event)" class="space-y-4 pt-3 text-xs">
             <input type="hidden" name="user_id" id="batch-user-id">
+            <input type="hidden" name="assign_mode" id="batch-assign-mode" value="SINGLE">
 
             <div class="p-3 bg-blue-50/60 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-900 flex items-center justify-between">
                 <div>
@@ -1029,14 +992,31 @@
                 </div>
             </div>
 
+            <!-- Schedule Mode Switcher (Single Day vs Date Range / Full Week Recurring) -->
+            <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Scheduling Mode</label>
+                <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                    <button type="button" id="btn-mode-single" onclick="setBatchAssignMode('SINGLE')" class="py-1.5 rounded-lg font-bold text-xs bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs transition">
+                        Single Day
+                    </button>
+                    <button type="button" id="btn-mode-range" onclick="setBatchAssignMode('RANGE')" class="py-1.5 rounded-lg font-bold text-xs text-slate-600 dark:text-slate-300 hover:text-blue-600 transition">
+                        Date Range / Full Week
+                    </button>
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Target Date *</label>
-                    <input type="date" name="roster_date" id="batch-date" required value="{{ today.strftime('%Y-%m-%d') }}" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
+                    <label id="label-start-date" class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Date *</label>
+                    <input type="date" name="roster_date" id="batch-date" required value="{{ today.strftime('%Y-%m-%d') }}" onchange="checkBatchLeaveConflict()" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
                 </div>
-                <div>
+                <div id="batch-end-date-wrapper" class="hidden">
+                    <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">End Date *</label>
+                    <input type="date" name="end_date" id="batch-end-date" value="{{ date_list[-1].strftime('%Y-%m-%d') }}" onchange="checkBatchLeaveConflict()" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
+                </div>
+                <div id="batch-shift-slot-wrapper">
                     <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Shift Slot *</label>
-                    <select name="shift_name" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-semibold">
+                    <select name="shift_name" id="batch-shift-name" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-semibold">
                         <option value="Morning Shift (07:00 To 16:00)">Morning (07:00 To 16:00)</option>
                         <option value="General Shift (09:00 To 18:00)" selected>General (09:00 To 18:00)</option>
                         <option value="Afternoon Shift (13:00 To 22:00)">Afternoon (13:00 To 22:00)</option>
@@ -1049,21 +1029,126 @@
                 </div>
             </div>
 
+            <!-- Dynamic Live Leave Conflict Warning Alert -->
+            <div id="batch-conflict-alert" class="hidden p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded-xl text-xs text-rose-800 dark:text-rose-200 space-y-1">
+                <div class="flex items-center gap-2 font-bold">
+                    <i data-lucide="alert-octagon" class="w-4 h-4 text-rose-600"></i>
+                    <span>Leave Conflict Detected!</span>
+                </div>
+                <p id="batch-conflict-msg" class="text-[11px]"></p>
+            </div>
+
             <div>
                 <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Reason / Shift Modification Justification *</label>
-                <input type="text" name="reason" required placeholder="e.g. Weekly operational rotation, coverage adjustment" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
+                <input type="text" name="reason" id="batch-reason" required placeholder="e.g. Weekly operational rotation, coverage adjustment" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
             </div>
 
             <div class="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl text-xs text-amber-800 dark:text-amber-300">
                 <input type="checkbox" name="override_leave" id="batch-override-leave" value="true" class="rounded border-amber-400 text-blue-600 focus:ring-blue-500">
                 <label for="batch-override-leave" class="cursor-pointer select-none">
-                    <strong>Auto-Override Approved Leave:</strong> If employee already had an approved leave on this date, replace with this shift schedule.
+                    <strong>Auto-Override Approved Leave:</strong> If employee already has approved leave on target date(s), replace with this shift.
                 </label>
             </div>
 
             <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onclick="closeBatchShiftModal()" class="px-4 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-semibold">Cancel</button>
-                <button type="submit" class="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm">Save Timetable Update</button>
+                <button type="submit" id="btn-save-batch-shift" class="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm">Save Timetable Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- GRANULAR DATA CLEANUP & RESET MODAL (DAY, SHIFT & WEEK) -->
+<div id="granular-clear-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6 sm:p-7 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="trash-2" class="w-5 h-5 text-rose-600"></i>
+                    <span>Precision Schedule Cleanup & Reset</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Reset assignments by Day, Shift Slot, or Week without wiping employee accounts.</p>
+            </div>
+            <button type="button" onclick="closeGranularClearModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <form id="granular-clear-form" onsubmit="executeGranularClear(event)" class="space-y-4 text-xs">
+            <input type="hidden" name="return_url" value="/roster?view_mode={{ view_mode }}&role={{ current_role }}">
+
+            <!-- Clear Mode Selector -->
+            <div>
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">Cleanup Scope</label>
+                <div class="grid grid-cols-3 gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-center">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="clear_mode" value="WEEK" checked onchange="handleClearModeChange(this.value)" class="sr-only">
+                        <span id="tab-clear-week" class="block py-2 rounded-lg font-bold text-xs bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-xs transition">
+                            Active Week
+                        </span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="clear_mode" value="DAY" onchange="handleClearModeChange(this.value)" class="sr-only">
+                        <span id="tab-clear-day" class="block py-2 rounded-lg font-bold text-xs text-slate-600 dark:text-slate-300 hover:text-rose-600 transition">
+                            Single Day
+                        </span>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="clear_mode" value="SHIFT" onchange="handleClearModeChange(this.value)" class="sr-only">
+                        <span id="tab-clear-shift" class="block py-2 rounded-lg font-bold text-xs text-slate-600 dark:text-slate-300 hover:text-rose-600 transition">
+                            Specific Shift
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Parameters by Mode -->
+            <div id="clear-day-fields" class="hidden">
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Target Date to Purge *</label>
+                <input type="date" name="target_date" id="clear-target-date" value="{{ today.strftime('%Y-%m-%d') }}" onchange="updateClearPreview()" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200">
+            </div>
+
+            <div id="clear-shift-fields" class="hidden">
+                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Shift Slot to Clear *</label>
+                <select name="target_shift" id="clear-target-shift" onchange="updateClearPreview()" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 font-semibold">
+                    <option value="22:00 To 07:00">Night Shift (22:00 To 07:00)</option>
+                    <option value="16:00 To 01:00">Evening Shift (16:00 To 01:00)</option>
+                    <option value="13:00 To 22:00">Afternoon Shift (13:00 To 22:00)</option>
+                    <option value="07:00 To 16:00">Morning Shift (07:00 To 16:00)</option>
+                    <option value="09:00 To 18:00">General Shift (09:00 To 18:00)</option>
+                    <option value="WO">Week Offs (WO)</option>
+                </select>
+            </div>
+
+            <div id="clear-range-display" class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Active Date Window</span>
+                    <span class="font-bold text-slate-700 dark:text-slate-200 font-mono">{{ date_list[0].strftime('%d %b %Y') }} – {{ date_list[-1].strftime('%d %b %Y') }}</span>
+                    <input type="hidden" name="start_date" id="clear-start-date" value="{{ date_list[0].strftime('%Y-%m-%d') }}">
+                    <input type="hidden" name="end_date" id="clear-end-date" value="{{ date_list[-1].strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold block">Current Location</span>
+                    <span class="font-bold text-slate-700 dark:text-slate-200">{{ current_location if current_location else 'All' }}</span>
+                    <input type="hidden" name="location" id="clear-location" value="{{ current_location if current_location else 'All' }}">
+                </div>
+            </div>
+
+            <!-- Dynamic Audit & Safety Count Preview -->
+            <div class="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 rounded-xl flex items-center gap-3">
+                <i data-lucide="shield-alert" class="w-6 h-6 text-rose-600 shrink-0"></i>
+                <div class="text-xs">
+                    <span class="font-bold text-rose-900 dark:text-rose-200 block">Audit & Safety Impact Verification:</span>
+                    <span id="clear-impact-text" class="text-rose-700 dark:text-rose-300">Calculating affected shift allocations...</span>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" onclick="closeGranularClearModal()" class="px-4 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-semibold">Cancel</button>
+                <button type="submit" id="btn-confirm-clear" class="px-5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-sm flex items-center gap-1.5">
+                    <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                    <span>Confirm & Purge Data</span>
+                </button>
             </div>
         </form>
     </div>
@@ -1140,6 +1225,9 @@ function applyDynamicFilters() {
     let sumPresent = 0;
     let sumWo = 0;
     let sumCo = 0;
+    let sumLeave = 0;
+
+    let slotM = 0, slotG = 0, slotA = 0, slotE = 0, slotL = 0, slotN = 0;
 
     const rows = document.querySelectorAll('.roster-row');
     const mobileCards = document.querySelectorAll('.roster-mobile-card');
@@ -1180,7 +1268,6 @@ function applyDynamicFilters() {
         } else if (timingCategory === 'WINDOW') {
             const wStart = document.getElementById('window-start')?.value || '09:00';
             const wEnd = document.getElementById('window-end')?.value || '17:00';
-            // Interval overlap logic
             const hasOverlap = shifts.includes(wStart.slice(0, 2)) || shifts.includes(wEnd.slice(0, 2));
             if (!hasOverlap && !shifts.includes('09:00')) return false;
         }
@@ -1196,6 +1283,19 @@ function applyDynamicFilters() {
             sumPresent += parseInt(r.getAttribute('data-p') || '0', 10);
             sumWo += parseInt(r.getAttribute('data-wo') || '0', 10);
             sumCo += parseInt(r.getAttribute('data-co') || '0', 10);
+
+            // Tally individual slot counts from employee assigned shifts
+            const shiftStr = r.getAttribute('data-shifts') || '';
+            const tokens = shiftStr.split(/\s+/);
+            tokens.forEach(tok => {
+                if (tok.includes('22:00')) slotN++;
+                else if (tok.includes('18:00')) slotL++;
+                else if (tok.includes('16:00') && !tok.startsWith('07')) slotE++;
+                else if (tok.includes('13:00')) slotA++;
+                else if (tok.includes('09:00')) slotG++;
+                else if (tok.includes('07:00')) slotM++;
+                else if (tok.includes('LEAVE') || tok.includes('CL') || tok.includes('SL') || tok.includes('PL')) sumLeave++;
+            });
         }
     });
 
@@ -1216,6 +1316,15 @@ function applyDynamicFilters() {
     if (sWo) sWo.textContent = sumWo;
     const sCo = document.getElementById('subset-co');
     if (sCo) sCo.textContent = sumCo;
+    const sLeave = document.getElementById('subset-leave');
+    if (sLeave) sLeave.textContent = sumLeave;
+
+    const elM = document.getElementById('slot-count-m'); if (elM) elM.textContent = slotM;
+    const elG = document.getElementById('slot-count-g'); if (elG) elG.textContent = slotG;
+    const elA = document.getElementById('slot-count-a'); if (elA) elA.textContent = slotA;
+    const elE = document.getElementById('slot-count-e'); if (elE) elE.textContent = slotE;
+    const elL = document.getElementById('slot-count-l'); if (elL) elL.textContent = slotL;
+    const elN = document.getElementById('slot-count-n'); if (elN) elN.textContent = slotN;
 }
 
 function clearAllFilters() {
@@ -1392,77 +1501,213 @@ async function submitCellAttendance(statusMark) {
 document.addEventListener('DOMContentLoaded', () => {
     applyDynamicFilters();
 });
+
+// ================= BATCH SHIFT MODAL CONTROLLER ================= //
+function setBatchAssignMode(mode) {
+    document.getElementById('batch-assign-mode').value = mode;
+    const btnSingle = document.getElementById('btn-mode-single');
+    const btnRange = document.getElementById('btn-mode-range');
+    const endWrapper = document.getElementById('batch-end-date-wrapper');
+    const startLabel = document.getElementById('label-start-date');
+
+    if (mode === 'RANGE') {
+        btnRange.className = 'py-1.5 rounded-lg font-bold text-xs bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs transition';
+        btnSingle.className = 'py-1.5 rounded-lg font-bold text-xs text-slate-600 dark:text-slate-300 hover:text-blue-600 transition';
+        if (endWrapper) endWrapper.classList.remove('hidden');
+        if (startLabel) startLabel.textContent = 'Start Date *';
+    } else {
+        btnSingle.className = 'py-1.5 rounded-lg font-bold text-xs bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs transition';
+        btnRange.className = 'py-1.5 rounded-lg font-bold text-xs text-slate-600 dark:text-slate-300 hover:text-blue-600 transition';
+        if (endWrapper) endWrapper.classList.add('hidden');
+        if (startLabel) startLabel.textContent = 'Target Date *';
+    }
+    checkBatchLeaveConflict();
+}
+
+async function checkBatchLeaveConflict() {
+    const userId = document.getElementById('batch-user-id')?.value;
+    const startDate = document.getElementById('batch-date')?.value;
+    const mode = document.getElementById('batch-assign-mode')?.value;
+    const endDate = mode === 'RANGE' ? document.getElementById('batch-end-date')?.value : startDate;
+
+    const alertBox = document.getElementById('batch-conflict-alert');
+    const msgEl = document.getElementById('batch-conflict-msg');
+    if (!userId || !startDate) return;
+
+    try {
+        const resp = await fetch(`/api/roster/check-conflict?user_id=${userId}&start_date=${startDate}&end_date=${endDate || startDate}`);
+        const res = await resp.json();
+        if (res.has_conflict) {
+            if (alertBox) alertBox.classList.remove('hidden');
+            if (msgEl) {
+                msgEl.innerHTML = `Employee already has <strong>${res.status} ${res.leave_type} Leave</strong> (${res.start_date} to ${res.end_date}, App #${res.app_number}). Check <em>'Auto-Override Approved Leave'</em> to overwrite.`;
+            }
+        } else {
+            if (alertBox) alertBox.classList.add('hidden');
+        }
+    } catch(e) {
+        console.error("Conflict check error", e);
+    }
+}
+
+async function submitBatchShiftUpdate(e) {
+    e.preventDefault();
+    const form = document.getElementById('batch-shift-form');
+    const btn = document.getElementById('btn-save-batch-shift');
+    if (!form) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-spin inline-block mr-1">⏳</span> Updating...';
+
+    const formData = new FormData(form);
+
+    try {
+        const resp = await fetch('/roster/quick-assign', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: formData
+        });
+        const res = await resp.json();
+
+        if (res.status === 'success') {
+            closeBatchShiftModal();
+            // Optimistically update affected cells in view
+            const userId = formData.get('user_id');
+            const shiftVal = res.shift_code || formData.get('shift_name');
+            const dates = res.assigned_dates || [formData.get('roster_date')];
+
+            dates.forEach(dStr => {
+                const btnCell = document.getElementById(`roster-cell-btn-${userId}-${dStr}`);
+                if (btnCell) {
+                    const details = getShiftDisplayDetails(shiftVal);
+                    btnCell.textContent = details.text;
+                    btnCell.className = details.className;
+                    btnCell.title = `Click to Quick-Mark Attendance / Shift (Current: ${shiftVal})`;
+                    btnCell.classList.add('ring-2', 'ring-emerald-500');
+                    setTimeout(() => btnCell.classList.remove('ring-2', 'ring-emerald-500'), 2000);
+                }
+            });
+
+            // Update row data-shifts attribute
+            const row = document.querySelector(`.roster-row[data-uid="${document.getElementById('batch-user-uid').textContent.toLowerCase()}"]`);
+            if (row) {
+                row.setAttribute('data-shifts', (row.getAttribute('data-shifts') || '') + ' ' + shiftVal.toUpperCase());
+            }
+
+            applyDynamicFilters();
+        } else {
+            alert(res.message || 'Failed to update schedule timetable.');
+        }
+    } catch (err) {
+        alert('Network error updating schedule: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Timetable Update';
+    }
+}
+
+// ================= GRANULAR SCHEDULE CLEANUP MODAL ================= //
+function openGranularClearModal() {
+    const modal = document.getElementById('granular-clear-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    handleClearModeChange('WEEK');
+}
+
+function closeGranularClearModal() {
+    const modal = document.getElementById('granular-clear-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function handleClearModeChange(mode) {
+    const dayFields = document.getElementById('clear-day-fields');
+    const shiftFields = document.getElementById('clear-shift-fields');
+    const rangeDisplay = document.getElementById('clear-range-display');
+
+    ['tab-clear-week', 'tab-clear-day', 'tab-clear-shift'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = 'block py-2 rounded-lg font-bold text-xs text-slate-600 dark:text-slate-300 hover:text-rose-600 transition';
+    });
+
+    if (mode === 'WEEK') {
+        document.getElementById('tab-clear-week').className = 'block py-2 rounded-lg font-bold text-xs bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-xs transition';
+        if (dayFields) dayFields.classList.add('hidden');
+        if (shiftFields) shiftFields.classList.add('hidden');
+        if (rangeDisplay) rangeDisplay.classList.remove('hidden');
+    } else if (mode === 'DAY') {
+        document.getElementById('tab-clear-day').className = 'block py-2 rounded-lg font-bold text-xs bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-xs transition';
+        if (dayFields) dayFields.classList.remove('hidden');
+        if (shiftFields) shiftFields.classList.add('hidden');
+        if (rangeDisplay) rangeDisplay.classList.add('hidden');
+    } else if (mode === 'SHIFT') {
+        document.getElementById('tab-clear-shift').className = 'block py-2 rounded-lg font-bold text-xs bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-xs transition';
+        if (dayFields) dayFields.classList.add('hidden');
+        if (shiftFields) shiftFields.classList.remove('hidden');
+        if (rangeDisplay) rangeDisplay.classList.remove('hidden');
+    }
+    updateClearPreview();
+}
+
+async function updateClearPreview() {
+    const form = document.getElementById('granular-clear-form');
+    const impactEl = document.getElementById('clear-impact-text');
+    if (!form || !impactEl) return;
+
+    impactEl.textContent = 'Calculating affected records...';
+    const formData = new FormData(form);
+
+    try {
+        const resp = await fetch('/api/roster/clear/preview', {
+            method: 'POST',
+            body: formData
+        });
+        const res = await resp.json();
+        if (res.status === 'success') {
+            impactEl.innerHTML = `This will clear <strong>${res.affected_count} scheduled shift assignments</strong> for ${res.date_description} (${res.shift_filter}).`;
+        }
+    } catch(e) {
+        impactEl.textContent = 'Ready to purge selected schedule criteria.';
+    }
+}
+
+async function executeGranularClear(e) {
+    e.preventDefault();
+    const form = document.getElementById('granular-clear-form');
+    const btn = document.getElementById('btn-confirm-clear');
+    if (!form) return;
+
+    const impactEl = document.getElementById('clear-impact-text');
+    if (!confirm(impactEl ? impactEl.textContent : 'Are you sure you want to purge these schedule entries?')) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="animate-spin inline-block mr-1">⏳</span> Purging...';
+
+    const formData = new FormData(form);
+
+    try {
+        const resp = await fetch('/api/roster/clear/execute', {
+            method: 'POST',
+            body: formData
+        });
+        const res = await resp.json();
+        if (res.status === 'success') {
+            alert(res.message);
+            window.location.reload();
+        } else {
+            alert(res.message || 'Error clearing schedule data.');
+        }
+    } catch(err) {
+        alert('Request failed: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i><span>Confirm & Purge Data</span>';
+    }
+}
+
 </script>
-<!-- BATCH TIMETABLE EDIT MODAL (WEEK / MONTH SHIFT SCHEDULER) -->
-<div id="batch-timetable-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-xl shadow-2xl p-6 sm:p-7 max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <i data-lucide="calendar-range" class="w-5 h-5 text-blue-600"></i>
-                    <span>Employee Shift Schedule & Timetable</span>
-                </h3>
-                <p class="text-xs text-slate-500 mt-0.5">Quickly assign single day or batch full-week / month time table shifts.</p>
-            </div>
-            <button type="button" onclick="closeBatchShiftModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-        </div>
-
-        <form action="/roster/quick-assign" method="POST" class="space-y-4 pt-3 text-xs">
-            <input type="hidden" name="user_id" id="batch-user-id">
-
-            <div class="p-3 bg-blue-50/60 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-900 flex items-center justify-between">
-                <div>
-                    <span class="text-[10px] uppercase font-bold text-blue-500 block">Staff Member</span>
-                    <span id="batch-user-name" class="font-bold text-sm text-slate-900 dark:text-white"></span>
-                </div>
-                <div class="text-right">
-                    <span class="text-[10px] uppercase font-bold text-blue-500 block">Unique Staff ID</span>
-                    <span id="batch-user-uid" class="font-mono font-bold text-xs text-blue-600 dark:text-blue-400"></span>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Target Date *</label>
-                    <input type="date" name="roster_date" id="batch-date" required value="{{ today.strftime('%Y-%m-%d') }}" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
-                </div>
-                <div>
-                    <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Shift Slot *</label>
-                    <select name="shift_name" required class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-semibold">
-                        <option value="Morning Shift (07:00 To 16:00)">Morning (07:00 To 16:00)</option>
-                        <option value="General Shift (09:00 To 18:00)" selected>General (09:00 To 18:00)</option>
-                        <option value="Afternoon Shift (13:00 To 22:00)">Afternoon (13:00 To 22:00)</option>
-                        <option value="Night Shift (22:00 To 07:00)">Night (22:00 To 07:00 - Overnight)</option>
-                        <option value="WO">Weekly Off (WO)</option>
-                        <option value="CO">Compensatory Off (CO)</option>
-                        <option value="CL">Casual Leave (CL)</option>
-                        <option value="SL">Sick Leave (SL)</option>
-                    </select>
-                </div>
-            </div>
-
-            <div>
-                <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1">Reason / Shift Modification Justification *</label>
-                <input type="text" name="reason" required placeholder="e.g. Weekly operational rotation, coverage adjustment" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs">
-            </div>
-
-            <div class="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl text-xs text-amber-800 dark:text-amber-300">
-                <input type="checkbox" name="override_leave" id="batch-override-leave" value="true" class="rounded border-amber-400 text-blue-600 focus:ring-blue-500">
-                <label for="batch-override-leave" class="cursor-pointer select-none">
-                    <strong>Auto-Override Approved Leave:</strong> If employee already had an approved leave on this date, replace with this shift schedule.
-                </label>
-            </div>
-
-            <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onclick="closeBatchShiftModal()" class="px-4 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-semibold">Cancel</button>
-                <button type="submit" class="px-5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm">Save Timetable Update</button>
-            </div>
-        </form>
-    </div>
-</div>
-
 <!-- SUPERVISOR ROSTER CELL QUICK ACTION MODAL -->
 <div id="roster-cell-quick-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6">
