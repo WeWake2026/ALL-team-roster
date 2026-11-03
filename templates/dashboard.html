@@ -64,65 +64,73 @@
             </div>
         </div>
 
-        <!-- 8 KPI Metric Cards -->
+        <!-- 8 KPI Metric Cards (Interactive: Click to View Users Breakdown) -->
         <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
             <!-- Total Planned -->
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <div onclick="showKpiUsersModal('planned', 'Total Planned Staff')"
+                class="p-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
                 <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Planned</span>
                 <span id="kpi-total" class="text-xl font-extrabold text-slate-900 dark:text-white block my-0.5">{{ kpi_metrics.total_planned if kpi_metrics else 0 }}</span>
-                <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 font-semibold inline-block">Staff</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 font-semibold inline-block">Staff 👆</span>
             </div>
 
             <!-- In Office Live -->
-            <div class="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/60">
+            <div onclick="showKpiUsersModal('in_office', 'Live In-Office Punched Staff')"
+                class="p-3.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
                 <span class="block text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider flex items-center justify-center gap-1">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span>In Office</span>
                 </span>
                 <span id="kpi-in-office" class="text-xl font-extrabold text-blue-600 dark:text-blue-400 block my-0.5">{{ kpi_metrics.in_office_live if kpi_metrics else 0 }}</span>
-                <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 font-bold inline-block">Live Punched</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 font-bold inline-block">Live Punched 👆</span>
             </div>
 
             <!-- Present -->
-            <div class="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60">
+            <div onclick="showKpiUsersModal('present', 'Present / Active Shift Staff')"
+                class="p-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
                 <span class="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Present</span>
                 <span id="kpi-present" class="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 block my-0.5">{{ kpi_metrics.present if kpi_metrics else 0 }}</span>
-                <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold inline-block">Active Shifts</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold inline-block">Active Shifts 👆</span>
             </div>
 
             <!-- Week Off -->
-            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+            <div onclick="showKpiUsersModal('wo', 'Week Off (WO) Staff')"
+                class="p-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/40 dark:hover:bg-slate-800/70 border border-slate-200 dark:border-slate-700 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
                 <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Week Off (WO)</span>
                 <span id="kpi-wo" class="text-xl font-extrabold text-slate-700 dark:text-slate-300 block my-0.5">{{ kpi_metrics.wo if kpi_metrics else 0 }}</span>
-                <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-semibold inline-block">Weekly Rest</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-semibold inline-block">Weekly Rest 👆</span>
             </div>
 
             <!-- Casual Leave -->
-            <div class="p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/60">
+            <div onclick="showKpiUsersModal('cl', 'Casual Leave (CL) Staff')"
+                class="p-3.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
                 <span class="block text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Casual Leave</span>
                 <span id="kpi-cl" class="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 block my-0.5">{{ kpi_metrics.cl if kpi_metrics else 0 }}</span>
-                <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300 font-bold inline-block">CL</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300 font-bold inline-block">CL 👆</span>
             </div>
 
             <!-- Sick Leave -->
-            <div class="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/60">
+            <div onclick="showKpiUsersModal('sl', 'Sick Leave (SL) Staff')"
+                class="p-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
                 <span class="block text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Sick Leave</span>
                 <span id="kpi-sl" class="text-xl font-extrabold text-rose-600 dark:text-rose-400 block my-0.5">{{ kpi_metrics.sl if kpi_metrics else 0 }}</span>
-                <span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300 font-bold inline-block">SL</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300 font-bold inline-block">SL 👆</span>
             </div>
 
             <!-- Comp-Off -->
-            <div class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60">
+            <div onclick="showKpiUsersModal('co', 'Comp-Off (CO) Staff')"
+                class="p-3.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20 dark:hover:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
                 <span class="block text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Comp-Off</span>
                 <span id="kpi-co" class="text-xl font-extrabold text-amber-600 dark:text-amber-400 block my-0.5">{{ kpi_metrics.co if kpi_metrics else 0 }}</span>
-                <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 font-bold inline-block">CO Accrued</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 font-bold inline-block">CO Accrued 👆</span>
             </div>
 
             <!-- Absent / Unplanned -->
-            <div class="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/60">
+            <div onclick="showKpiUsersModal('absent', 'Absent / Unplanned Staff')"
+                class="p-3.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border border-red-200 dark:border-red-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
                 <span class="block text-[10px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Absent / Unplanned</span>
                 <span id="kpi-absent" class="text-xl font-extrabold text-red-600 dark:text-red-400 block my-0.5">{{ kpi_metrics.absent if kpi_metrics else 0 }}</span>
-                <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300 font-bold inline-block">Coverage Gap</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300 font-bold inline-block">Coverage Gap 👆</span>
             </div>
         </div>
     </div>
@@ -694,6 +702,67 @@
         </div>
     </div>
 </div>
+
+<!-- KPI USER BREAKDOWN DETAILS MODAL -->
+<div id="kpi-users-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl shadow-2xl p-6 sm:p-7 max-h-[85vh] flex flex-col">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span id="kpi-modal-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                        Operational Breakdown
+                    </span>
+                    <span id="kpi-modal-date" class="text-xs text-slate-500 font-mono"></span>
+                </div>
+                <h3 id="kpi-modal-title" class="text-base font-extrabold text-slate-900 dark:text-white mt-1">
+                    Staff Breakdown
+                </h3>
+            </div>
+            <button onclick="closeKpiUsersModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Search / Filter toolbar inside modal -->
+        <div class="pt-3 pb-2 flex items-center justify-between gap-3 shrink-0">
+            <div class="relative flex-1">
+                <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5"></i>
+                <input type="text" id="kpi-modal-search" oninput="filterKpiModalList()" placeholder="Filter by staff name, ID, or shift..."
+                    class="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <span id="kpi-modal-count-badge" class="text-xs font-bold font-mono px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 shrink-0">
+                0 Staff
+            </span>
+        </div>
+
+        <!-- Users Table Container -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar border border-slate-100 dark:border-slate-800/80 rounded-2xl mt-2">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead class="sticky top-0 bg-slate-50 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                        <th class="p-3 pl-4">Staff Member</th>
+                        <th class="p-3">Designation</th>
+                        <th class="p-3">Location</th>
+                        <th class="p-3">Assigned Shift</th>
+                        <th class="p-3 text-right pr-4">Live Status</th>
+                    </tr>
+                </thead>
+                <tbody id="kpi-modal-tbody" class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                    <!-- Populated dynamically via JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+            <span class="text-[11px] text-slate-400">Strictly scoped to your location & role authorization.</span>
+            <button onclick="closeKpiUsersModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -931,6 +1000,112 @@ document.addEventListener('DOMContentLoaded', () => {
     // Register safe background poller every 60 seconds (halts when tab is hidden)
     window.apiClient.registerPoll('dashboard_metrics', () => fetchHeadcountMetrics(), 60000);
 });
+
+// ================= KPI METRIC MODAL BREAKDOWN HANDLERS ================= //
+let currentKpiUsersList = [];
+
+async function showKpiUsersModal(category, title) {
+    const modal = document.getElementById('kpi-users-modal');
+    if (!modal) return;
+
+    const locInput = document.getElementById('kpi-location-picker');
+    const locVal = locInput ? locInput.value : 'All';
+    const dateStr = activeWeekRange ? activeWeekRange.startDate : new Date().toISOString().split('T')[0];
+
+    document.getElementById('kpi-modal-title').textContent = title;
+    document.getElementById('kpi-modal-date').textContent = `Date: ${dateStr} • Location: ${locVal}`;
+    document.getElementById('kpi-modal-badge').textContent = category.toUpperCase();
+    document.getElementById('kpi-modal-search').value = '';
+
+    const tbody = document.getElementById('kpi-modal-tbody');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5" class="p-6 text-center text-slate-400">
+                <i data-lucide="loader-2" class="w-5 h-5 mx-auto animate-spin mb-2 text-blue-500"></i>
+                Loading staff list for ${title}...
+            </td>
+        </tr>
+    `;
+    modal.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+
+    try {
+        const url = `/api/dashboard/metrics/users?category=${encodeURIComponent(category)}&date_str=${encodeURIComponent(dateStr)}&location=${encodeURIComponent(locVal)}`;
+        const res = await window.apiClient.query(url, { ttl: 5000 });
+        if (res && res.users) {
+            currentKpiUsersList = res.users;
+            renderKpiModalUsers(currentKpiUsersList);
+        } else {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">No matching staff records found.</td></tr>`;
+            document.getElementById('kpi-modal-count-badge').textContent = '0 Staff';
+        }
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-500">Error loading records: ${err.message}</td></tr>`;
+    }
+}
+
+function renderKpiModalUsers(users) {
+    const tbody = document.getElementById('kpi-modal-tbody');
+    const countBadge = document.getElementById('kpi-modal-count-badge');
+    if (countBadge) countBadge.textContent = `${users.length} Staff`;
+
+    if (!users || users.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400 font-normal">No staff found matching current criteria.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = users.map(u => `
+        <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+            <td class="p-3 pl-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 font-bold text-[11px] flex items-center justify-center shrink-0">
+                        ${u.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                        <span class="font-bold text-slate-800 dark:text-slate-100 block leading-tight">${u.name}</span>
+                        <span class="font-mono text-[10px] text-slate-400">ID: ${u.unique_id}</span>
+                    </div>
+                </div>
+            </td>
+            <td class="p-3 text-slate-600 dark:text-slate-300 font-medium">${u.role_title}</td>
+            <td class="p-3">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    📍 ${u.location}
+                </span>
+            </td>
+            <td class="p-3">
+                <span class="font-mono text-xs font-bold text-slate-700 dark:text-slate-200">${u.shift}</span>
+            </td>
+            <td class="p-3 text-right pr-4">
+                ${u.live_punched 
+                    ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live Online</span>' 
+                    : `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">${u.status}</span>`}
+            </td>
+        </tr>
+    `).join('');
+    if (window.lucide) lucide.createIcons();
+}
+
+function filterKpiModalList() {
+    const q = (document.getElementById('kpi-modal-search')?.value || '').toLowerCase().trim();
+    if (!q) {
+        renderKpiModalUsers(currentKpiUsersList);
+        return;
+    }
+    const filtered = currentKpiUsersList.filter(u => 
+        (u.name && u.name.toLowerCase().includes(q)) ||
+        (u.unique_id && u.unique_id.toLowerCase().includes(q)) ||
+        (u.role_title && u.role_title.toLowerCase().includes(q)) ||
+        (u.shift && u.shift.toLowerCase().includes(q)) ||
+        (u.location && u.location.toLowerCase().includes(q))
+    );
+    renderKpiModalUsers(filtered);
+}
+
+function closeKpiUsersModal() {
+    const modal = document.getElementById('kpi-users-modal');
+    if (modal) modal.classList.add('hidden');
+}
 
 // Alerts Filtering & Show More Handlers
 let isAlertsExpanded = false;

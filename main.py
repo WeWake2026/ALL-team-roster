@@ -3468,7 +3468,12 @@ def get_dashboard_metrics(
         models.User.is_active == True,
         models.User.unique_id != "ADMIN001"
     )
-    if location and location not in ["All", "ALL", ""]:
+    # Privacy / RBAC Scoping: If user is not admin/super-admin/HR, restrict to user's assigned scope/location
+    is_admin_or_hr = (user.access_level in ["Admin", "Super Admin", "HR"])
+    if not is_admin_or_hr:
+        if user.location:
+            u_query = u_query.filter(models.User.location.ilike(f"%{user.location.strip()}%"))
+    elif location and location not in ["All", "ALL", ""]:
         loc_clean = location.strip().upper()
         if loc_clean in ["MUMBAI"]:
             u_query = u_query.filter(models.User.location.ilike("Mumbai"))
@@ -3571,6 +3576,136 @@ def get_dashboard_metrics(
         "co": co_count,
         "absent": absent_count,
         "in_office_live": in_office_live
+    }
+
+@app.get("/api/dashboard/metrics/users")
+def get_dashboard_metrics_users(
+    category: str,
+    date_str: Optional[str] = None,
+    location: Optional[str] = "All",
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns the exact list of employees matching a clicked KPI card:
+    planned, in_office, present, wo, cl, sl, co, absent
+    """
+    if date_str:
+        parsed = None
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%Y/%m/%d", "%d/%m/%Y"):
+            try:
+                parsed = datetime.strptime(date_str.strip(), fmt).date()
+                break
+            except Exception:
+                continue
+        target_date = parsed if parsed else date.today()
+    else:
+        target_date = date.today()
+
+    cat = category.strip().lower()
+
+    # Query users respecting role/location scoping
+    u_query = db.query(models.User).filter(
+        models.User.is_active == True,
+        models.User.unique_id != "ADMIN001"
+    )
+
+    is_admin_or_hr = (user.access_level in ["Admin", "Super Admin", "HR"])
+    if not is_admin_or_hr:
+        if user.location:
+            u_query = u_query.filter(models.User.location.ilike(f"%{user.location.strip()}%"))
+    elif location and location not in ["All", "ALL", ""]:
+        loc_clean = location.strip().upper()
+        if loc_clean in ["MUMBAI"]:
+            u_query = u_query.filter(models.User.location.ilike("Mumbai"))
+        else:
+            u_query = u_query.filter(models.User.location.ilike(f"%{location.strip()}%"))
+
+    all_users = u_query.order_by(models.User.name.asc()).all()
+    user_ids = [u.id for u in all_users]
+
+    entries = db.query(models.RosterEntry).filter(
+        models.RosterEntry.date == target_date,
+        models.RosterEntry.user_id.in_(user_ids)
+    ).all()
+    entry_by_user = {e.user_id: e for e in entries}
+
+    approved_leaves_today = db.query(models.LeaveRequest).filter(
+        models.LeaveRequest.status == "Approved",
+        models.LeaveRequest.start_date <= target_date,
+        models.LeaveRequest.end_date >= target_date,
+        models.LeaveRequest.user_id.in_(user_ids)
+    ).all()
+    leave_by_user = {al.user_id: al for al in approved_leaves_today}
+
+    work_sessions_today = db.query(models.WorkSession).filter(
+        models.WorkSession.session_date == target_date,
+        models.WorkSession.user_id.in_(user_ids)
+    ).all()
+    session_by_user = {ws.user_id: ws for ws in work_sessions_today}
+
+    matching_users = []
+
+    for u in all_users:
+        e = entry_by_user.get(u.id)
+        al = leave_by_user.get(u.id)
+        ws = session_by_user.get(u.id)
+
+        live_punched = bool(ws and ws.status in ["ACTIVE", "ON_BREAK"])
+
+        if al:
+            code = al.leave_type.upper()
+            status_text = f"Approved Leave ({al.leave_type})"
+            shift_text = al.leave_type
+        else:
+            code = str(e.shift_code_or_time).strip().upper() if e else ""
+            status_text = e.status if e else "No Schedule"
+            shift_text = e.shift_code_or_time if e else "-"
+
+        matches = False
+
+        if cat == "planned" or cat == "total":
+            matches = True
+        elif cat == "in_office":
+            matches = live_punched
+        elif cat == "wo":
+            matches = (code == "WO") or (e and e.status == "WO")
+        elif cat == "co":
+            matches = (code in ["CO", "COMP-OFF"]) or (e and e.status == "CO")
+        elif cat == "cl":
+            matches = (code in ["CL", "PL", "LEAVE", "UNPAID"]) or (e and e.status in ["CL", "PL", "Leave"])
+        elif cat == "sl":
+            matches = (code == "SL") or (e and e.status == "SL")
+        elif cat == "absent":
+            matches = (code in ["A", "ABSENT", "LEFT"]) or (e and e.status == "Absent")
+        elif cat == "present":
+            is_present = (
+                code in ["HD", "HALF-DAY", "HALF DAY", "P+HD", "P", "S", "PRESENT"] or 
+                any(t in code for t in [":", "07:00", "09:00", "11:00", "13:00", "16:00", "18:00", "20:00", "22:00"]) or
+                (e and e.status in ["Present", "Scheduled"])
+            )
+            # Exclude WO, CO, Leaves, Absents
+            if is_present and code not in ["WO", "CO", "COMP-OFF", "CL", "SL", "PL", "A", "ABSENT", "LEFT"]:
+                matches = True
+
+        if matches:
+            matching_users.append({
+                "id": u.id,
+                "name": u.name,
+                "unique_id": u.unique_id,
+                "role_title": u.role_title or "Operational Staff",
+                "location": u.location or "-",
+                "shift": shift_text,
+                "status": status_text,
+                "live_punched": live_punched
+            })
+
+    return {
+        "status": "success",
+        "category": cat,
+        "date": target_date.strftime("%Y-%m-%d"),
+        "count": len(matching_users),
+        "users": matching_users
     }
 
 class ResetPasswordPayload(models.Base.__class__):
