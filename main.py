@@ -517,8 +517,8 @@ def dashboard(
         models.LeaveRequest.end_date >= today
     ).first()
 
-    today_shift = today_entry.shift_code_or_time if today_entry else (today_approved_leave.leave_type if today_approved_leave else "09:00 To 18:00 (Default)")
-    today_status = today_entry.status if today_entry else ("On Leave" if today_approved_leave else "Scheduled")
+    today_shift = today_entry.shift_code_or_time if today_entry else (today_approved_leave.leave_type if today_approved_leave else "Not Scheduled")
+    today_status = today_entry.status if today_entry else ("On Leave" if today_approved_leave else "Unassigned")
 
     # 7-day upcoming personal schedule
     weekly_schedule = []
@@ -537,8 +537,8 @@ def dashboard(
             models.LeaveRequest.end_date >= d
         ).first()
 
-        shift_val = e.shift_code_or_time if e else (d_leave.leave_type if d_leave else "09:00 To 18:00")
-        status_val = e.status if e else ("Leave" if d_leave else "Scheduled")
+        shift_val = e.shift_code_or_time if e else (d_leave.leave_type if d_leave else "Not Scheduled")
+        status_val = e.status if e else ("Leave" if d_leave else "Unassigned")
 
         weekly_schedule.append({
             "date": d,
@@ -850,6 +850,219 @@ def end_work_break(
         "total_break_mins": cumulative_break_mins,
         "is_excess": open_brk.is_excess if open_brk else False
     })
+
+# ================= BIOMETRIC PUNCH MACHINE & HARDWARE SYNC APIS ================= #
+
+@app.post("/api/biometric/punch")
+@app.post("/api/attendance/punch-machine")
+async def record_punch_machine_entry(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Biometric Attendance Machine Integration Endpoint.
+    Accepts biometric records from external hardware devices (ZK-Teco, Realtime, Essl, Matrix, etc.)
+    or supervisor portal via JSON or Form payload.
+    Payload attributes:
+      - unique_id or user_id or bm_id or crm_id (mandatory identifier)
+      - punch_type: 'IN', 'OUT', 'AUTO', 'CHECK_IN', 'CHECK_OUT'
+      - punch_time: ISO 8601 string or 'YYYY-MM-DD HH:MM:SS' (defaults to current UTC time if omitted)
+      - machine_id: Device serial/identifier (e.g. 'ZK-HQ-01')
+      - device_ip: IP address of biometric machine
+      - api_key: Optional security token (or auth header)
+    """
+    try:
+        body = {}
+        content_type = request.headers.get("content-type", "")
+        if "application/json" in content_type:
+            body = await request.json()
+        else:
+            form_data = await request.form()
+            body = dict(form_data)
+    except Exception:
+        body = {}
+
+    # Extract identification
+    unique_id = str(body.get("unique_id") or body.get("employee_id") or body.get("user_id") or "").strip()
+    bm_id = str(body.get("bm_id") or "").strip()
+    crm_id = str(body.get("crm_id") or "").strip()
+    punch_type = str(body.get("punch_type") or body.get("type") or "AUTO").strip().upper()
+    machine_id = str(body.get("machine_id") or body.get("device_id") or "BIO-TERMINAL-01").strip()
+    device_ip = str(body.get("device_ip") or (request.client.host if request.client else "127.0.0.1")).strip()
+
+    if not unique_id and not bm_id and not crm_id:
+        return JSONResponse(
+            {"status": "error", "message": "Missing employee identifier (unique_id, bm_id, or user_id required)."},
+            status_code=400
+        )
+
+    # Locate employee record
+    user_query = db.query(models.User).filter(models.User.is_active == True)
+    matched_user = None
+    if unique_id:
+        matched_user = user_query.filter(
+            (models.User.unique_id.ilike(unique_id)) | 
+            (models.User.id == int(unique_id) if unique_id.isdigit() else False)
+        ).first()
+    if not matched_user and bm_id:
+        matched_user = user_query.filter(models.User.bm_id.ilike(bm_id)).first()
+    if not matched_user and crm_id:
+        matched_user = user_query.filter(models.User.crm_id.ilike(crm_id)).first()
+
+    if not matched_user:
+        return JSONResponse(
+            {"status": "error", "message": f"Employee not found for identifier provided: {unique_id or bm_id or crm_id}"},
+            status_code=404
+        )
+
+    # Parse punch time
+    raw_punch_time = body.get("punch_time") or body.get("timestamp")
+    punch_dt = datetime.utcnow()
+    if raw_punch_time:
+        try:
+            if isinstance(raw_punch_time, str):
+                cleaned_dt = raw_punch_time.replace("T", " ").replace("Z", "")
+                if "." in cleaned_dt:
+                    cleaned_dt = cleaned_dt.split(".")[0]
+                punch_dt = datetime.strptime(cleaned_dt, "%Y-%m-%d %H:%M:%S")
+        except Exception:
+            punch_dt = datetime.utcnow()
+
+    punch_date = punch_dt.date()
+
+    # Normalize punch type
+    if punch_type in ["CHECK_IN", "IN", "1"]:
+        normalized_type = "IN"
+    elif punch_type in ["CHECK_OUT", "OUT", "0"]:
+        normalized_type = "OUT"
+    else:
+        # AUTO detection: If user already has an active session today without end_time, consider it OUT; else IN
+        existing_sess = db.query(models.WorkSession).filter(
+            models.WorkSession.user_id == matched_user.id,
+            models.WorkSession.session_date == punch_date,
+            models.WorkSession.status.in_(["ACTIVE", "ON_BREAK"])
+        ).first()
+        normalized_type = "OUT" if existing_sess else "IN"
+
+    # 1. Record raw biometric punch log
+    punch_log = models.BiometricPunchLog(
+        user_id=matched_user.id,
+        punch_time=punch_dt,
+        punch_type=normalized_type,
+        machine_id=machine_id,
+        device_ip=device_ip,
+        sync_source=body.get("sync_source", "BIOMETRIC_API"),
+        raw_payload=json.dumps(body) if body else None
+    )
+    db.add(punch_log)
+
+    # 2. Synchronize with WorkSession state
+    session_action = "NONE"
+    session_id = None
+
+    if normalized_type == "IN":
+        # Look for existing open session today
+        open_sess = db.query(models.WorkSession).filter(
+            models.WorkSession.user_id == matched_user.id,
+            models.WorkSession.session_date == punch_date,
+            models.WorkSession.status.in_(["ACTIVE", "ON_BREAK"])
+        ).first()
+
+        if not open_sess:
+            new_sess = models.WorkSession(
+                user_id=matched_user.id,
+                session_date=punch_date,
+                start_time=punch_dt,
+                status="ACTIVE",
+                manager_notes=f"Biometric Punch IN via {machine_id}"
+            )
+            db.add(new_sess)
+            db.flush()
+            session_id = new_sess.id
+            session_action = "SESSION_STARTED"
+        else:
+            session_id = open_sess.id
+            session_action = "ALREADY_ACTIVE"
+
+    elif normalized_type == "OUT":
+        # Find active session to close
+        open_sess = db.query(models.WorkSession).filter(
+            models.WorkSession.user_id == matched_user.id,
+            models.WorkSession.session_date == punch_date,
+            models.WorkSession.status.in_(["ACTIVE", "ON_BREAK"])
+        ).order_by(models.WorkSession.id.desc()).first()
+
+        if open_sess:
+            # If on break, close open break
+            if open_sess.status == "ON_BREAK":
+                open_brk = db.query(models.SessionBreak).filter(
+                    models.SessionBreak.session_id == open_sess.id,
+                    models.SessionBreak.end_time == None
+                ).first()
+                if open_brk:
+                    open_brk.end_time = punch_dt
+                    open_brk.duration_mins = max(0, int((punch_dt - open_brk.start_time).total_seconds() / 60))
+
+            open_sess.end_time = punch_dt
+            open_sess.status = "COMPLETED"
+
+            gross_mins = max(0, int((punch_dt - open_sess.start_time).total_seconds() / 60))
+            breaks = db.query(models.SessionBreak).filter(models.SessionBreak.session_id == open_sess.id).all()
+            total_brk_mins = sum(b.duration_mins for b in breaks)
+            net_mins = max(0, gross_mins - total_brk_mins)
+
+            open_sess.gross_duration_mins = gross_mins
+            open_sess.total_break_mins = total_brk_mins
+            open_sess.net_work_mins = net_mins
+            open_sess.manager_notes = (open_sess.manager_notes or "") + f" | Punch OUT via {machine_id}"
+            session_id = open_sess.id
+            session_action = "SESSION_COMPLETED"
+        else:
+            session_action = "NO_ACTIVE_SESSION_TO_CLOSE"
+
+    db.commit()
+
+    return JSONResponse({
+        "status": "success",
+        "message": f"Biometric punch {normalized_type} recorded successfully for {matched_user.name} ({matched_user.unique_id}).",
+        "data": {
+            "punch_id": punch_log.id,
+            "employee_id": matched_user.unique_id,
+            "employee_name": matched_user.name,
+            "punch_type": normalized_type,
+            "punch_time": punch_dt.strftime("%Y-%m-%d %H:%M:%S"),
+            "machine_id": machine_id,
+            "session_action": session_action,
+            "session_id": session_id
+        }
+    })
+
+@app.get("/api/biometric/logs")
+def get_biometric_punch_logs(
+    limit: int = 50,
+    user: models.User = Depends(require_admin_or_manager),
+    db: Session = Depends(get_db)
+):
+    """
+    Supervisor / Admin view of recent raw biometric machine punch transactions.
+    """
+    logs = db.query(models.BiometricPunchLog).order_by(models.BiometricPunchLog.id.desc()).limit(limit).all()
+    results = []
+    for l in logs:
+        u = l.user
+        results.append({
+            "id": l.id,
+            "user_id": l.user_id,
+            "employee_id": u.unique_id if u else "N/A",
+            "employee_name": u.name if u else "Unknown",
+            "punch_time": l.punch_time.strftime("%Y-%m-%d %H:%M:%S") if l.punch_time else "",
+            "punch_type": l.punch_type,
+            "machine_id": l.machine_id,
+            "device_ip": l.device_ip,
+            "sync_source": l.sync_source,
+            "created_at": l.created_at.strftime("%Y-%m-%d %H:%M:%S") if l.created_at else ""
+        })
+    return JSONResponse({"status": "success", "total": len(results), "logs": results})
 
 # ================= ROSTER MATRIX ROUTES ================= #
 

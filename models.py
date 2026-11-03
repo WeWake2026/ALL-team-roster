@@ -514,8 +514,22 @@ class ShiftSwapRequest(Base):
     target_user = relationship("User", foreign_keys=[target_user_id])
     approver = relationship("User", foreign_keys=[approved_by_user_id])
 
+class BiometricPunchLog(Base):
+    """
+    Direct Biometric Device Punch Log (Fingerprint, Face recognition, RFID cards, or API sync).
+    Stores raw punch data received from hardware biometric terminals or admin sync jobs.
+    """
+    __tablename__ = "biometric_punch_logs"
 
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    punch_time = Column(DateTime, nullable=False, index=True)
+    punch_type = Column(String(20), default="IN", index=True) # IN, OUT, AUTO
+    machine_id = Column(String(100), nullable=True) # e.g. "BIO-VASHI-01", "ZK-TECO-HQ-02"
+    device_ip = Column(String(60), nullable=True)
+    sync_source = Column(String(50), default="API") # "API", "MANUAL", "BULK_UPLOAD", "AUTO_SYNC"
+    raw_payload = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
-
-
+    user = relationship("User", foreign_keys=[user_id])
 
