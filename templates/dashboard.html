@@ -458,9 +458,17 @@
                     <span class="inline-block px-2 py-1 rounded-md text-[11px] font-semibold bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">
                         13:00 - 22:00
                     </span>
+                    {% elif '16:00' in item.shift %}
+                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
+                        16:00 - 01:00 (Eve)
+                    </span>
+                    {% elif '18:00' in item.shift %}
+                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-violet-100 text-violet-900 dark:bg-violet-950/60 dark:text-violet-200 border border-violet-300 dark:border-violet-700">
+                        18:00 - 03:00 (Late)
+                    </span>
                     {% elif '22:00' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">
-                        22:00 - 07:00
+                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-purple-100 text-purple-900 dark:bg-purple-950/60 dark:text-purple-200 border border-purple-300 dark:border-purple-700">
+                        22:00 - 07:00 (Night)
                     </span>
                     {% else %}
                     <span class="inline-block px-2 py-1 rounded-md text-[11px] font-medium bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">

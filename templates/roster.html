@@ -327,6 +327,12 @@
         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-orange-100 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 font-bold text-[11px] border border-orange-200 dark:border-orange-800">
             <span class="w-2 h-2 rounded-full bg-orange-600"></span> Afternoon Shift (13:00 - 22:00)
         </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-bold text-[11px] border border-amber-200 dark:border-amber-800">
+            <span class="w-2 h-2 rounded-full bg-amber-600"></span> Evening Shift (16:00 - 01:00)
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-100 text-violet-800 dark:bg-violet-950/60 dark:text-violet-300 font-bold text-[11px] border border-violet-200 dark:border-violet-800">
+            <span class="w-2 h-2 rounded-full bg-violet-600"></span> Late Shift (18:00 - 03:00)
+        </span>
         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 font-bold text-[11px] border border-purple-200 dark:border-purple-800">
             <span class="w-2 h-2 rounded-full bg-purple-600"></span> Night Shift (22:00 - 07:00 Overnight)
         </span>
@@ -673,7 +679,7 @@
                         {% set u_val = shift_val|upper %}
                         <td class="p-1 text-center border-r border-slate-200 dark:border-slate-700 {% if d == today %}bg-blue-50/30 dark:bg-blue-950/20{% endif %}">
                             {% if perms.can_edit or user.access_level in ['Admin', 'Manager', 'Team Leader', 'Quality', 'SME'] %}
-                            <button type="button" 
+                            <button type="button" id="roster-cell-btn-{{ row.user.id }}-{{ d.strftime('%Y-%m-%d') }}"
                                 onclick="openRosterCellModal('{{ row.user.id }}', '{{ row.user.name|escape }}', '{{ row.user.unique_id }}', '{{ d.strftime('%Y-%m-%d') }}', '{{ shift_val }}')"
                                 class="w-full py-1 px-0.5 rounded font-bold text-[11px] transition hover:scale-105 shadow-2xs
                                 {% if u_val == 'WO' %}bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300
@@ -683,15 +689,19 @@
                                 {% elif u_val in ['CL', 'PL'] %}bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300
                                 {% elif u_val == 'HD' %}bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300
                                 {% elif u_val in ['A', 'ABSENT'] %}bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300
-                                {% elif '07:00' in shift_val %}bg-teal-50 text-teal-800 dark:bg-teal-950/40 text-[10px]
-                                {% elif '09:00' in shift_val %}bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 text-[10px]
-                                {% elif '13:00' in shift_val %}bg-orange-50 text-orange-800 dark:bg-orange-950/40 text-[10px]
-                                {% elif '22:00' in shift_val %}bg-purple-50 text-purple-800 dark:bg-purple-950/40 text-[10px]
+                                {% elif '07:00' in shift_val %}bg-teal-50 text-teal-800 dark:bg-teal-950/40 text-[10px] font-semibold
+                                {% elif '09:00' in shift_val %}bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 text-[10px] font-semibold
+                                {% elif '13:00' in shift_val %}bg-orange-50 text-orange-800 dark:bg-orange-950/40 text-[10px] font-semibold
+                                {% elif '16:00' in shift_val %}bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200 text-[10px] font-bold border border-amber-300 dark:border-amber-700
+                                {% elif '18:00' in shift_val %}bg-violet-100 text-violet-900 dark:bg-violet-950/50 dark:text-violet-200 text-[10px] font-bold border border-violet-300 dark:border-violet-700
+                                {% elif '22:00' in shift_val %}bg-purple-100 text-purple-900 dark:bg-purple-950/50 dark:text-purple-200 text-[10px] font-bold border border-purple-300 dark:border-purple-700
                                 {% else %}bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400{% endif %}"
                                 title="Click to Quick-Mark Attendance / Shift for {{ d.strftime('%d %b') }}">
                                 {% if '07:00' in shift_val %}07-16
                                 {% elif '09:00' in shift_val %}09-18
                                 {% elif '13:00' in shift_val %}13-22
+                                {% elif '16:00' in shift_val %}16-01
+                                {% elif '18:00' in shift_val %}18-03
                                 {% elif '22:00' in shift_val %}22-07
                                 {% else %}{{ shift_val }}
                                 {% endif %}
@@ -705,14 +715,18 @@
                                 {% elif u_val in ['CL', 'PL'] %}bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300
                                 {% elif u_val == 'HD' %}bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300
                                 {% elif u_val in ['A', 'ABSENT'] %}bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300
-                                {% elif '07:00' in shift_val %}bg-teal-50 text-teal-800 dark:bg-teal-950/40 text-[10px]
-                                {% elif '09:00' in shift_val %}bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 text-[10px]
-                                {% elif '13:00' in shift_val %}bg-orange-50 text-orange-800 dark:bg-orange-950/40 text-[10px]
-                                {% elif '22:00' in shift_val %}bg-purple-50 text-purple-800 dark:bg-purple-950/40 text-[10px]
+                                {% elif '07:00' in shift_val %}bg-teal-50 text-teal-800 dark:bg-teal-950/40 text-[10px] font-semibold
+                                {% elif '09:00' in shift_val %}bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 text-[10px] font-semibold
+                                {% elif '13:00' in shift_val %}bg-orange-50 text-orange-800 dark:bg-orange-950/40 text-[10px] font-semibold
+                                {% elif '16:00' in shift_val %}bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200 text-[10px] font-bold border border-amber-300 dark:border-amber-700
+                                {% elif '18:00' in shift_val %}bg-violet-100 text-violet-900 dark:bg-violet-950/50 dark:text-violet-200 text-[10px] font-bold border border-violet-300 dark:border-violet-700
+                                {% elif '22:00' in shift_val %}bg-purple-100 text-purple-900 dark:bg-purple-950/50 dark:text-purple-200 text-[10px] font-bold border border-purple-300 dark:border-purple-700
                                 {% else %}text-slate-400 font-mono{% endif %}">
                                 {% if '07:00' in shift_val %}07-16
                                 {% elif '09:00' in shift_val %}09-18
                                 {% elif '13:00' in shift_val %}13-22
+                                {% elif '16:00' in shift_val %}16-01
+                                {% elif '18:00' in shift_val %}18-03
                                 {% elif '22:00' in shift_val %}22-07
                                 {% else %}{{ shift_val }}
                                 {% endif %}
@@ -954,6 +968,8 @@
                     <option value="Morning Shift (07:00 To 16:00)">Morning Shift (07:00 To 16:00)</option>
                     <option value="General Shift (09:00 To 18:00)">General Shift (09:00 To 18:00)</option>
                     <option value="Afternoon Shift (13:00 To 22:00)">Afternoon Shift (13:00 To 22:00)</option>
+                    <option value="Evening Shift (16:00 To 01:00)">Evening Shift (16:00 To 01:00 - Overnight)</option>
+                    <option value="Late Evening Shift (18:00 To 03:00)">Late Evening Shift (18:00 To 03:00 - Overnight)</option>
                     <option value="Night Shift (22:00 To 07:00)">Night Shift (22:00 To 07:00 - Overnight)</option>
                     <option value="WO">Weekly Off (WO)</option>
                     <option value="CO">Comp-Off (CO)</option>
@@ -1274,6 +1290,58 @@ function closeRosterCellModal() {
     if (modal) modal.classList.add('hidden');
 }
 
+function getShiftDisplayDetails(val) {
+    const s = String(val).trim();
+    const u = s.toUpperCase();
+    let text = s;
+    let className = 'w-full py-1 px-0.5 rounded font-bold text-[11px] transition hover:scale-105 shadow-2xs ';
+
+    if (u === 'WO') {
+        text = 'WO';
+        className += 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300';
+    } else if (u === 'CO') {
+        text = 'CO';
+        className += 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300';
+    } else if (u === 'P' || u === 'S') {
+        text = 'P';
+        className += 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300';
+    } else if (u === 'SL' || u === 'LEAVE') {
+        text = u;
+        className += 'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300';
+    } else if (u === 'CL' || u === 'PL') {
+        text = u;
+        className += 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300';
+    } else if (u === 'HD') {
+        text = 'HD';
+        className += 'bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-300';
+    } else if (u === 'A' || u === 'ABSENT') {
+        text = 'A';
+        className += 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300';
+    } else if (s.includes('07:00')) {
+        text = '07-16';
+        className += 'bg-teal-50 text-teal-800 dark:bg-teal-950/40 text-[10px] font-semibold';
+    } else if (s.includes('09:00')) {
+        text = '09-18';
+        className += 'bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 text-[10px] font-semibold';
+    } else if (s.includes('13:00')) {
+        text = '13-22';
+        className += 'bg-orange-50 text-orange-800 dark:bg-orange-950/40 text-[10px] font-semibold';
+    } else if (s.includes('16:00')) {
+        text = '16-01';
+        className += 'bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200 text-[10px] font-bold border border-amber-300 dark:border-amber-700';
+    } else if (s.includes('18:00')) {
+        text = '18-03';
+        className += 'bg-violet-100 text-violet-900 dark:bg-violet-950/50 dark:text-violet-200 text-[10px] font-bold border border-violet-300 dark:border-violet-700';
+    } else if (s.includes('22:00')) {
+        text = '22-07';
+        className += 'bg-purple-100 text-purple-900 dark:bg-purple-950/50 dark:text-purple-200 text-[10px] font-bold border border-purple-300 dark:border-purple-700';
+    } else {
+        className += 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+    }
+
+    return { text, className };
+}
+
 async function submitCellAttendance(statusMark) {
     const userId = document.getElementById('cell-user-id').value;
     const targetDate = document.getElementById('cell-target-date').value;
@@ -1293,7 +1361,23 @@ async function submitCellAttendance(statusMark) {
         const res = await resp.json();
         if (res.status === 'success') {
             closeRosterCellModal();
-            window.location.reload();
+
+            // Seamless Instant In-Place Cell Update without page refresh or filter loss!
+            const cellBtn = document.getElementById(`roster-cell-btn-${userId}-${targetDate}`);
+            if (cellBtn) {
+                const details = getShiftDisplayDetails(statusMark);
+                cellBtn.textContent = details.text;
+                cellBtn.className = details.className;
+                // Update title & click handler with new shift value
+                cellBtn.title = `Click to Quick-Mark Attendance / Shift (Current: ${statusMark})`;
+                const userName = document.getElementById('cell-emp-name')?.textContent || '';
+                const userUid = document.getElementById('cell-emp-uid')?.textContent || '';
+                cellBtn.setAttribute('onclick', `openRosterCellModal('${userId}', '${userName.replace(/'/g, "\\'")}', '${userUid}', '${targetDate}', '${statusMark}')`);
+                
+                // Add quick success highlight pulse
+                cellBtn.classList.add('ring-2', 'ring-emerald-500');
+                setTimeout(() => cellBtn.classList.remove('ring-2', 'ring-emerald-500'), 1500);
+            }
         } else {
             alert(res.message || 'Error updating attendance');
         }
@@ -1443,8 +1527,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button type="button" onclick="submitCellAttendance('13:00 To 22:00')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-700 transition">
                         13:00 - 22:00
                     </button>
-                    <button type="button" onclick="submitCellAttendance('22:00 To 07:00')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold border border-slate-200 dark:border-slate-700 transition">
-                        22:00 - 07:00
+                    <button type="button" onclick="submitCellAttendance('16:00 To 01:00')" class="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200 font-bold border border-amber-300 dark:border-amber-700 transition">
+                        16:00 - 01:00 (Eve)
+                    </button>
+                    <button type="button" onclick="submitCellAttendance('18:00 To 03:00')" class="p-2 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 dark:bg-violet-950/40 dark:text-violet-200 font-bold border border-violet-300 dark:border-violet-700 transition">
+                        18:00 - 03:00 (Late)
+                    </button>
+                    <button type="button" onclick="submitCellAttendance('22:00 To 07:00')" class="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-200 font-bold border border-purple-300 dark:border-purple-700 transition">
+                        22:00 - 07:00 (Night)
                     </button>
                     <button type="button" onclick="submitCellAttendance('WO')" class="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800 transition">
                         WO (Week Off)
