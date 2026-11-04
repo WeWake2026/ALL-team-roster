@@ -1185,6 +1185,14 @@ def roster_matrix(
         db.rollback()
 
     # Query Users - active users, or users who offboarded after the roster start date
+    # Coerce optional query strings into ints safely
+    parsed_loc = int(str(location_id).strip()) if location_id and str(location_id).strip() and str(location_id).strip().isdigit() else None
+    parsed_dept = int(str(department_id).strip()) if department_id and str(department_id).strip() and str(department_id).strip().isdigit() else None
+    parsed_tl = int(str(team_lead_id).strip()) if team_lead_id and str(team_lead_id).strip() and str(team_lead_id).strip().isdigit() else None
+    location_id = parsed_loc
+    department_id = parsed_dept
+    team_lead_id = parsed_tl
+
     u_query = db.query(models.User).filter(
         ((models.User.is_active == True) | (models.User.exit_date > date_list[0]))
     )
@@ -3782,9 +3790,9 @@ def add_shift(
 def user_accounts_page(
     request: Request,
     status_filter: Optional[str] = "all",
-    location_id: Optional[int] = None,
-    department_id: Optional[int] = None,
-    team_lead_id: Optional[int] = None,
+    location_id: Optional[str] = None,
+    department_id: Optional[str] = None,
+    team_lead_id: Optional[str] = None,
     user: models.User = Depends(require_auth),
     perms: get_user_perms = Depends(get_user_perms),
     db: Session = Depends(get_db)
@@ -4808,8 +4816,8 @@ def require_admin_control_center_auth(
 @app.get("/admin/control-center", response_class=HTMLResponse)
 def admin_control_center_page(
     request: Request,
-    location_id: Optional[int] = None,
-    branch_id: Optional[int] = None,
+    location_id: Optional[str] = None,
+    branch_id: Optional[str] = None,
     current_admin: models.User = Depends(require_admin_control_center_auth),
     perms: get_user_perms = Depends(get_user_perms),
     db: Session = Depends(get_db)
@@ -4818,8 +4826,24 @@ def admin_control_center_page(
     Centralized Enterprise Admin Control Center Dashboard supporting 7-tier hierarchy:
     Organization -> Global Settings -> Location -> Branch -> Department -> Team -> Employee
     """
+    # Coerce optional query strings into optional ints
+    parsed_loc_id = None
+    if location_id and str(location_id).strip():
+        try:
+            parsed_loc_id = int(str(location_id).strip())
+        except (ValueError, TypeError):
+            parsed_loc_id = None
+
+    parsed_branch_id = None
+    if branch_id and str(branch_id).strip():
+        try:
+            parsed_branch_id = int(str(branch_id).strip())
+        except (ValueError, TypeError):
+            parsed_branch_id = None
+
     # Scope resolution: If user is Location Admin / Branch Manager with restricted scope, force their assigned location
-    effective_location_id = location_id
+    effective_location_id = parsed_loc_id
+    branch_id = parsed_branch_id
     if not perms.can_view_all and perms.location_ids:
         if location_id not in perms.location_ids:
             effective_location_id = next(iter(perms.location_ids)) if perms.location_ids else current_admin.location_id
