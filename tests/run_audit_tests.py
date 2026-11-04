@@ -1,3 +1,5 @@
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from datetime import date, timedelta
 import models
 import database
@@ -58,8 +60,11 @@ def run_tests():
     # Attempting to assign future shift to inactive employee should fail
     try:
         from main import quick_assign_shift
+        from starlette.requests import Request
+        mock_req = Request({"type": "http", "method": "POST", "url": "http://testserver/roster/assign", "headers": []})
         # Call quick_assign_shift directly to verify exception
         quick_assign_shift(
+            request=mock_req,
             user_id=test_emp.id,
             date=str(date.today() + timedelta(days=2)),
             shift_code="09:00 To 18:00",
@@ -86,7 +91,10 @@ def run_tests():
     # Step D: Verify shift assignment succeeds after reactivation
     print("[TEST 6] Testing Roster Assignment Succeeds after Reactivation...")
     from main import quick_assign_shift
+    from starlette.requests import Request
+    mock_req2 = Request({"type": "http", "method": "POST", "url": "http://testserver/roster/assign", "headers": []})
     resp = quick_assign_shift(
+        request=mock_req2,
         user_id=test_emp.id,
         date=str(date.today()),
         shift_code="09:00 To 18:00",

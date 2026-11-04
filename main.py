@@ -1185,14 +1185,6 @@ def roster_matrix(
         db.rollback()
 
     # Query Users - active users, or users who offboarded after the roster start date
-    # Coerce optional query strings into ints safely
-    parsed_loc = int(str(location_id).strip()) if location_id and str(location_id).strip() and str(location_id).strip().isdigit() else None
-    parsed_dept = int(str(department_id).strip()) if department_id and str(department_id).strip() and str(department_id).strip().isdigit() else None
-    parsed_tl = int(str(team_lead_id).strip()) if team_lead_id and str(team_lead_id).strip() and str(team_lead_id).strip().isdigit() else None
-    location_id = parsed_loc
-    department_id = parsed_dept
-    team_lead_id = parsed_tl
-
     u_query = db.query(models.User).filter(
         ((models.User.is_active == True) | (models.User.exit_date > date_list[0]))
     )
@@ -3797,6 +3789,14 @@ def user_accounts_page(
     perms: get_user_perms = Depends(get_user_perms),
     db: Session = Depends(get_db)
 ):
+    # Coerce optional string query parameters to safe ints
+    parsed_loc = int(str(location_id).strip()) if location_id and str(location_id).strip() and str(location_id).strip().isdigit() else None
+    parsed_dept = int(str(department_id).strip()) if department_id and str(department_id).strip() and str(department_id).strip().isdigit() else None
+    parsed_tl = int(str(team_lead_id).strip()) if team_lead_id and str(team_lead_id).strip() and str(team_lead_id).strip().isdigit() else None
+    location_id = parsed_loc
+    department_id = parsed_dept
+    team_lead_id = parsed_tl
+
     # Authorization: Admin, HR, Manager can access employee console
     if not (perms.is_admin or perms.is_hr or perms.is_manager):
         raise HTTPException(status_code=403, detail="Access denied. Authorized Admin, HR, or Management personnel only.")
@@ -4890,6 +4890,19 @@ def admin_control_center_page(
         emp_query = emp_query.filter(models.User.branch_id == branch_id)
     sample_employees = emp_query.order_by(models.User.id.desc()).limit(20).all()
 
+    # Query all active users for Employee Directory panel
+    all_users = db.query(models.User).order_by(models.User.name.asc()).all()
+
+    # Company settings map for Global Config & Attendance Rules panels
+    all_settings = db.query(models.CompanySetting).all()
+    settings_map = {s.setting_key: s.setting_value for s in all_settings}
+
+    # Holidays list for Holiday Calendars panel
+    holidays = db.query(models.Holiday).order_by(models.Holiday.date.asc()).all()
+
+    # Leave balances and policy summary for Leave Management panel
+    leave_requests_pending = db.query(models.LeaveRequest).filter(models.LeaveRequest.status.ilike("%pending%")).order_by(models.LeaveRequest.id.desc()).limit(15).all()
+
     return templates.TemplateResponse(
         request=request,
         name="admin_control_center.html",
@@ -4905,6 +4918,10 @@ def admin_control_center_page(
             "departments": departments,
             "teams": teams,
             "all_shifts": all_shifts,
+            "all_users": all_users,
+            "settings": settings_map,
+            "holidays": holidays,
+            "leave_requests_pending": leave_requests_pending,
             "kpis": kpis,
             "location_breakdowns": location_breakdowns,
             "recent_transfers": recent_transfers,
@@ -5105,6 +5122,177 @@ async def set_config_override_api(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to set configuration: {str(e)}")
+
+
+@app.post("/api/admin/departments/create")
+async def create_department_api(
+    request: Request,
+    current_admin: models.User = Depends(require_admin_control_center_auth),
+    db: Session = Depends(get_db)
+):
+    """Creates a new department within the organization or assigned location"""
+    try:
+        data = await request.json()
+        name = str(data.get("name", "")).strip()
+        code = str(data.get("code", "")).strip().upper()
+        location_id = int(data.get("location_id")) if data.get("location_id") else None
+
+        if not name or not code:
+            raise HTTPException(status_code=400, detail="Department Name and Code are required.")
+
+        dept = models.Department(name=name, code=code, location_id=location_id, is_active=True)
+        db.add(dept)
+        db.commit()
+        db.refresh(dept)
+
+        log_audit_event(
+            db=db,
+            actor=current_admin,
+            action="DEPARTMENT_CREATE",
+            resource_type="Department",
+            resource_id=str(dept.id),
+            details=f"Created department {name} ({code})"
+        )
+        return {"success": True, "message": f"Department '{name}' created successfully.", "id": dept.id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create department: {str(e)}")
+
+
+@app.post("/api/admin/teams/create")
+async def create_team_api(
+    request: Request,
+    current_admin: models.User = Depends(require_admin_control_center_auth),
+    db: Session = Depends(get_db)
+):
+    """Creates a new operational team under a department"""
+    try:
+        data = await request.json()
+        name = str(data.get("name", "")).strip()
+        code = str(data.get("code", "")).strip().upper()
+        department_id = int(data.get("department_id")) if data.get("department_id") else None
+        team_lead_id = int(data.get("team_lead_id")) if data.get("team_lead_id") else None
+
+        if not name or not department_id:
+            raise HTTPException(status_code=400, detail="Team Name and Department are required.")
+
+        team = models.Team(name=name, code=code, department_id=department_id, team_lead_id=team_lead_id, is_active=True)
+        db.add(team)
+        db.commit()
+        db.refresh(team)
+
+        log_audit_event(
+            db=db,
+            actor=current_admin,
+            action="TEAM_CREATE",
+            resource_type="Team",
+            resource_id=str(team.id),
+            details=f"Created team {name} ({code}) under department ID {department_id}"
+        )
+        return {"success": True, "message": f"Team '{name}' created successfully.", "id": team.id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create team: {str(e)}")
+
+
+@app.post("/api/admin/settings/batch-update")
+async def batch_update_settings_api(
+    request: Request,
+    current_admin: models.User = Depends(require_admin_control_center_auth),
+    db: Session = Depends(get_db)
+):
+    """Saves global configuration, attendance rules, and leave quotas via JSON API"""
+    try:
+        data = await request.json()
+        settings_dict = data.get("settings", {})
+        category = str(data.get("category", "general"))
+
+        for key, val in settings_dict.items():
+            clean_key = str(key).strip()
+            clean_val = str(val).strip()
+            s = db.query(models.CompanySetting).filter(models.CompanySetting.setting_key == clean_key).first()
+            if not s:
+                s = models.CompanySetting(setting_key=clean_key, setting_value=clean_val, category=category)
+                db.add(s)
+            else:
+                s.setting_value = clean_val
+
+        db.commit()
+
+        log_audit_event(
+            db=db,
+            actor=current_admin,
+            action="SETTINGS_BATCH_UPDATE",
+            resource_type="CompanySetting",
+            resource_id=category,
+            details=f"Batch updated {len(settings_dict)} settings in category {category}"
+        )
+        return {"success": True, "message": f"Saved {len(settings_dict)} settings successfully."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to save settings: {str(e)}")
+
+
+@app.post("/api/admin/holidays/create")
+async def create_holiday_api(
+    request: Request,
+    current_admin: models.User = Depends(require_admin_control_center_auth),
+    db: Session = Depends(get_db)
+):
+    """Creates or updates an enterprise holiday entry"""
+    try:
+        data = await request.json()
+        name = str(data.get("name", "")).strip()
+        date_str = str(data.get("date", "")).strip()
+        holiday_type = str(data.get("holiday_type", "NATIONAL")).strip().upper()
+        optional_flag = bool(data.get("optional_flag", False))
+        location_id = int(data.get("location_id")) if data.get("location_id") else None
+
+        if not name or not date_str:
+            raise HTTPException(status_code=400, detail="Holiday Name and Date are required.")
+
+        h_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+        existing = db.query(models.Holiday).filter(models.Holiday.date == h_date).first()
+        if existing:
+            existing.name = name
+            existing.holiday_type = holiday_type
+            existing.optional_flag = optional_flag
+            existing.location_id = location_id
+            h_id = existing.id
+        else:
+            h = models.Holiday(
+                name=name,
+                date=h_date,
+                holiday_type=holiday_type,
+                optional_flag=optional_flag,
+                location_id=location_id
+            )
+            db.add(h)
+            db.commit()
+            db.refresh(h)
+            h_id = h.id
+
+        db.commit()
+
+        log_audit_event(
+            db=db,
+            actor=current_admin,
+            action="HOLIDAY_SAVE",
+            resource_type="Holiday",
+            resource_id=str(h_id),
+            details=f"Saved holiday {name} on {h_date}"
+        )
+        return {"success": True, "message": f"Holiday '{name}' saved successfully.", "id": h_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to save holiday: {str(e)}")
 
 @app.get("/api/admin/system/health")
 def get_system_health_api(

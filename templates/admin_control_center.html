@@ -521,6 +521,561 @@
                 </div>
             </div>
 
+
+            <!-- MODULE 3: GLOBAL CONFIGURATION -->
+            <div id="acc-panel-global_config" class="acc-module-panel hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="sliders" class="w-4 h-4 text-indigo-600"></i>
+                            <span>Global Enterprise Configuration</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Manage enterprise-wide localization, date standards, session security, and 24x7 defaults.</p>
+                    </div>
+                </div>
+
+                <form id="global-config-form" onsubmit="saveGlobalConfig(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Default Time Zone</label>
+                            <input type="text" id="cfg-timezone" value="{{ org.default_timezone if org else 'Asia/Kolkata' }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Standard Date Format</label>
+                            <select id="cfg-date-format" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                                <option value="YYYY-MM-DD" {% if org and org.default_date_format == 'YYYY-MM-DD' %}selected{% endif %}>YYYY-MM-DD (ISO 8601)</option>
+                                <option value="DD/MM/YYYY" {% if org and org.default_date_format == 'DD/MM/YYYY' %}selected{% endif %}>DD/MM/YYYY (Indian Standard)</option>
+                                <option value="MM/DD/YYYY" {% if org and org.default_date_format == 'MM/DD/YYYY' %}selected{% endif %}>MM/DD/YYYY (US)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Financial Year Cycle</label>
+                            <input type="text" id="cfg-financial-year" value="{{ org.financial_year if org else '2026-2027' }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Session Inactivity Timeout (Minutes)</label>
+                            <input type="number" id="cfg-session-timeout" value="480" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                        </div>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                        <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition">
+                            Save Global Configuration
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- MODULE 6: DEPARTMENTS & TEAMS -->
+            <div id="acc-panel-departments" class="acc-module-panel hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="network" class="w-4 h-4 text-rose-600"></i>
+                            <span>Department & Team Structure</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Hierarchical mapping of operational divisions, sub-teams, and assigned Team Leads.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="document.getElementById('add-dept-form-box').classList.toggle('hidden')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>Add Department</span>
+                        </button>
+                        <button type="button" onclick="document.getElementById('add-team-form-box').classList.toggle('hidden')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                            <span>Add Team</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Add Department Form -->
+                <div id="add-dept-form-box" class="hidden p-4 mb-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+                    <form onsubmit="createDepartmentAcc(event)" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Department Name</label>
+                            <input type="text" id="new-dept-name" required placeholder="e.g. Operations Control" class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Code</label>
+                            <input type="text" id="new-dept-code" required placeholder="e.g. OPS" class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white uppercase font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Location Scope</label>
+                            <select id="new-dept-loc" class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                                <option value="">Enterprise Wide (All)</option>
+                                {% for loc in all_locations %}
+                                <option value="{{ loc.id }}">{{ loc.name }} ({{ loc.code }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <button type="submit" class="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition">
+                                Create Department
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Add Team Form -->
+                <div id="add-team-form-box" class="hidden p-4 mb-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+                    <form onsubmit="createTeamAcc(event)" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Parent Department</label>
+                            <select id="new-team-dept" required class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                                <option value="">Select Department</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept.id }}">{{ dept.name }} ({{ dept.code }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Team Name</label>
+                            <input type="text" id="new-team-name" required placeholder="e.g. Alpha Shift Response" class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Team Code</label>
+                            <input type="text" id="new-team-code" placeholder="e.g. ALPHA" class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white uppercase font-mono">
+                        </div>
+                        <div>
+                            <button type="submit" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition">
+                                Create Team
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Departments & Teams Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="p-3">Department Name</th>
+                                <th class="p-3">Code</th>
+                                <th class="p-3">Location Scope</th>
+                                <th class="p-3">Teams Configured</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-normal">
+                            {% for dept in departments %}
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="p-3 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                                    <span>{{ dept.name }}</span>
+                                </td>
+                                <td class="p-3 font-mono font-bold text-indigo-600">{{ dept.code }}</td>
+                                <td class="p-3 text-slate-500">{{ dept.location.name if dept.location else 'Enterprise Wide' }}</td>
+                                <td class="p-3">
+                                    {% if dept.teams %}
+                                        <div class="flex flex-wrap gap-1">
+                                            {% for tm in dept.teams %}
+                                            <span class="px-2 py-0.5 rounded-md text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold">{{ tm.name }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-slate-400 text-[11px] italic">No sub-teams</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Active</span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="p-6 text-center text-slate-400 italic">No departments configured yet. Click 'Add Department' above.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MODULE 7: EMPLOYEE DIRECTORY -->
+            <div id="acc-panel-employees" class="acc-module-panel hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-4">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="users" class="w-4 h-4 text-purple-600"></i>
+                            <span>Enterprise Employee Directory</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Comprehensive roster of active workforce members, assignments, roles, and status.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a href="/admin/users" class="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+                            <span>Full User Admin</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="p-3">Employee Name</th>
+                                <th class="p-3">Role</th>
+                                <th class="p-3">ECN / Emp Code</th>
+                                <th class="p-3">Location & Branch</th>
+                                <th class="p-3">Department</th>
+                                <th class="p-3">Account Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-normal">
+                            {% for emp in all_users[:50] %}
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="p-3 font-semibold text-slate-900 dark:text-white">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-bold flex items-center justify-center text-[10px]">
+                                            {{ emp.name[0]|upper if emp.name else 'U' }}
+                                        </div>
+                                        <span>{{ emp.name }}</span>
+                                    </div>
+                                </td>
+                                <td class="p-3 font-semibold text-slate-700 dark:text-slate-300">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                        {{ emp.role }}
+                                    </span>
+                                </td>
+                                <td class="p-3 font-mono text-slate-600 dark:text-slate-400">{{ emp.employee_code or emp.unique_id or emp.username }}</td>
+                                <td class="p-3 text-slate-500">{{ emp.location_rel.name if emp.location_rel else 'Unassigned' }}</td>
+                                <td class="p-3 text-slate-500">{{ emp.dept_rel.name if emp.dept_rel else 'General' }}</td>
+                                <td class="p-3">
+                                    {% if emp.is_active %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Active</span>
+                                    {% else %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">Deactivated</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MODULE 9: SHIFT MASTER -->
+            <div id="acc-panel-shifts" class="acc-module-panel hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="clock" class="w-4 h-4 text-sky-600"></i>
+                            <span>Enterprise Shift Master</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Manage operational shift windows, break times, color tags, and overnight parameters.</p>
+                    </div>
+                    <button type="button" onclick="document.getElementById('add-shift-form-box').classList.toggle('hidden')" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>New Shift</span>
+                    </button>
+                </div>
+
+                <!-- Add Shift Form (Collapsible) -->
+                <div id="add-shift-form-box" class="hidden p-4 mb-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+                    <form action="/admin/shifts/create" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Shift Name</label>
+                            <input type="text" name="name" required placeholder="e.g. Afternoon Shift" class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Start Time</label>
+                            <input type="time" name="start_time" required class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">End Time</label>
+                            <input type="time" name="end_time" required class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                        </div>
+                        <div>
+                            <button type="submit" class="w-full py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold transition">
+                                Create Shift
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Shift Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="p-3">Shift Name</th>
+                                <th class="p-3">Timing Code</th>
+                                <th class="p-3">Hours Window</th>
+                                <th class="p-3">Break Duration</th>
+                                <th class="p-3">Type</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-normal">
+                            {% for sh in all_shifts %}
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="p-3 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-{{ sh.color_code or 'blue' }}-500"></span>
+                                    <span>{{ sh.name }}</span>
+                                </td>
+                                <td class="p-3 font-mono font-semibold text-blue-600">{{ sh.code }}</td>
+                                <td class="p-3 text-slate-700 dark:text-slate-300">{{ sh.start_time }} to {{ sh.end_time }}</td>
+                                <td class="p-3 text-slate-500">{{ sh.break_duration_mins }} mins</td>
+                                <td class="p-3">
+                                    {% if sh.is_overnight %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">Overnight / 24x7</span>
+                                    {% else %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">Standard Day</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Active</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MODULE 10: LOCATION ROSTER RULES -->
+            <div id="acc-panel-roster_config" class="acc-module-panel hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="calendar" class="w-4 h-4 text-emerald-600"></i>
+                            <span>Location Roster & Rotation Rules</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Continuous 24/7 rest periods, rotation caps, and staffing thresholds per operational unit.</p>
+                    </div>
+                </div>
+
+                <form id="roster-rules-form" onsubmit="saveRosterRules(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Minimum Rest Hours Between Shifts</label>
+                            <input type="number" id="rule-min-rest" value="{{ settings.get('min_rest_hours_between_shifts', '12') }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                            <p class="text-[10px] text-slate-400 mt-1">Recommended minimum 12 hours between consecutive duties.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Max Consecutive Night Shifts</label>
+                            <input type="number" id="rule-max-nights" value="{{ settings.get('max_consecutive_night_shifts', '4') }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                            <p class="text-[10px] text-slate-400 mt-1">Caps consecutive overnight duty assignments before a mandatory off.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Holiday Shift Policy</label>
+                            <select id="rule-holiday-policy" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                                <option value="COMP_OFF_CREDIT" {% if settings.get('holiday_shift_policy') == 'COMP_OFF_CREDIT' %}selected{% endif %}>Compensatory Off Credit (1:1)</option>
+                                <option value="OVERTIME_PAY" {% if settings.get('holiday_shift_policy') == 'OVERTIME_PAY' %}selected{% endif %}>Overtime Allowance Pay</option>
+                                <option value="NONE" {% if settings.get('holiday_shift_policy') == 'NONE' %}selected{% endif %}>Standard Shift Duty</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Daily Absenteeism & Leave Cap (%)</label>
+                            <input type="number" step="0.5" id="rule-leave-cap" value="{{ settings.get('daily_leave_cap_percentage', '15.0') }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                            <p class="text-[10px] text-slate-400 mt-1">Maximum percentage of staff permitted on leave simultaneously.</p>
+                        </div>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                        <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition">
+                            Save Roster Rules
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- MODULE 11: ATTENDANCE SETTINGS -->
+            <div id="acc-panel-attendance_rules" class="acc-module-panel hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="check-square" class="w-4 h-4 text-amber-600"></i>
+                            <span>Attendance & Punctuality Policies</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Grace periods, half-day hour thresholds, auto-clockout, and biometric/web check-in rules.</p>
+                    </div>
+                </div>
+
+                <form id="attendance-rules-form" onsubmit="saveAttendanceRules(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Late Check-in Grace Period (Minutes)</label>
+                            <input type="number" id="att-grace-period" value="{{ settings.get('attendance_grace_mins', '15') }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                            <p class="text-[10px] text-slate-400 mt-1">Check-ins beyond this window are flagged as Late.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Half-Day Work Hours Threshold</label>
+                            <input type="number" step="0.5" id="att-half-day-hrs" value="{{ settings.get('half_day_hours', '4.5') }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                            <p class="text-[10px] text-slate-400 mt-1">Shifts below these active hours count as Half Day.</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Full-Day Minimum Work Hours</label>
+                            <input type="number" step="0.5" id="att-full-day-hrs" value="{{ settings.get('full_day_hours', '8.0') }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Night Shift Allowance System</label>
+                            <select id="att-night-allowance" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                                <option value="ENABLED" {% if settings.get('auto_night_shift_allowance') == 'ENABLED' %}selected{% endif %}>Enabled (Calculated per shift)</option>
+                                <option value="DISABLED" {% if settings.get('auto_night_shift_allowance') == 'DISABLED' %}selected{% endif %}>Disabled</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                        <button type="submit" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold shadow-sm transition">
+                            Save Attendance Policies
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- MODULE 12: LEAVE MANAGEMENT -->
+            <div id="acc-panel-leaves" class="acc-module-panel hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="plane-takeoff" class="w-4 h-4 text-blue-600"></i>
+                            <span>Enterprise Leave Quotas & Balances</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Annual entitlement rules, approval queues, and carry-forward limits.</p>
+                    </div>
+                    <a href="/leaves" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                        <span>Leave Desk & Approvals</span>
+                    </a>
+                </div>
+
+                <form id="leave-quotas-form" onsubmit="saveLeaveQuotas(event)" class="space-y-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Annual Casual Leave (CL)</label>
+                            <input type="number" step="0.5" id="quota-cl" value="{{ settings.get('annual_cl_quota', '12.0') }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Annual Sick Leave (SL)</label>
+                            <input type="number" step="0.5" id="quota-sl" value="{{ settings.get('annual_sl_quota', '9.0') }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Annual Privilege Leave (PL)</label>
+                            <input type="number" step="0.5" id="quota-pl" value="{{ settings.get('annual_pl_quota', '15.0') }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                        </div>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                        <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition">
+                            Save Leave Quotas
+                        </button>
+                    </div>
+                </form>
+
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Pending Leave Applications Requiring Attention</h3>
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="p-3">Ref ID</th>
+                                <th class="p-3">Employee</th>
+                                <th class="p-3">Leave Type</th>
+                                <th class="p-3">Period</th>
+                                <th class="p-3">Duration</th>
+                                <th class="p-3">Reason</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-normal">
+                            {% for lr in leave_requests_pending %}
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="p-3 font-mono font-bold text-blue-600">{{ lr.application_number or lr.id }}</td>
+                                <td class="p-3 font-semibold text-slate-900 dark:text-white">{{ lr.user.name if lr.user else 'Unknown' }}</td>
+                                <td class="p-3 font-bold text-slate-700 dark:text-slate-300">{{ lr.leave_type }}</td>
+                                <td class="p-3 text-slate-500">{{ lr.start_date }} to {{ lr.end_date }}</td>
+                                <td class="p-3 font-bold text-slate-900 dark:text-white">{{ lr.duration_days }} day(s)</td>
+                                <td class="p-3 text-slate-500 max-w-xs truncate">{{ lr.reason }}</td>
+                                <td class="p-3">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">{{ lr.status }}</span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="p-6 text-center text-slate-400 italic">No pending leave requests in the queue.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MODULE 13: HOLIDAY CALENDARS -->
+            <div id="acc-panel-holidays" class="acc-module-panel hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-pink-600"></i>
+                            <span>Enterprise Holiday Calendars</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">National, state, and location-specific official holiday schedule.</p>
+                    </div>
+                    <button type="button" onclick="document.getElementById('add-holiday-form-box').classList.toggle('hidden')" class="px-3.5 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>Add Holiday</span>
+                    </button>
+                </div>
+
+                <!-- Add Holiday Form (Collapsible) -->
+                <div id="add-holiday-form-box" class="hidden p-4 mb-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+                    <form onsubmit="createHolidayAcc(event)" class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Holiday Title</label>
+                            <input type="text" id="new-hol-name" required placeholder="e.g. Independence Day" class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Date</label>
+                            <input type="date" id="new-hol-date" required class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                            <select id="new-hol-type" class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                                <option value="NATIONAL">National Public Holiday</option>
+                                <option value="STATE">State / Regional Holiday</option>
+                                <option value="OPTIONAL">Optional / Restricted</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button type="submit" class="w-full py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-semibold transition">
+                                Save Holiday
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Holiday Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="p-3">Holiday Name</th>
+                                <th class="p-3">Date</th>
+                                <th class="p-3">Category</th>
+                                <th class="p-3">Type</th>
+                                <th class="p-3">Location Scoping</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-normal">
+                            {% for h in holidays %}
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="p-3 font-bold text-slate-900 dark:text-white">{{ h.name }}</td>
+                                <td class="p-3 font-mono text-slate-700 dark:text-slate-300">{{ h.date.strftime('%d %b %Y') if h.date else '' }}</td>
+                                <td class="p-3 font-semibold text-slate-600 dark:text-slate-400">{{ h.holiday_type or 'NATIONAL' }}</td>
+                                <td class="p-3">
+                                    {% if h.optional_flag %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">Optional / RH</span>
+                                    {% else %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">Mandatory Public</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 text-slate-500">{{ h.location.name if h.location else 'All Locations' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="p-6 text-center text-slate-400 italic">No holidays configured yet. Click 'Add Holiday' above.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- MODULE 15: DATABASE & SYSTEM HEALTH -->
             <div id="acc-panel-system_health" class="acc-module-panel hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
                 <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-1">
@@ -675,6 +1230,193 @@ async function executeEmployeeTransfer(e) {
         showAccAlert('Network error executing transfer.', false);
     }
 }
+
+async function saveGlobalConfig(e) {
+    e.preventDefault();
+    const payload = {
+        category: 'global',
+        settings: {
+            'default_timezone': document.getElementById('cfg-timezone').value.trim(),
+            'default_date_format': document.getElementById('cfg-date-format').value,
+            'financial_year': document.getElementById('cfg-financial-year').value.trim(),
+            'session_timeout_mins': document.getElementById('cfg-session-timeout').value.trim()
+        }
+    };
+    try {
+        const res = await fetch('/api/admin/settings/batch-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showAccAlert('Global enterprise configuration saved successfully!', true);
+        } else {
+            showAccAlert(data.detail || 'Failed to save configuration.', false);
+        }
+    } catch (err) {
+        showAccAlert('Network error saving global configuration.', false);
+    }
+}
+
+async function createDepartmentAcc(e) {
+    e.preventDefault();
+    const payload = {
+        name: document.getElementById('new-dept-name').value.trim(),
+        code: document.getElementById('new-dept-code').value.trim(),
+        location_id: document.getElementById('new-dept-loc').value || null
+    };
+    try {
+        const res = await fetch('/api/admin/departments/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showAccAlert(data.message, true);
+            setTimeout(() => window.location.reload(), 1200);
+        } else {
+            showAccAlert(data.detail || 'Failed to create department.', false);
+        }
+    } catch (err) {
+        showAccAlert('Network error creating department.', false);
+    }
+}
+
+async function createTeamAcc(e) {
+    e.preventDefault();
+    const payload = {
+        department_id: document.getElementById('new-team-dept').value,
+        name: document.getElementById('new-team-name').value.trim(),
+        code: document.getElementById('new-team-code').value.trim()
+    };
+    try {
+        const res = await fetch('/api/admin/teams/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showAccAlert(data.message, true);
+            setTimeout(() => window.location.reload(), 1200);
+        } else {
+            showAccAlert(data.detail || 'Failed to create team.', false);
+        }
+    } catch (err) {
+        showAccAlert('Network error creating team.', false);
+    }
+}
+
+async function saveRosterRules(e) {
+    e.preventDefault();
+    const payload = {
+        category: '24x7_rules',
+        settings: {
+            'min_rest_hours_between_shifts': document.getElementById('rule-min-rest').value.trim(),
+            'max_consecutive_night_shifts': document.getElementById('rule-max-nights').value.trim(),
+            'holiday_shift_policy': document.getElementById('rule-holiday-policy').value,
+            'daily_leave_cap_percentage': document.getElementById('rule-leave-cap').value.trim()
+        }
+    };
+    try {
+        const res = await fetch('/api/admin/settings/batch-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showAccAlert('Roster and 24x7 rotation rules saved successfully!', true);
+        } else {
+            showAccAlert(data.detail || 'Failed to save roster rules.', false);
+        }
+    } catch (err) {
+        showAccAlert('Network error saving roster rules.', false);
+    }
+}
+
+async function saveAttendanceRules(e) {
+    e.preventDefault();
+    const payload = {
+        category: 'attendance_rules',
+        settings: {
+            'attendance_grace_mins': document.getElementById('att-grace-period').value.trim(),
+            'half_day_hours': document.getElementById('att-half-day-hrs').value.trim(),
+            'full_day_hours': document.getElementById('att-full-day-hrs').value.trim(),
+            'auto_night_shift_allowance': document.getElementById('att-night-allowance').value
+        }
+    };
+    try {
+        const res = await fetch('/api/admin/settings/batch-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showAccAlert('Attendance and punctuality policies saved successfully!', true);
+        } else {
+            showAccAlert(data.detail || 'Failed to save attendance policies.', false);
+        }
+    } catch (err) {
+        showAccAlert('Network error saving attendance policies.', false);
+    }
+}
+
+async function saveLeaveQuotas(e) {
+    e.preventDefault();
+    const payload = {
+        category: 'quotas',
+        settings: {
+            'annual_cl_quota': document.getElementById('quota-cl').value.trim(),
+            'annual_sl_quota': document.getElementById('quota-sl').value.trim(),
+            'annual_pl_quota': document.getElementById('quota-pl').value.trim()
+        }
+    };
+    try {
+        const res = await fetch('/api/admin/settings/batch-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showAccAlert('Annual leave quotas saved successfully!', true);
+        } else {
+            showAccAlert(data.detail || 'Failed to save leave quotas.', false);
+        }
+    } catch (err) {
+        showAccAlert('Network error saving leave quotas.', false);
+    }
+}
+
+async function createHolidayAcc(e) {
+    e.preventDefault();
+    const payload = {
+        name: document.getElementById('new-hol-name').value.trim(),
+        date: document.getElementById('new-hol-date').value,
+        holiday_type: document.getElementById('new-hol-type').value
+    };
+    try {
+        const res = await fetch('/api/admin/holidays/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            showAccAlert(data.message, true);
+            setTimeout(() => window.location.reload(), 1200);
+        } else {
+            showAccAlert(data.detail || 'Failed to save holiday.', false);
+        }
+    } catch (err) {
+        showAccAlert('Network error saving holiday.', false);
+    }
+}
+
 </script>
 {% endblock %}
 
