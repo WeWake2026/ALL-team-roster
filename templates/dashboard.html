@@ -1152,7 +1152,7 @@ class WeeklyDateRangePicker {
                     </button>
                     <div class="relative flex items-center px-2 cursor-pointer group" title="Click to choose custom date">
                         <span class="text-slate-800 dark:text-slate-100 font-semibold">${this.formatDisplay(monday)} – ${this.formatDisplay(sunday)} ${sunday.getFullYear()}</span>
-                        <input type="date" class="week-native-picker absolute inset-0 opacity-0 cursor-pointer w-full" value="${this.selectedDayStr}">
+                        <input type="date" aria-label="Select week date" class="week-native-picker absolute inset-0 opacity-0 cursor-pointer w-full" value="${this.selectedDayStr}">
                     </div>
                     <button type="button" class="btn-next-week p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition" title="Next Week">
                         <i data-lucide="chevron-right" class="w-4 h-4"></i>

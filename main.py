@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse,
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, text
 
 import models
 import attendance_service
@@ -17,6 +17,7 @@ from database import engine, get_db, Base
 from auth import (
     get_password_hash,
     verify_password,
+    needs_rehash,
     get_current_user_from_cookie,
     require_auth,
     require_admin,
@@ -45,6 +46,55 @@ app = FastAPI(title="ShiftFlow Pro - MSEDCL Workforce & Leave Portal")
 
 # High-Performance Server Compression (Reduces large HTML payloads by ~80%, eliminating lag)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# OWASP ASVS Security Headers Middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    if os.getenv("ENVIRONMENT") == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+# Dynamic Production Cookie Flag
+IS_PRODUCTION_ENV = os.getenv("ENVIRONMENT", "development").lower() == "production"
+
+# Integration of Centralized Logging
+from logging_config import log_event, app_logger
+
+# Correlation ID Middleware
+@app.middleware("http")
+async def correlation_id_middleware(request: Request, call_next):
+    corr_id = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())[:8]
+    request.state.correlation_id = corr_id
+    response = await call_next(request)
+    response.headers["X-Correlation-ID"] = corr_id
+    return response
+
+# Liveness Probe Endpoint (Lightweight container / load-balancer check)
+@app.get("/health")
+def liveness_probe():
+    return {"status": "ok", "service": "shiftflow-pro"}
+
+# Readiness Probe Endpoint (Verifies DB connection and critical dependencies without secrets)
+@app.get("/ready")
+def readiness_probe(db: Session = Depends(get_db)):
+    try:
+        # Check SQLite connection and schema accessibility
+        db.execute(text("SELECT 1")).scalar()
+        return {
+            "status": "ready",
+            "database": "connected",
+            "journal_mode": "WAL",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        app_logger.error(f"Readiness check failed: {e}")
+        return JSONResponse(status_code=503, content={"status": "not_ready", "error": "database_unavailable"})
 
 # Static files & Jinja2 Templates
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -343,6 +393,11 @@ def login_action(
             }
         )
 
+    # Transparently upgrade legacy SHA-256 or plain text hash to secure Bcrypt
+    if needs_rehash(user.hashed_password):
+        user.hashed_password = get_password_hash(password)
+        db.commit()
+
     if not user.is_active:
         return templates.TemplateResponse(
             request=request,
@@ -409,6 +464,7 @@ def login_action(
         key="user_id",
         value=str(user.id),
         httponly=True,
+        secure=IS_PRODUCTION_ENV,
         max_age=86400 * 7,
         path="/",
         samesite="lax"
@@ -417,6 +473,7 @@ def login_action(
         key="session_log_id",
         value=str(session_log.id),
         httponly=True,
+        secure=IS_PRODUCTION_ENV,
         max_age=86400 * 7,
         path="/",
         samesite="lax"
@@ -426,6 +483,7 @@ def login_action(
             key="active_location_id",
             value=str(target_loc_id),
             httponly=False,
+            secure=IS_PRODUCTION_ENV,
             max_age=86400 * 7,
             path="/",
             samesite="lax"
@@ -1141,7 +1199,7 @@ def roster_matrix(
             u_query = u_query.filter(models.User.location == user.location)
     elif perms.is_team_leader and not (perms.is_admin or perms.is_hr):
         if perms.assigned_employee_ids:
-            u_query = u_query.filter(models.User.id.in_(perms.assigned_employee_ids + [user.id]))
+            u_query = u_query.filter(models.User.id.in_(set(perms.assigned_employee_ids) | {user.id}))
         elif user.team_id:
             u_query = u_query.filter(models.User.team_id == user.team_id)
         elif user.location:
@@ -1409,6 +1467,9 @@ def create_shift_swap(
         s_date = datetime.strptime(shift_date.strip(), "%Y-%m-%d").date()
     except Exception:
         return RedirectResponse("/roster/swaps?alert_msg=Invalid+date+format&alert_type=error", status_code=302)
+
+    if target_user_id == user.id:
+        return RedirectResponse("/roster/swaps?alert_msg=Cannot+swap+shifts+with+yourself&alert_type=error", status_code=302)
 
     target_emp = db.query(models.User).filter(models.User.id == target_user_id).first()
     if not target_emp:
@@ -2159,6 +2220,11 @@ def review_leave(
         leave_req.reviewer_comment = comment or "Cancellation rejected. Leave remains in force."
 
     elif action == "Approve":
+        if prev_status == "Approved":
+            return RedirectResponse(
+                url="/leaves?alert_msg=Notice:+This+leave+request+has+already+been+approved.&alert_type=info",
+                status_code=status.HTTP_302_FOUND
+            )
         leave_req.status = "Approved"
         leave_req.reviewer_comment = comment or "Approved by operations lead"
         leave_req.reviewed_by = user.name
@@ -5203,6 +5269,8 @@ def signout_other_sessions_api(
         for sess in query.all():
             sess.is_active_session = False
             sess.logout_time = now
+            if sess.login_time:
+                sess.duration_seconds = max(0, int((now - sess.login_time).total_seconds()))
 
         db.commit()
         return {"success": True, "message": "All other sessions signed out successfully."}

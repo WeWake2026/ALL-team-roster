@@ -665,7 +665,7 @@
             </button>
         </div>
 
-        <form id="edit-leave-form" action="/leaves/edit" method="POST" enctype="multipart/form-data" class="mt-5 space-y-4 text-xs" onsubmit="return confirm('Save modifications to this leave application? If previously pending, reviewers will be re-notified.');">
+        <form id="edit-leave-form" action="/leaves/edit" method="POST" enctype="multipart/form-data" class="mt-5 space-y-4 text-xs" onsubmit="const s = document.getElementById('edit_start_date').value; const e = document.getElementById('edit_end_date').value; if (s && e && e < s) { alert('Invalid date range: End date cannot be before Start date.'); return false; } return confirm('Save modifications to this leave application? If previously pending, reviewers will be re-notified.');">
             <input type="hidden" id="edit_request_id" name="request_id" value="">
 
             <!-- Day Part Selector -->
@@ -982,6 +982,12 @@ function handleEditDayPartChange(val) {
     }
 
     function validateLeaveForm() {
+        const startInput = document.getElementById('start_date').value;
+        const endInput = document.getElementById('end_date').value;
+        if (startInput && endInput && endInput < startInput) {
+            alert('Invalid date range: End date cannot be before Start date.');
+            return false;
+        }
         const duration = calculateDuration();
         const isValid = checkBalanceExceeded(duration);
         if (!isValid) {

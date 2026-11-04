@@ -127,7 +127,7 @@
                             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
                                 Enterprise Official Name <span class="text-slate-400 font-normal">(Read-Only)</span>
                             </label>
-                            <input type="text" value="{{ user.name }}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
+                            <input type="text" id="profile_full_name" name="profile_full_name" aria-label="Official Full Name" value="{{ user.name }}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
                         </div>
 
                         <!-- Employee ID (Read-Only) -->
@@ -135,7 +135,7 @@
                             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
                                 Employee ID / Unique ID <span class="text-slate-400 font-normal">(Read-Only)</span>
                             </label>
-                            <input type="text" value="{{ user.unique_id }}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
+                            <input type="text" id="profile_emp_id" name="profile_emp_id" aria-label="Employee ID" value="{{ user.unique_id }}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
                         </div>
 
                         <!-- Email (Read-Only) -->
@@ -143,7 +143,7 @@
                             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
                                 Work Email Address <span class="text-slate-400 font-normal">(Read-Only)</span>
                             </label>
-                            <input type="email" value="{{ user.email }}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
+                            <input type="email" id="profile_email" name="profile_email" aria-label="Work Email Address" value="{{ user.email }}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
                         </div>
 
                         <!-- Assigned Role Title (Read-Only) -->
@@ -151,7 +151,7 @@
                             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
                                 Assigned Job Title / Role <span class="text-slate-400 font-normal">(Read-Only)</span>
                             </label>
-                            <input type="text" value="{{ user.role_title }}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
+                            <input type="text" id="profile_role_title" name="profile_role_title" aria-label="Job Role" value="{{ user.role_title }}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
                         </div>
 
                         <!-- Assigned Team / Dept (Read-Only) -->
@@ -159,7 +159,7 @@
                             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
                                 Assigned Team & Department <span class="text-slate-400 font-normal">(Read-Only)</span>
                             </label>
-                            <input type="text" value="{% if user.team_rel %}{{ user.team_rel.name }}{% else %}{{ user.department or 'Operations' }}{% endif %}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
+                            <input type="text" id="profile_department" name="profile_department" aria-label="Department / Team" value="{% if user.team_rel %}{{ user.team_rel.name }}{% else %}{{ user.department or 'Operations' }}{% endif %}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
                         </div>
 
                         <!-- Work Location (Read-Only) -->
@@ -167,7 +167,7 @@
                             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">
                                 Operations Location <span class="text-slate-400 font-normal">(Read-Only)</span>
                             </label>
-                            <input type="text" value="{% if user.work_location %}{{ user.work_location.name }}{% else %}{{ user.location or 'Mumbai' }}{% endif %}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
+                            <input type="text" id="profile_location" name="profile_location" aria-label="Base Location" value="{% if user.work_location %}{{ user.work_location.name }}{% else %}{{ user.location or 'Mumbai' }}{% endif %}" disabled class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed">
                         </div>
                     </div>
 
@@ -443,7 +443,7 @@
                         </label>
 
                         <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 opacity-80 cursor-not-allowed">
-                            <input type="checkbox" checked disabled class="mt-0.5 w-4 h-4 text-slate-400 rounded cursor-not-allowed">
+                            <input type="checkbox" id="notif_security_lock" name="notif_security_lock" aria-label="Critical Security Alerts Required" checked disabled class="mt-0.5 w-4 h-4 text-slate-400 rounded cursor-not-allowed">
                             <div>
                                 <p class="text-xs font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
                                     <span>Mandatory Compliance & Holiday Bulletins</span>

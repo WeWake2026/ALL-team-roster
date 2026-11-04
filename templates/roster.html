@@ -153,7 +153,7 @@
                 <div id="shift-dropdown" class="hidden absolute left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-2.5 z-30 max-h-56 overflow-y-auto space-y-1.5 custom-scrollbar">
                     {% for s in available_shifts %}
                     <label class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-xs">
-                        <input type="checkbox" value="{{ s }}" onchange="applyDynamicFilters()" class="shift-checkbox rounded text-blue-600 focus:ring-blue-500">
+                        <input type="checkbox" value="{{ s }}" aria-label="Filter shift {{ s }}" onchange="applyDynamicFilters()" class="shift-checkbox rounded text-blue-600 focus:ring-blue-500">
                         <span class="text-slate-700 dark:text-slate-300 font-mono text-[11px]">{{ s }}</span>
                     </label>
                     {% endfor %}
@@ -171,7 +171,7 @@
                 <div id="role-dropdown" class="hidden absolute left-0 right-0 mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-2.5 z-30 max-h-56 overflow-y-auto space-y-1.5 custom-scrollbar">
                     {% for r in available_roles %}
                     <label class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-xs">
-                        <input type="checkbox" value="{{ r }}" onchange="applyDynamicFilters()" class="role-checkbox rounded text-blue-600 focus:ring-blue-500">
+                        <input type="checkbox" value="{{ r }}" aria-label="Filter role {{ r }}" onchange="applyDynamicFilters()" class="role-checkbox rounded text-blue-600 focus:ring-blue-500">
                         <span class="text-slate-700 dark:text-slate-300 text-[11px] font-medium">{{ r }}</span>
                     </label>
                     {% endfor %}

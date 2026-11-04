@@ -8,16 +8,39 @@ from sqlalchemy import or_, and_
 from database import get_db
 import models
 
-# ----------------- PASSWORDS & HASHING ----------------- #
+# ----------------- PASSWORDS & HASHING (ARGON2 / BCRYPT WITH BACKWARD COMPATIBILITY) ----------------- #
+import bcrypt
+
+SALT_SHA256 = "msedcl_shiftflow_secure_salt_2026"
 
 def get_password_hash(password: str) -> str:
-    """Generate secure SHA-256 salted hash"""
-    salt = "msedcl_shiftflow_secure_salt_2026"
-    return hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
+    """Generate secure Bcrypt hash (work factor 12)"""
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
+
+def needs_rehash(hashed_password: str) -> bool:
+    """Check if hash is legacy SHA-256 or plain text that requires upgrading to Bcrypt"""
+    if not hashed_password:
+        return True
+    return not (hashed_password.startswith("$2b$") or hashed_password.startswith("$2a$") or hashed_password.startswith("$2y$"))
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password against stored hash or fallback"""
-    return get_password_hash(plain_password) == hashed_password or plain_password == hashed_password
+    """Verify password against Bcrypt hash, fallback to legacy SHA-256 salted hash or plain text"""
+    if not hashed_password or not plain_password:
+        return False
+    # 1. Bcrypt check
+    if hashed_password.startswith(("$2b$", "$2a$", "$2y$")):
+        try:
+            return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+        except Exception:
+            return False
+    # 2. Legacy salted SHA-256 fallback
+    legacy_sha = hashlib.sha256((plain_password + SALT_SHA256).encode('utf-8')).hexdigest()
+    if legacy_sha == hashed_password:
+        return True
+    # 3. Plain text legacy fallback
+    return plain_password == hashed_password
 
 # ----------------- SESSION AUTH ----------------- #
 

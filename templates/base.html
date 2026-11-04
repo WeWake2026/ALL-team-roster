@@ -33,6 +33,8 @@
             }
         }
     </script>
+    <!-- ShiftFlow Pro Design System Tokens & Micro-interactions -->
+    <link rel="stylesheet" href="/static/css/shiftflow-design-system.css">
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1074,7 +1076,7 @@ primaryContainer.innerHTML = pinnedModules.map(m => createSidebarItemHtml(m)).jo
                                 <span class="text-[10px] text-slate-400 block">${m.category} Module</span>
                             </div>
                         </div>
-                        <input type="checkbox" value="${m.id}" onchange="handleCustomizerCheckboxChange(this)" ${isChecked ? 'checked' : ''}
+                        <input type="checkbox" aria-label="Pin module ${m.name}" value="${m.id}" onchange="handleCustomizerCheckboxChange(this)" ${isChecked ? 'checked' : ''}
                             class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
                     </label>
                 `;
