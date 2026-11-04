@@ -447,14 +447,20 @@
                     </label>
                     <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">Admin / Management Action</span>
                 </div>
-                <select name="target_user_id" id="target_user_id" onchange="handleTargetEmployeeChange(this.value)" class="w-full p-2.5 bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-semibold focus:ring-2 focus:ring-indigo-500">
-                    <option value="{{ user.id }}">Apply For Myself ({{ user.name }} - {{ user.unique_id }})</option>
-                    {% for emp in all_staff %}
-                    {% if emp.id != user.id %}
-                    <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.unique_id }}) • {{ emp.location }}</option>
-                    {% endif %}
-                    {% endfor %}
-                </select>
+                <div class="space-y-1.5">
+                    <div class="relative">
+                        <i data-lucide="search" class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="leave-target-emp-search" oninput="filterLeaveTargetStaff(this.value)" placeholder="Search employee by name, unique ID, location..." class="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:ring-1 focus:ring-indigo-500">
+                    </div>
+                    <select name="target_user_id" id="target_user_id" onchange="handleTargetEmployeeChange(this.value)" class="w-full p-2 bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-700 rounded-xl text-slate-800 dark:text-slate-200 text-xs font-semibold focus:ring-2 focus:ring-indigo-500">
+                        <option value="{{ user.id }}" data-text="{{ user.name|lower }} {{ user.unique_id|lower }}">Apply For Myself ({{ user.name }} - {{ user.unique_id }})</option>
+                        {% for emp in all_staff %}
+                        {% if emp.id != user.id %}
+                        <option value="{{ emp.id }}" data-text="{{ emp.name|lower }} {{ emp.unique_id|lower }} {{ (emp.location or '')|lower }}">{{ emp.name }} ({{ emp.unique_id }}) • {{ emp.location }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
                 <div>
                     <label class="block text-[11px] font-semibold text-indigo-900 dark:text-indigo-300 mb-1">
                         Admin / Senior Handover Remark (Reason Mention for Seniors)
@@ -1131,5 +1137,29 @@ function handleEditDayPartChange(val) {
             container.innerHTML = `<p class="text-xs text-rose-500 text-center py-4">Error loading audit history: ${err.message}</p>`;
         }
     }
+
+function filterLeaveTargetStaff(query) {
+    const q = query.trim().toLowerCase();
+    const select = document.getElementById('target_user_id');
+    const options = select.getElementsByTagName('option');
+    let firstVisible = null;
+
+    for (let opt of options) {
+        const text = opt.getAttribute('data-text') || opt.textContent.toLowerCase();
+        if (!q || text.includes(q)) {
+            opt.style.display = '';
+            if (!firstVisible) firstVisible = opt;
+        } else {
+            opt.style.display = 'none';
+        }
+    }
+    if (firstVisible && select.selectedOptions[0]?.style.display === 'none') {
+        select.value = firstVisible.value;
+        if (typeof handleTargetEmployeeChange === 'function') {
+            handleTargetEmployeeChange(firstVisible.value);
+        }
+    }
+}
+
 </script>
 {% endblock %}

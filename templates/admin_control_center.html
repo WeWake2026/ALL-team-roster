@@ -425,12 +425,23 @@
                     <h3 class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">Initiate Operational Transfer</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Select Employee</label>
-                            <select id="transfer-user-id" required class="w-full px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
-                                {% for emp in sample_employees %}
-                                <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.unique_id }})</option>
-                                {% endfor %}
-                            </select>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">Select Employee</label>
+                                <span id="transfer-emp-count" class="text-[10px] text-slate-400 font-mono">{{ all_users|length }} available</span>
+                            </div>
+                            <div class="space-y-1.5">
+                                <div class="relative">
+                                    <i data-lucide="search" class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                                    <input type="text" id="transfer-emp-search" oninput="filterTransferEmployees(this.value)" placeholder="Search employee name, code, or role..." class="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-1 focus:ring-cyan-500">
+                                </div>
+                                <select id="transfer-user-id" required size="5" class="w-full px-2 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white overflow-y-auto">
+                                    {% for emp in all_users %}
+                                    <option value="{{ emp.id }}" data-text="{{ emp.name|lower }} {{ (emp.employee_code or emp.unique_id or '')|lower }} {{ (emp.role or '')|lower }}" {% if loop.first %}selected{% endif %}>
+                                        {{ emp.name }} ({{ emp.employee_code or emp.unique_id }}) - {{ emp.role }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Destination Location</label>
@@ -691,7 +702,7 @@
 
             <!-- MODULE 7: EMPLOYEE DIRECTORY -->
             <div id="acc-panel-employees" class="acc-module-panel hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-4 gap-3">
                     <div>
                         <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <i data-lucide="users" class="w-4 h-4 text-purple-600"></i>
@@ -699,8 +710,12 @@
                         </h2>
                         <p class="text-xs text-slate-500 mt-0.5">Comprehensive roster of active workforce members, assignments, roles, and status.</p>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <a href="/admin/users" class="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+                    <div class="flex items-center gap-2.5">
+                        <div class="relative w-64">
+                            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="dir-emp-search" oninput="filterDirectoryEmployees(this.value)" placeholder="Search employees by name, role, code..." class="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:ring-1 focus:ring-purple-500">
+                        </div>
+                        <a href="/admin/users" class="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shrink-0">
                             <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
                             <span>Full User Admin</span>
                         </a>
@@ -720,8 +735,8 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-normal">
-                            {% for emp in all_users[:50] %}
-                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                            {% for emp in all_users %}
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 dir-emp-row" data-search="{{ emp.name|lower }} {{ (emp.employee_code or emp.unique_id or emp.username or '')|lower }} {{ (emp.role or '')|lower }} {{ (emp.location_rel.name if emp.location_rel else '')|lower }} {{ (emp.dept_rel.name if emp.dept_rel else '')|lower }}">
                                 <td class="p-3 font-semibold text-slate-900 dark:text-white">
                                     <div class="flex items-center gap-2">
                                         <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-bold flex items-center justify-center text-[10px]">
@@ -1415,6 +1430,40 @@ async function createHolidayAcc(e) {
     } catch (err) {
         showAccAlert('Network error saving holiday.', false);
     }
+}
+
+
+function filterTransferEmployees(query) {
+    const q = query.trim().toLowerCase();
+    const select = document.getElementById('transfer-user-id');
+    const options = select.getElementsByTagName('option');
+    let visibleCount = 0;
+    let firstVisible = null;
+
+    for (let opt of options) {
+        const text = opt.getAttribute('data-text') || opt.textContent.toLowerCase();
+        if (!q || text.includes(q)) {
+            opt.style.display = '';
+            visibleCount++;
+            if (!firstVisible) firstVisible = opt;
+        } else {
+            opt.style.display = 'none';
+        }
+    }
+    const countBadge = document.getElementById('transfer-emp-count');
+    if (countBadge) countBadge.textContent = visibleCount + ' matching';
+    if (firstVisible && (!select.value || select.selectedOptions[0]?.style.display === 'none')) {
+        firstVisible.selected = true;
+    }
+}
+
+function filterDirectoryEmployees(query) {
+    const q = query.trim().toLowerCase();
+    const rows = document.querySelectorAll('.dir-emp-row');
+    rows.forEach(r => {
+        const text = r.getAttribute('data-search') || r.textContent.toLowerCase();
+        r.style.display = (!q || text.includes(q)) ? '' : 'none';
+    });
 }
 
 </script>
