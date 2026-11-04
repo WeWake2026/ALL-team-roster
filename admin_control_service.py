@@ -223,3 +223,4 @@ def get_location_breakdowns(db: Session) -> List[Dict[str, Any]]:
             "upcoming_holidays": [{"name": h.name, "date": h.date.strftime('%d %b %Y')} for h in loc_holidays]
         })
     return results
+

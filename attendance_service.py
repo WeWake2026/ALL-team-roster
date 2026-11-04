@@ -254,7 +254,7 @@ def compute_user_monthly_attendance(user_id: int, year: int, month: int, db: Ses
             "work_hours": work_hours_str,
             "status_text": status_str,
             "holiday_name": holiday_name,
-            "notes": w_sess.notes if w_sess and w_sess.notes else ("" if not holiday_name else f"Holiday: {holiday_name}")
+            "notes": w_sess.manager_notes if w_sess and w_sess.manager_notes else ("" if not holiday_name else f"Holiday: {holiday_name}")
         })
 
     # Total work hours string
