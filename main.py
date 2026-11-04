@@ -4722,6 +4722,286 @@ async def save_user_preferences_api(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to save preferences: {str(e)}")
 
+# ================= DEDICATED USER SETTINGS & PREFERENCES ================= #
+
+@app.get("/settings", response_class=HTMLResponse)
+def user_settings_page(
+    request: Request,
+    user: models.User = Depends(require_auth),
+    perms: get_user_perms = Depends(get_user_perms),
+    db: Session = Depends(get_db)
+):
+    """
+    Dedicated User Settings page for each signed-in user to manage their own
+    account profile, security credentials, and personal preferences.
+    Separated from Admin controls.
+    """
+    pref = db.query(models.UserPreference).filter(models.UserPreference.user_id == user.id).first()
+    if not pref:
+        pref = models.UserPreference(
+            user_id=user.id,
+            landing_page="/dashboard",
+            default_audit_type="Inbound",
+            default_date_range="month",
+            table_page_size=25,
+            table_density="comfortable",
+            default_report_format="xlsx",
+            default_report_type="monthly_attendance",
+            export_confirmation=True,
+            work_queue_view="list",
+            work_reminders_enabled=True,
+            theme="dark",
+            font_size="normal",
+            high_contrast=False,
+            view_priority="charts_first",
+            language="en",
+            date_format="YYYY-MM-DD",
+            timezone="Asia/Kolkata"
+        )
+        db.add(pref)
+        db.commit()
+        db.refresh(pref)
+
+    # Scoped recent login sessions for this authenticated user only
+    recent_sessions = db.query(models.UserSessionLog).filter(
+        models.UserSessionLog.user_id == user.id
+    ).order_by(models.UserSessionLog.login_time.desc()).limit(15).all()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="user_settings.html",
+        context={
+            "user": user,
+            "perms": perms,
+            "pref": pref,
+            "recent_sessions": recent_sessions,
+            "active_page": "settings",
+            "pending_leave_count": get_pending_leave_count(db)
+        }
+    )
+
+@app.post("/api/user/profile")
+async def update_user_profile_api(
+    request: Request,
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """
+    Self-editing of approved profile fields (display_name, phone).
+    Employee ID, role, team, and location remain strictly read-only.
+    """
+    try:
+        data = await request.json()
+        display_name = str(data.get("display_name", "")).strip()
+        phone = str(data.get("phone", "")).strip()
+
+        if display_name:
+            user.display_name = display_name[:120]
+        if phone is not None:
+            user.phone = phone[:30]
+
+        db.commit()
+        return {"success": True, "message": "Profile updated successfully."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
+
+@app.post("/api/user/security/change-password")
+async def change_user_password_api(
+    request: Request,
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """
+    Secure password change for the authenticated user.
+    Enforces minimum 8 chars, checks current password, and hashes new password.
+    """
+    try:
+        data = await request.json()
+        current_password = data.get("current_password", "")
+        new_password = data.get("new_password", "")
+        confirm_password = data.get("confirm_password", "")
+
+        if not current_password or not new_password:
+            raise HTTPException(status_code=400, detail="Current password and new password are required.")
+
+        if new_password != confirm_password:
+            raise HTTPException(status_code=400, detail="New password and confirmation do not match.")
+
+        if len(new_password) < 8:
+            raise HTTPException(status_code=400, detail="New password must be at least 8 characters long.")
+
+        if not verify_password(current_password, user.hashed_password):
+            raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+        user.hashed_password = get_password_hash(new_password)
+        db.commit()
+
+        log_audit_event(
+            db=db,
+            actor=user,
+            action="PASSWORD_CHANGE",
+            resource_type="User",
+            resource_id=str(user.id),
+            details="User updated account password through User Settings"
+        )
+
+        return {"success": True, "message": "Password changed successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Password change error: {str(e)}")
+
+@app.post("/api/user/security/signout-other-sessions")
+def signout_other_sessions_api(
+    request: Request,
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """
+    Signs out all other active sessions for this user except current session.
+    """
+    try:
+        curr_session_id = request.cookies.get("session_log_id")
+        query = db.query(models.UserSessionLog).filter(
+            models.UserSessionLog.user_id == user.id,
+            models.UserSessionLog.is_active_session == True
+        )
+        if curr_session_id:
+            try:
+                c_id = int(curr_session_id)
+                query = query.filter(models.UserSessionLog.id != c_id)
+            except ValueError:
+                pass
+
+        now = datetime.utcnow()
+        for sess in query.all():
+            sess.is_active_session = False
+            sess.logout_time = now
+
+        db.commit()
+        return {"success": True, "message": "All other sessions signed out successfully."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error signing out sessions: {str(e)}")
+
+@app.post("/api/user/preferences/all")
+async def save_all_user_preferences_api(
+    request: Request,
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """
+    Persists personal dashboard, export, display, and regional preferences
+    strictly for the authenticated user.
+    """
+    try:
+        data = await request.json()
+        pref = db.query(models.UserPreference).filter(models.UserPreference.user_id == user.id).first()
+        if not pref:
+            pref = models.UserPreference(user_id=user.id)
+            db.add(pref)
+
+        # Dashboard prefs
+        if "landing_page" in data:
+            val = str(data["landing_page"]).strip()
+            if val in ["/dashboard", "/roster", "/leaves", "/reports"]:
+                pref.landing_page = val
+        if "default_audit_type" in data:
+            pref.default_audit_type = str(data["default_audit_type"])[:30]
+        if "default_date_range" in data:
+            pref.default_date_range = str(data["default_date_range"])[:30]
+        if "table_page_size" in data:
+            try:
+                pref.table_page_size = max(5, min(200, int(data["table_page_size"])))
+            except (ValueError, TypeError):
+                pass
+
+        # Reports & exports
+        if "default_report_format" in data:
+            fmt = str(data["default_report_format"]).lower()
+            if fmt in ["xlsx", "pdf", "csv"]:
+                pref.default_report_format = fmt
+        if "default_report_type" in data:
+            pref.default_report_type = str(data["default_report_type"])[:40]
+        if "export_confirmation" in data:
+            pref.export_confirmation = bool(data["export_confirmation"])
+
+        # My work & queue
+        if "work_queue_view" in data:
+            view = str(data["work_queue_view"]).lower()
+            if view in ["list", "calendar", "summary"]:
+                pref.work_queue_view = view
+        if "work_reminders_enabled" in data:
+            pref.work_reminders_enabled = bool(data["work_reminders_enabled"])
+
+        # Display & accessibility
+        if "theme" in data:
+            th = str(data["theme"]).lower()
+            if th in ["dark", "light"]:
+                pref.theme = th
+        if "table_density" in data:
+            pref.table_density = str(data["table_density"])[:20]
+        if "font_size" in data:
+            pref.font_size = str(data["font_size"])[:20]
+        if "view_priority" in data:
+            pref.view_priority = str(data["view_priority"])[:20]
+
+        # Language & regional
+        if "language" in data:
+            lang = str(data["language"]).lower()
+            if lang in ["en", "mr"]:
+                pref.language = lang
+        if "date_format" in data:
+            pref.date_format = str(data["date_format"])[:30]
+        if "timezone" in data:
+            pref.timezone = str(data["timezone"])[:60]
+
+        pref.updated_at = datetime.utcnow()
+        db.commit()
+
+        return {"success": True, "message": "User preferences updated successfully."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to save preferences: {str(e)}")
+
+@app.post("/api/user/preferences/reset")
+def reset_user_preferences_api(
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """
+    Resets user preferences back to system standard defaults.
+    """
+    try:
+        pref = db.query(models.UserPreference).filter(models.UserPreference.user_id == user.id).first()
+        if pref:
+            pref.landing_page = "/dashboard"
+            pref.default_audit_type = "Inbound"
+            pref.default_date_range = "month"
+            pref.table_page_size = 25
+            pref.table_density = "comfortable"
+            pref.default_report_format = "xlsx"
+            pref.default_report_type = "monthly_attendance"
+            pref.export_confirmation = True
+            pref.work_queue_view = "list"
+            pref.work_reminders_enabled = True
+            pref.theme = "dark"
+            pref.font_size = "normal"
+            pref.high_contrast = False
+            pref.view_priority = "charts_first"
+            pref.language = "en"
+            pref.date_format = "YYYY-MM-DD"
+            pref.timezone = "Asia/Kolkata"
+            pref.updated_at = datetime.utcnow()
+            db.commit()
+        return {"success": True, "message": "Preferences reset to default successfully."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Reset error: {str(e)}")
+
+
 @app.get("/api/roster/capacity")
 def api_get_roster_capacity(
     start_date: Optional[str] = None,

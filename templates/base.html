@@ -194,7 +194,7 @@
                     </div>
                 </a>
                 <!-- Settings Navigation Link -->
-                <a href="/admin/settings" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group {% if active_page == 'settings' %}bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/20{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}" title="Settings">
+                <a href="/settings" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group {% if active_page == 'settings' %}bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/20{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}" title="Settings">
                     <div class="flex items-center gap-3 overflow-hidden">
                         {% if active_page == 'settings' %}<span class="w-1.5 h-1.5 rounded-full bg-white shrink-0 animate-pulse"></span>{% endif %}
                         <i data-lucide="settings" class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"></i>
@@ -844,11 +844,11 @@
             },
             {
                 id: 'settings',
-                label: 'Settings',
-                url: '/admin/settings',
+                label: 'User Settings',
+                url: '/settings',
                 icon: 'settings',
                 activeKey: 'settings',
-                category: 'Settings',
+                category: 'Preferences',
                 roles: ['All']
             },
             {

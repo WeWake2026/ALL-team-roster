@@ -57,6 +57,8 @@ class User(Base):
     bm_id = Column(String(50), nullable=True)
     ecn = Column(String(50), nullable=True)
     name = Column(String(120), nullable=False)
+    display_name = Column(String(120), nullable=True)
+    phone = Column(String(30), nullable=True)
     email = Column(String(120), unique=True, index=True, nullable=False)
     role_title = Column(String(80), default="Agent") # e.g. QA Auditor, Senior Agent, Team Leader
     access_level = Column(String(50), default="Employee") # Super Admin, Admin, HR, Location Manager, Team Leader, Roster Coordinator, Employee
@@ -379,6 +381,28 @@ class UserPreference(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
     sidebar_pinned = Column(Text, nullable=True) # JSON list of module IDs: ["dashboard", "roster", "attendance_swaps", "leaves"]
+    
+    # User Profile & Preferences
+    landing_page = Column(String(60), default="/dashboard")
+    default_audit_type = Column(String(30), default="Inbound")
+    default_date_range = Column(String(30), default="month")
+    table_page_size = Column(Integer, default=25)
+    table_density = Column(String(20), default="comfortable")
+    card_order = Column(Text, nullable=True) # JSON list
+    saved_filters = Column(Text, nullable=True) # JSON object
+    default_report_format = Column(String(20), default="xlsx")
+    default_report_type = Column(String(40), default="monthly_attendance")
+    export_confirmation = Column(Boolean, default=True)
+    work_queue_view = Column(String(30), default="list")
+    work_reminders_enabled = Column(Boolean, default=True)
+    notifications_config = Column(Text, nullable=True) # JSON object
+    theme = Column(String(20), default="dark")
+    font_size = Column(String(20), default="normal")
+    high_contrast = Column(Boolean, default=False)
+    view_priority = Column(String(20), default="charts_first")
+    language = Column(String(10), default="en")
+    date_format = Column(String(30), default="YYYY-MM-DD")
+    timezone = Column(String(60), default="Asia/Kolkata")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
