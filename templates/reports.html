@@ -1,8 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Workforce & Operations Reports - ShiftFlow Pro{% endblock %}
+{% block title %}{% if is_management %}Workforce & Operations Reports - ShiftFlow Pro{% else %}My Personal Attendance & Performance Reports - ShiftFlow Pro{% endif %}{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
+
+{% if is_management %}
+    <!-- ================= MANAGEMENT / ADMIN WORKFORCE REPORTS ================= -->
     <!-- Header with Breadcrumbs & Action Toolbar -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -13,6 +16,7 @@
             </div>
             <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
                 <span>Roster & Staffing Intelligence Reports</span>
+                <span class="text-xs px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 font-bold uppercase tracking-wide">Management Authority</span>
             </h1>
         </div>
     </div>
@@ -109,7 +113,7 @@
         </div>
     </div>
 
-    <!-- Export & Downloads Panel -->
+    <!-- Operations Export & Downloads Panel -->
     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
         <h2 class="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
             <i data-lucide="download-cloud" class="w-4 h-4 text-emerald-600"></i>
@@ -119,9 +123,9 @@
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
                 <div>
                     <p class="font-bold text-slate-800 dark:text-white">Location-Wise Roster Master</p>
-                    <p class="text-[11px] text-slate-500 mt-1">Full 7/14 day operations schedule with shifts and week-offs.</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Full operations schedule with shifts and week-offs.</p>
                 </div>
-                <a href="/roster/export?start_date={{ today.strftime('%Y-%m-%d') }}&end_date={{ (today + 7)|string if false else today.strftime('%Y-%m-%d') }}" class="mt-4 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-1.5 transition">
+                <a href="/roster/export?start_date={{ today.strftime('%Y-%m-%d') }}&end_date={{ today.strftime('%Y-%m-%d') }}" class="mt-4 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-1.5 transition">
                     <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
                     <span>Export XLSX</span>
                 </a>
@@ -161,5 +165,350 @@
             </div>
         </div>
     </div>
+
+{% else %}
+    <!-- ================= EMPLOYEE PERSONAL REPORTING DASHBOARD ================= -->
+    <!-- Breadcrumb & Top Bar -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                <span>My Profile</span>
+                <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                <span class="text-slate-800 dark:text-slate-200 font-semibold">Personal Reports</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                <span>My Attendance & Performance Statement</span>
+            </h1>
+            <p class="text-xs text-slate-500 mt-1">Personal verified records for <strong class="text-slate-700 dark:text-slate-300">{{ user.name }}</strong> (Employee ID: {{ user.unique_id or user.id }})</p>
+        </div>
+
+        <!-- Month Navigation & Period Selector -->
+        <div class="flex flex-wrap items-center gap-2.5">
+            {% set prev_m = 12 if target_month == 1 else (target_month - 1) %}
+            {% set prev_y = (target_year - 1) if target_month == 1 else target_year %}
+            {% set next_m = 1 if target_month == 12 else (target_month + 1) %}
+            {% set next_y = (target_year + 1) if target_month == 12 else target_year %}
+
+            <div class="inline-flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-sm">
+                <a href="/reports?year={{ prev_y }}&month={{ prev_m }}" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300 transition" title="Previous Month">
+                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                </a>
+                <span class="px-3 text-xs font-bold text-slate-800 dark:text-slate-200">
+                    {{ personal_attendance.month_name }} {{ target_year }}
+                </span>
+                <a href="/reports?year={{ next_y }}&month={{ next_m }}" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-300 transition" title="Next Month">
+                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </a>
+            </div>
+
+            <!-- Export Buttons -->
+            <a href="/api/employee/attendance/export?year={{ target_year }}&month={{ target_month }}&format=xlsx" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+                <span>Excel</span>
+            </a>
+            <a href="/api/employee/attendance/export?year={{ target_year }}&month={{ target_month }}&format=pdf" class="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+                <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                <span>PDF</span>
+            </a>
+            <a href="/api/employee/attendance/export?year={{ target_year }}&month={{ target_month }}&format=csv" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+                <i data-lucide="file-code" class="w-3.5 h-3.5"></i>
+                <span>CSV</span>
+            </a>
+            <button onclick="window.print()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm transition">
+                <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                <span>Print</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Personal Monthly Attendance KPI Grid (8 Cards) -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <!-- Present Days -->
+        <div class="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-emerald-100 dark:border-emerald-950/40 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Present</span>
+            <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{{ personal_attendance.summary.present_days }}</p>
+            <span class="text-[10px] text-slate-400">Punches logged</span>
+        </div>
+
+        <!-- Absent Days -->
+        <div class="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-rose-100 dark:border-rose-950/40 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Absent</span>
+            <p class="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{{ personal_attendance.summary.absent_days }}</p>
+            <span class="text-[10px] text-slate-400">Unexcused</span>
+        </div>
+
+        <!-- Weekly Offs -->
+        <div class="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-blue-950/40 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Week Off</span>
+            <p class="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">{{ personal_attendance.summary.weekly_offs }}</p>
+            <span class="text-[10px] text-slate-400">Scheduled rest</span>
+        </div>
+
+        <!-- Holidays -->
+        <div class="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-indigo-100 dark:border-indigo-950/40 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Holidays</span>
+            <p class="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">{{ personal_attendance.summary.holidays }}</p>
+            <span class="text-[10px] text-slate-400">Paid holidays</span>
+        </div>
+
+        <!-- Approved Leave -->
+        <div class="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-purple-100 dark:border-purple-950/40 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Leaves</span>
+            <p class="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1">{{ personal_attendance.summary.approved_leave_days }}</p>
+            <span class="text-[10px] text-slate-400">Approved CL/SL</span>
+        </div>
+
+        <!-- Half Days -->
+        <div class="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-amber-100 dark:border-amber-950/40 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Half Days</span>
+            <p class="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">{{ personal_attendance.summary.half_days }}</p>
+            <span class="text-[10px] text-slate-400">&lt; 8 hrs work</span>
+        </div>
+
+        <!-- Late Marks -->
+        <div class="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-orange-100 dark:border-orange-950/40 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">Late Marks</span>
+            <p class="text-2xl font-black text-orange-600 dark:text-orange-400 mt-1">{{ personal_attendance.summary.late_marks }}</p>
+            <span class="text-[10px] text-slate-400">Grace period</span>
+        </div>
+
+        <!-- Total Work Hours -->
+        <div class="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+            <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Total Hours</span>
+            <p class="text-2xl font-black text-slate-900 dark:text-white mt-1">{{ personal_attendance.summary.total_work_hours }}</p>
+            <span class="text-[10px] text-slate-400">Effective duty</span>
+        </div>
+    </div>
+
+    <!-- Personal Leave Balances (3 Cards Matching Existing Dashboard Logic) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- 1. Casual Leave -->
+        <div class="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-blue-100 dark:border-blue-900/40 shadow-sm">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Casual Leave (CL)</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-600 dark:bg-blue-950/60">Annual</span>
+            </div>
+            <div class="flex items-baseline justify-between mt-3">
+                <p class="text-3xl font-black text-blue-600">
+                    {{ (user.balance_cl if user.balance_cl is not none else user.cl_balance or 12.0)|round(1) }}
+                </p>
+                <div class="text-right text-xs text-slate-500">
+                    <p>Eligible: <strong class="text-slate-700 dark:text-slate-300">{{ (user.eligible_cl or 12.0)|round(1) }}</strong></p>
+                    <p>Taken: <strong class="text-slate-700 dark:text-slate-300">{{ (user.taken_cl or 0.0)|round(1) }}</strong></p>
+                </div>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-3">
+                <div class="bg-blue-600 h-full rounded-full" style="width: {{ [100, (((user.balance_cl if user.balance_cl is not none else user.cl_balance or 12.0) / (user.eligible_cl or 12.0)) * 100)]|min }}%"></div>
+            </div>
+        </div>
+
+        <!-- 2. Sick Leave -->
+        <div class="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-rose-100 dark:border-rose-900/40 shadow-sm">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-rose-600 uppercase tracking-wider">Sick Leave (SL)</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-600 dark:bg-rose-950/60">Medical</span>
+            </div>
+            <div class="flex items-baseline justify-between mt-3">
+                <p class="text-3xl font-black text-rose-600">
+                    {{ (user.balance_sl if user.balance_sl is not none else user.sl_balance or 9.0)|round(1) }}
+                </p>
+                <div class="text-right text-xs text-slate-500">
+                    <p>Eligible: <strong class="text-slate-700 dark:text-slate-300">{{ (user.eligible_sl or 9.0)|round(1) }}</strong></p>
+                    <p>Taken: <strong class="text-slate-700 dark:text-slate-300">{{ (user.taken_sl or 0.0)|round(1) }}</strong></p>
+                </div>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-3">
+                <div class="bg-rose-600 h-full rounded-full" style="width: {{ [100, (((user.balance_sl if user.balance_sl is not none else user.sl_balance or 9.0) / (user.eligible_sl or 9.0)) * 100)]|min }}%"></div>
+            </div>
+        </div>
+
+        <!-- 3. Comp Off -->
+        <div class="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-amber-100 dark:border-amber-900/40 shadow-sm">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-amber-500 uppercase tracking-wider">Comp-Off (CO)</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-600 dark:bg-amber-950/60">Accrued</span>
+            </div>
+            <div class="flex items-baseline justify-between mt-3">
+                <p class="text-3xl font-black text-amber-500">
+                    {{ (user.balance_co if user.balance_co is not none else user.co_balance or 0.0)|round(1) }}
+                </p>
+                <div class="text-right text-xs text-slate-500">
+                    <p>Accrued: <strong class="text-slate-700 dark:text-slate-300">{{ (user.balance_co if user.balance_co is not none else user.co_balance or 0.0)|round(1) }}</strong></p>
+                    <p>Overtime: <strong class="text-slate-700 dark:text-slate-300">Earned</strong></p>
+                </div>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden mt-3">
+                <div class="bg-amber-500 h-full rounded-full" style="width: {{ [100, ((user.balance_co if user.balance_co is not none else user.co_balance or 0.0) * 20)]|min }}%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Daily Attendance Statement Table -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div>
+                <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
+                    <span>Daily Attendance Log – {{ personal_attendance.month_name }} {{ target_year }}</span>
+                </h2>
+                <p class="text-xs text-slate-500 mt-0.5">Complete daily breakdown of assigned shifts, biometric logs, and hours worked</p>
+            </div>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                {{ personal_attendance.daily_records|length }} Days
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+                <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 uppercase tracking-wider text-[11px] border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                        <th class="py-3 px-4">Date</th>
+                        <th class="py-3 px-4">Day</th>
+                        <th class="py-3 px-4">Roster Shift</th>
+                        <th class="py-3 px-4">First Punch In</th>
+                        <th class="py-3 px-4">Last Punch Out</th>
+                        <th class="py-3 px-4 text-center">Work Hours</th>
+                        <th class="py-3 px-4 text-center">Late Mark</th>
+                        <th class="py-3 px-4 text-right">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                    {% for rec in personal_attendance.daily_records %}
+                    <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
+                        <td class="py-3 px-4 font-mono font-semibold text-slate-900 dark:text-white">{{ rec.date_str }}</td>
+                        <td class="py-3 px-4 text-slate-500">{{ rec.weekday }}</td>
+                        <td class="py-3 px-4 font-mono text-slate-700 dark:text-slate-300">{{ rec.shift_name }}</td>
+                        <td class="py-3 px-4 font-mono text-slate-600 dark:text-slate-400">
+                            {{ rec.login_time if rec.login_time != '--' else '—' }}
+                        </td>
+                        <td class="py-3 px-4 font-mono text-slate-600 dark:text-slate-400">
+                            {{ rec.logout_time if rec.logout_time != '--' else '—' }}
+                        </td>
+                        <td class="py-3 px-4 text-center font-mono font-bold text-slate-800 dark:text-slate-200">
+                            {{ rec.work_hours if rec.work_hours != '--' else '—' }}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            {% if rec.code == 'HALF_DAY' or 'Late' in rec.notes %}
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">Late / Half</span>
+                            {% else %}
+                                <span class="text-slate-300 dark:text-slate-700">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            {% if rec.code == 'PRESENT' %}
+                                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">Present</span>
+                            {% elif rec.code == 'WEEKLY_OFF' %}
+                                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">Weekly Off</span>
+                            {% elif rec.code == 'HOLIDAY' %}
+                                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">Holiday</span>
+                            {% elif rec.code == 'APPROVED_LEAVE' %}
+                                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300">Leave (Approved)</span>
+                            {% elif rec.code == 'HALF_DAY' %}
+                                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">Half Day</span>
+                            {% elif rec.code == 'ABSENT' %}
+                                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">Absent</span>
+                            {% else %}
+                                <span class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">{{ rec.badge_label }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 2 Column Section: My Recent Shift History & My Leave History -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- My Recent Shift History -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center justify-between">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="history" class="w-4 h-4 text-blue-600"></i>
+                    <span>My Recent Shift History</span>
+                </span>
+                <span class="text-[11px] text-slate-400 font-normal">Last 30 assignments</span>
+            </h2>
+            <div class="overflow-y-auto max-h-72">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 uppercase text-[10px] sticky top-0">
+                        <tr>
+                            <th class="py-2 px-3">Date</th>
+                            <th class="py-2 px-3">Assigned Shift</th>
+                            <th class="py-2 px-3">Type</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        {% for shift in my_recent_shifts %}
+                        <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                            <td class="py-2 px-3 font-mono font-medium text-slate-800 dark:text-slate-200">{{ shift.date.strftime('%Y-%m-%d') }}</td>
+                            <td class="py-2 px-3 font-mono text-slate-700 dark:text-slate-300">{{ shift.shift_code_or_time }}</td>
+                            <td class="py-2 px-3">
+                                {% if shift.shift_code_or_time in ['WO', 'CO'] %}
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300">Rest</span>
+                                {% else %}
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-300">Duty</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="py-4 text-center text-slate-400">No shift records found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- My Leave History -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center justify-between">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="plane-takeoff" class="w-4 h-4 text-purple-600"></i>
+                    <span>My Leave History</span>
+                </span>
+                <a href="/leaves" class="text-xs text-blue-600 hover:underline">Apply Leave</a>
+            </h2>
+            <div class="overflow-y-auto max-h-72">
+                <table class="w-full text-xs text-left">
+                    <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 uppercase text-[10px] sticky top-0">
+                        <tr>
+                            <th class="py-2 px-3">Type</th>
+                            <th class="py-2 px-3">Period</th>
+                            <th class="py-2 px-3 text-center">Days</th>
+                            <th class="py-2 px-3 text-right">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                        {% for lv in my_leave_history %}
+                        <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                            <td class="py-2 px-3 font-bold text-slate-800 dark:text-slate-200">{{ lv.leave_type }}</td>
+                            <td class="py-2 px-3 font-mono text-slate-500">{{ lv.start_date.strftime('%d %b') }} - {{ lv.end_date.strftime('%d %b %Y') }}</td>
+                            <td class="py-2 px-3 text-center font-bold text-slate-700 dark:text-slate-300">{{ lv.days_requested }}</td>
+                            <td class="py-2 px-3 text-right">
+                                {% if lv.status == 'Approved' %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">Approved</span>
+                                {% elif lv.status == 'Pending' %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">Pending</span>
+                                {% elif lv.status == 'Rejected' %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">Rejected</span>
+                                {% else %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">{{ lv.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="py-4 text-center text-slate-400">No leave applications found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
 </div>
 {% endblock %}

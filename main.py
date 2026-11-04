@@ -1290,8 +1290,11 @@ def export_roster(
     end_date: str,
     role: Optional[str] = "All",
     user: models.User = Depends(require_auth),
+    perms: get_user_perms = Depends(get_user_perms),
     db: Session = Depends(get_db)
 ):
+    if not (perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader or user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader']):
+        raise HTTPException(status_code=403, detail="Access denied: Workforce Roster export is restricted to Management.")
     """Export currently filtered roster view to high-finish Excel spreadsheet"""
     try:
         s_date = datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -5258,42 +5261,68 @@ def audit_logs_page(
 @app.get("/reports", response_class=HTMLResponse)
 def reports_page(
     request: Request,
+    year: Optional[int] = None,
+    month: Optional[int] = None,
     user: models.User = Depends(require_auth),
     perms: get_user_perms = Depends(get_user_perms),
     db: Session = Depends(get_db)
 ):
     today = date.today()
-    total_staff = len(perms.assigned_employee_ids) if not perms.can_view_all else db.query(models.User).filter(models.User.is_active == True).count()
+    target_year = year if year else today.year
+    target_month = month if month else today.month
 
-    # Query today's shifts for authorized staff
-    today_entries = db.query(models.RosterEntry).filter(
-        models.RosterEntry.date == today
-    ).all()
-    today_leaves = db.query(models.LeaveRequest).filter(
-        models.LeaveRequest.status == "Approved",
-        models.LeaveRequest.start_date <= today,
-        models.LeaveRequest.end_date >= today
-    ).all()
+    # Check if user is a manager or admin with authorized workforce reporting authority
+    is_management = perms.is_admin or perms.is_hr or perms.is_manager or perms.is_team_leader or (user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader'])
 
-    off_today = sum(1 for e in today_entries if e.shift_code_or_time in ["WO", "CO"])
-    on_leave_today = len(today_leaves) + sum(1 for e in today_entries if e.shift_code_or_time in ["CL", "SL", "Leave", "PL"])
-    present_today = max(0, total_staff - off_today - on_leave_today)
+    # Always compute personal reports data for the authenticated employee
+    personal_attendance = attendance_service.compute_user_monthly_attendance(
+        user_id=user.id,
+        year=target_year,
+        month=target_month,
+        db=db
+    )
 
-    # Location distribution
-    locations = db.query(models.Location).filter(models.Location.is_active == True).all()
+    # Personal shift history (last 30 assignments for this user only)
+    my_recent_shifts = db.query(models.RosterEntry).filter(
+        models.RosterEntry.user_id == user.id
+    ).order_by(models.RosterEntry.date.desc()).limit(30).all()
+
+    # Personal leave history (user only)
+    my_leave_history = db.query(models.LeaveRequest).filter(
+        models.LeaveRequest.user_id == user.id
+    ).order_by(models.LeaveRequest.created_at.desc()).all()
+
+    # Workforce analytics (ONLY computed and shared if management)
+    total_staff = 0
+    present_today = 0
+    on_leave_today = 0
+    off_today = 0
     loc_headcount = []
-    for loc in locations:
-        cnt = db.query(models.User).filter(models.User.location_id == loc.id, models.User.is_active == True).count()
-        pct = round((cnt / max(1, total_staff)) * 100, 1)
-        loc_headcount.append({"name": loc.name, "count": cnt, "percent": pct})
-
-    # Shift distribution
-    shift_slots = ["07:00 To 16:00", "09:00 To 18:00", "13:00 To 22:00", "22:00 To 07:00", "WO", "CO"]
     shift_breakdown = []
-    for s in shift_slots:
-        cnt = sum(1 for e in today_entries if s.lower() in e.shift_code_or_time.lower())
-        pct = round((cnt / max(1, len(today_entries))) * 100, 1)
-        shift_breakdown.append({"shift": s, "count": cnt, "percent": pct})
+
+    if is_management:
+        total_staff = len(perms.assigned_employee_ids) if not perms.can_view_all else db.query(models.User).filter(models.User.is_active == True).count()
+        today_entries = db.query(models.RosterEntry).filter(models.RosterEntry.date == today).all()
+        today_leaves = db.query(models.LeaveRequest).filter(
+            models.LeaveRequest.status == "Approved",
+            models.LeaveRequest.start_date <= today,
+            models.LeaveRequest.end_date >= today
+        ).all()
+        off_today = sum(1 for e in today_entries if e.shift_code_or_time in ["WO", "CO"])
+        on_leave_today = len(today_leaves) + sum(1 for e in today_entries if e.shift_code_or_time in ["CL", "SL", "Leave", "PL"])
+        present_today = max(0, total_staff - off_today - on_leave_today)
+
+        locations = db.query(models.Location).filter(models.Location.is_active == True).all()
+        for loc in locations:
+            cnt = db.query(models.User).filter(models.User.location_id == loc.id, models.User.is_active == True).count()
+            pct = round((cnt / max(1, total_staff)) * 100, 1)
+            loc_headcount.append({"name": loc.name, "count": cnt, "percent": pct})
+
+        shift_slots = ["07:00 To 16:00", "09:00 To 18:00", "13:00 To 22:00", "22:00 To 07:00", "WO", "CO"]
+        for s in shift_slots:
+            cnt = sum(1 for e in today_entries if s.lower() in e.shift_code_or_time.lower())
+            pct = round((cnt / max(1, len(today_entries))) * 100, 1)
+            shift_breakdown.append({"shift": s, "count": cnt, "percent": pct})
 
     return templates.TemplateResponse(
         request=request,
@@ -5301,8 +5330,14 @@ def reports_page(
         context={
             "user": user,
             "perms": perms,
+            "is_management": is_management,
             "active_page": "reports",
             "today": today,
+            "target_year": target_year,
+            "target_month": target_month,
+            "personal_attendance": personal_attendance,
+            "my_recent_shifts": my_recent_shifts,
+            "my_leave_history": my_leave_history,
             "total_staff": total_staff,
             "present_today": present_today,
             "on_leave_today": on_leave_today,

@@ -274,15 +274,15 @@ def compute_user_monthly_attendance(user_id: int, year: int, month: int, db: Ses
     # Leave balances with total, used, pending, remaining
     cl_entitled = user.eligible_cl or 10.0
     cl_used = user.taken_cl or 0.0
-    cl_remaining = user.balance_cl if user.balance_cl is not none else (user.cl_balance if user.cl_balance is not none else (cl_entitled - cl_used))
+    cl_remaining = user.balance_cl if user.balance_cl is not None else (user.cl_balance if user.cl_balance is not None else (cl_entitled - cl_used))
 
     sl_entitled = user.eligible_sl or 7.5
     sl_used = user.taken_sl or 0.0
-    sl_remaining = user.balance_sl if user.balance_sl is not none else (user.sl_balance if user.sl_balance is not none else (sl_entitled - sl_used))
+    sl_remaining = user.balance_sl if user.balance_sl is not None else (user.sl_balance if user.sl_balance is not None else (sl_entitled - sl_used))
 
     co_entitled = (user.balance_co or 0.0) + (user.taken_co or 0.0) if hasattr(user, 'taken_co') and user.taken_co else (user.balance_co or 0.0)
     co_used = getattr(user, 'taken_co', 0.0) or 0.0
-    co_remaining = user.balance_co if user.balance_co is not none else (user.co_balance or 0.0)
+    co_remaining = user.balance_co if user.balance_co is not None else (user.co_balance or 0.0)
 
     leave_summary = {
         "CL": {
@@ -318,6 +318,19 @@ def compute_user_monthly_attendance(user_id: int, year: int, month: int, db: Ses
         "user_id": user_id,
         "user_name": user.name,
         "unique_id": user.unique_id,
+        "employee_id": user.unique_id,
+        "full_name": user.name,
+        "summary": {
+            "present_days": present_days,
+            "absent_days": absent_days,
+            "weekly_offs": weekly_offs,
+            "holidays": holiday_days,
+            "approved_leave_days": approved_leave_days,
+            "half_days": half_days,
+            "late_marks": late_marks,
+            "scheduled_working_days": scheduled_working_days,
+            "total_work_hours": total_work_hours_str
+        },
         "metrics": {
             "present_days": present_days,
             "absent_days": absent_days,
