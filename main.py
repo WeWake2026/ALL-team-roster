@@ -4722,6 +4722,330 @@ async def save_user_preferences_api(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to save preferences: {str(e)}")
 
+# ================= ENTERPRISE ADMIN CONTROL CENTER ================= #
+
+import admin_control_service
+
+def require_admin_control_center_auth(
+    user: models.User = Depends(require_auth),
+    perms: get_user_perms = Depends(get_user_perms)
+) -> models.User:
+    """Enforce authorized management access for Admin Control Center"""
+    is_allowed = perms.is_super_admin or perms.is_admin or perms.is_hr or perms.is_manager or (user.access_level in ['Super Admin', 'Admin', 'Location Admin', 'Branch Manager', 'HR'])
+    if not is_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access restricted to Authorized Operational Staff (Admin, Manager, Team Leader, Quality, SME). Please contact your Admin."
+        )
+    return user
+
+@app.get("/admin/control-center", response_class=HTMLResponse)
+def admin_control_center_page(
+    request: Request,
+    location_id: Optional[int] = None,
+    branch_id: Optional[int] = None,
+    current_admin: models.User = Depends(require_admin_control_center_auth),
+    perms: get_user_perms = Depends(get_user_perms),
+    db: Session = Depends(get_db)
+):
+    """
+    Centralized Enterprise Admin Control Center Dashboard supporting 7-tier hierarchy:
+    Organization -> Global Settings -> Location -> Branch -> Department -> Team -> Employee
+    """
+    # Scope resolution: If user is Location Admin / Branch Manager with restricted scope, force their assigned location
+    effective_location_id = location_id
+    if not perms.can_view_all and perms.location_ids:
+        if location_id not in perms.location_ids:
+            effective_location_id = next(iter(perms.location_ids)) if perms.location_ids else current_admin.location_id
+
+    org = db.query(models.Organization).first()
+    all_locations = db.query(models.Location).filter(models.Location.is_active == True).all()
+    
+    # Filter locations based on permission scope
+    if not perms.can_view_all and perms.location_ids:
+        visible_locations = [l for l in all_locations if l.id in perms.location_ids]
+    else:
+        visible_locations = all_locations
+
+    branches_query = db.query(models.Branch).filter(models.Branch.is_active == True)
+    if effective_location_id:
+        branches_query = branches_query.filter(models.Branch.location_id == effective_location_id)
+    branches = branches_query.all()
+
+    departments_query = db.query(models.Department).filter(models.Department.is_active == True)
+    if effective_location_id:
+        departments_query = departments_query.filter(models.Department.location_id == effective_location_id)
+    departments = departments_query.all()
+
+    teams_query = db.query(models.Team).filter(models.Team.is_active == True)
+    teams = teams_query.all()
+
+    all_shifts = db.query(models.Shift).order_by(models.Shift.start_time.asc()).all()
+
+    # Workforce live KPIs
+    kpis = admin_control_service.get_workforce_kpis(db, location_id=effective_location_id, branch_id=branch_id)
+    location_breakdowns = admin_control_service.get_location_breakdowns(db)
+
+    # Recent transfers
+    recent_transfers = db.query(models.EmployeeTransferHistory).order_by(models.EmployeeTransferHistory.created_at.desc()).limit(10).all()
+
+    # Activity Logs
+    recent_logs = db.query(models.AuditLog).order_by(models.AuditLog.timestamp.desc()).limit(25).all()
+
+    # Recent employees query
+    emp_query = db.query(models.User)
+    if effective_location_id:
+        emp_query = emp_query.filter(models.User.location_id == effective_location_id)
+    if branch_id:
+        emp_query = emp_query.filter(models.User.branch_id == branch_id)
+    sample_employees = emp_query.order_by(models.User.id.desc()).limit(20).all()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_control_center.html",
+        context={
+            "user": current_admin,
+            "perms": perms,
+            "active_page": "admin_control_center",
+            "org": org,
+            "all_locations": visible_locations,
+            "effective_location_id": effective_location_id,
+            "branch_id": branch_id,
+            "branches": branches,
+            "departments": departments,
+            "teams": teams,
+            "all_shifts": all_shifts,
+            "kpis": kpis,
+            "location_breakdowns": location_breakdowns,
+            "recent_transfers": recent_transfers,
+            "recent_logs": recent_logs,
+            "sample_employees": sample_employees,
+            "pending_leave_count": get_pending_leave_count(db)
+        }
+    )
+
+@app.post("/api/admin/organization/update")
+async def update_organization_profile_api(
+    request: Request,
+    current_admin: models.User = Depends(require_admin_control_center_auth),
+    db: Session = Depends(get_db)
+):
+    """Updates Organization Profile and global metadata"""
+    try:
+        data = await request.json()
+        org = db.query(models.Organization).first()
+        if not org:
+            org = models.Organization(name=data.get("name", "MSEDCL"), code=data.get("code", "MSEDCL"))
+            db.add(org)
+
+        if "name" in data: org.name = str(data["name"]).strip()
+        if "code" in data: org.code = str(data["code"]).strip()
+        if "official_email" in data: org.official_email = str(data["official_email"]).strip()
+        if "contact_number" in data: org.contact_number = str(data["contact_number"]).strip()
+        if "address" in data: org.address = str(data["address"]).strip()
+        if "city" in data: org.city = str(data["city"]).strip()
+        if "state" in data: org.state = str(data["state"]).strip()
+        if "default_timezone" in data: org.default_timezone = str(data["default_timezone"]).strip()
+        if "default_date_format" in data: org.default_date_format = str(data["default_date_format"]).strip()
+        if "financial_year" in data: org.financial_year = str(data["financial_year"]).strip()
+        
+        org.updated_at = datetime.utcnow()
+        db.commit()
+
+        log_audit_event(
+            db=db,
+            actor=current_admin,
+            action="ORG_PROFILE_UPDATE",
+            resource_type="Organization",
+            resource_id=str(org.id),
+            details=f"Updated organization profile for {org.name}"
+        )
+        return {"success": True, "message": "Organization profile updated successfully."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update organization profile: {str(e)}")
+
+@app.post("/api/admin/branches/create")
+async def create_branch_api(
+    request: Request,
+    current_admin: models.User = Depends(require_admin_control_center_auth),
+    db: Session = Depends(get_db)
+):
+    """Creates a new branch under a location"""
+    try:
+        data = await request.json()
+        location_id = int(data.get("location_id"))
+        name = str(data.get("name", "")).strip()
+        code = str(data.get("code", "")).strip()
+        address = str(data.get("address", "")).strip()
+
+        if not name or not code or not location_id:
+            raise HTTPException(status_code=400, detail="Location, Branch Name and Branch Code are required.")
+
+        branch = models.Branch(
+            location_id=location_id,
+            name=name,
+            code=code,
+            address=address,
+            is_active=True
+        )
+        db.add(branch)
+        db.commit()
+        db.refresh(branch)
+
+        log_audit_event(
+            db=db,
+            actor=current_admin,
+            action="BRANCH_CREATE",
+            resource_type="Branch",
+            resource_id=str(branch.id),
+            details=f"Created branch {name} ({code}) under location ID {location_id}"
+        )
+        return {"success": True, "message": f"Branch '{name}' created successfully.", "branch_id": branch.id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create branch: {str(e)}")
+
+@app.post("/api/admin/employees/transfer")
+async def transfer_employee_api(
+    request: Request,
+    current_admin: models.User = Depends(require_admin_control_center_auth),
+    db: Session = Depends(get_db)
+):
+    """Executes employee transfer across locations, branches, departments, teams, or managers"""
+    try:
+        data = await request.json()
+        user_id = int(data.get("user_id"))
+        emp = db.query(models.User).filter(models.User.id == user_id).first()
+        if not emp:
+            raise HTTPException(status_code=404, detail="Employee not found.")
+
+        to_location_id = int(data["to_location_id"]) if data.get("to_location_id") else emp.location_id
+        to_branch_id = int(data["to_branch_id"]) if data.get("to_branch_id") else emp.branch_id
+        to_department_id = int(data["to_department_id"]) if data.get("to_department_id") else emp.department_id
+        to_team_id = int(data["to_team_id"]) if data.get("to_team_id") else emp.team_id
+        to_manager_id = int(data["to_manager_id"]) if data.get("to_manager_id") else emp.reporting_manager_id
+        transfer_reason = str(data.get("transfer_reason", "Operational reassignment")).strip()
+
+        # Create historical transfer record
+        transfer_log = models.EmployeeTransferHistory(
+            user_id=emp.id,
+            effective_date=date.today(),
+            from_location_id=emp.location_id,
+            to_location_id=to_location_id,
+            from_branch_id=emp.branch_id,
+            to_branch_id=to_branch_id,
+            from_department_id=emp.department_id,
+            to_department_id=to_department_id,
+            from_team_id=emp.team_id,
+            to_team_id=to_team_id,
+            from_manager_id=emp.reporting_manager_id,
+            to_manager_id=to_manager_id,
+            from_role_title=emp.role_title,
+            to_role_title=emp.role_title,
+            transfer_reason=transfer_reason,
+            status="Completed",
+            initiated_by_id=current_admin.id,
+            approved_by_id=current_admin.id,
+            remarks=f"Transfer approved by {current_admin.name}"
+        )
+        db.add(transfer_log)
+
+        # Update current employee pointers without altering historical records
+        emp.location_id = to_location_id
+        emp.branch_id = to_branch_id
+        emp.department_id = to_department_id
+        emp.team_id = to_team_id
+        emp.reporting_manager_id = to_manager_id
+
+        # Also sync text fallback
+        target_loc = db.query(models.Location).filter(models.Location.id == to_location_id).first()
+        if target_loc:
+            emp.location = target_loc.name
+
+        db.commit()
+
+        log_audit_event(
+            db=db,
+            actor=current_admin,
+            action="EMPLOYEE_TRANSFER",
+            resource_type="User",
+            resource_id=str(emp.id),
+            details=f"Transferred employee {emp.name} ({emp.unique_id}) to Location ID {to_location_id}"
+        )
+
+        return {"success": True, "message": f"Employee {emp.name} transferred successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Transfer failed: {str(e)}")
+
+@app.post("/api/admin/config-override/set")
+async def set_config_override_api(
+    request: Request,
+    current_admin: models.User = Depends(require_admin_control_center_auth),
+    db: Session = Depends(get_db)
+):
+    """Sets multi-tier configuration override for location, branch, team, or employee"""
+    try:
+        data = await request.json()
+        scope_level = str(data.get("scope_level", "LOCATION")).upper()
+        scope_id = int(data.get("scope_id", 0))
+        setting_key = str(data.get("setting_key", "")).strip()
+        setting_value = str(data.get("setting_value", "")).strip()
+
+        if not setting_key:
+            raise HTTPException(status_code=400, detail="Setting key is required.")
+
+        admin_control_service.set_config_override(
+            scope_level=scope_level,
+            scope_id=scope_id,
+            key=setting_key,
+            value=setting_value,
+            user_id=current_admin.id,
+            db=db
+        )
+
+        return {"success": True, "message": f"Configuration '{setting_key}' set for {scope_level} (ID: {scope_id})."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to set configuration: {str(e)}")
+
+@app.get("/api/admin/system/health")
+def get_system_health_api(
+    current_admin: models.User = Depends(require_admin_control_center_auth),
+    db: Session = Depends(get_db)
+):
+    """Returns database connection, record counts, and health telemetry"""
+    user_cnt = db.query(models.User).count()
+    roster_cnt = db.query(models.RosterEntry).count()
+    loc_cnt = db.query(models.Location).count()
+    branch_cnt = db.query(models.Branch).count()
+    leave_cnt = db.query(models.LeaveRequest).count()
+    log_cnt = db.query(models.AuditLog).count()
+
+    return {
+        "status": "healthy",
+        "database": "SQLite (WAL Mode)",
+        "connection": "ACTIVE",
+        "counts": {
+            "users": user_cnt,
+            "roster_entries": roster_cnt,
+            "locations": loc_cnt,
+            "branches": branch_cnt,
+            "leave_requests": leave_cnt,
+            "audit_logs": log_cnt
+        },
+        "version": "ShiftFlow Enterprise v2.4",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
 # ================= DEDICATED USER SETTINGS & PREFERENCES ================= #
 
 @app.get("/settings", response_class=HTMLResponse)

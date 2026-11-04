@@ -10,12 +10,20 @@ class Location(Base):
     name = Column(String(100), unique=True, nullable=False, index=True) # e.g. Mumbai, Pune, Nagpur, Headquarters
     code = Column(String(20), unique=True, nullable=False, index=True) # e.g. MUM, PUN, NAG, HQ
     address = Column(Text, nullable=True)
+    admin_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    manager_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    state = Column(String(80), default="Maharashtra")
+    city = Column(String(80), nullable=True)
+    pincode = Column(String(20), nullable=True)
+    timezone = Column(String(60), default="Asia/Kolkata")
+    working_days = Column(String(40), default="MON-SAT")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     departments = relationship("Department", back_populates="location")
-    users = relationship("User", back_populates="work_location")
+    users = relationship("User", back_populates="work_location", foreign_keys="User.location_id")
     assignments = relationship("UserAssignment", back_populates="location")
+    branches = relationship("Branch", back_populates="location", cascade="all, delete-orphan")
 
 class Department(Base):
     __tablename__ = "departments"
@@ -59,6 +67,11 @@ class User(Base):
     name = Column(String(120), nullable=False)
     display_name = Column(String(120), nullable=True)
     phone = Column(String(30), nullable=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    reporting_manager_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    employment_status = Column(String(40), default="ACTIVE") # ACTIVE, NOTICE_PERIOD, RESIGNED, TERMINATED
+    last_working_date = Column(Date, nullable=True)
+    notice_period_days = Column(Integer, default=30)
     email = Column(String(120), unique=True, index=True, nullable=False)
     role_title = Column(String(80), default="Agent") # e.g. QA Auditor, Senior Agent, Team Leader
     access_level = Column(String(50), default="Employee") # Super Admin, Admin, HR, Location Manager, Team Leader, Roster Coordinator, Employee
@@ -102,6 +115,8 @@ class User(Base):
     team_rel = relationship("Team", foreign_keys=[team_id], back_populates="members")
     led_teams = relationship("Team", foreign_keys="Team.team_lead_id", back_populates="team_lead")
     assigned_leader = relationship("User", remote_side=[id], foreign_keys=[team_lead_id], backref="subordinates")
+    branch = relationship("Branch", back_populates="users", foreign_keys=[branch_id])
+    reporting_manager = relationship("User", remote_side=[id], foreign_keys=[reporting_manager_id], backref="reportees")
 
     roster_entries = relationship("RosterEntry", back_populates="user", cascade="all, delete-orphan", foreign_keys="RosterEntry.user_id")
     leave_requests = relationship("LeaveRequest", back_populates="user", cascade="all, delete-orphan")
@@ -357,6 +372,9 @@ class Holiday(Base):
     name = Column(String(100), nullable=False)
     date = Column(Date, nullable=False, unique=True)
     optional_flag = Column(Boolean, default=False)
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=True, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    holiday_type = Column(String(40), default="NATIONAL")
 
 class Notification(Base):
     __tablename__ = "notifications"
@@ -557,3 +575,84 @@ class BiometricPunchLog(Base):
 
     user = relationship("User", foreign_keys=[user_id])
 
+
+class Organization(Base):
+    __tablename__ = "organizations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(150), nullable=False)
+    code = Column(String(50), unique=True, nullable=False, index=True)
+    logo_url = Column(Text, nullable=True)
+    official_email = Column(String(120), nullable=True)
+    contact_number = Column(String(40), nullable=True)
+    address = Column(Text, nullable=True)
+    city = Column(String(80), nullable=True)
+    state = Column(String(80), nullable=True)
+    country = Column(String(80), default="India")
+    default_timezone = Column(String(60), default="Asia/Kolkata")
+    default_date_format = Column(String(30), default="YYYY-MM-DD")
+    financial_year = Column(String(30), default="2026-2027")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Branch(Base):
+    __tablename__ = "branches"
+
+    id = Column(Integer, primary_key=True, index=True)
+    location_id = Column(Integer, ForeignKey("locations.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    code = Column(String(50), nullable=False, index=True)
+    address = Column(Text, nullable=True)
+    manager_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    location = relationship("Location", back_populates="branches")
+    manager = relationship("User", foreign_keys=[manager_id])
+    users = relationship("User", back_populates="branch", foreign_keys="User.branch_id")
+
+class EmployeeTransferHistory(Base):
+    __tablename__ = "employee_transfer_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    effective_date = Column(Date, nullable=False)
+    from_location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
+    to_location_id = Column(Integer, ForeignKey("locations.id"), nullable=True)
+    from_branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
+    to_branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
+    from_department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    to_department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    from_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    to_team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    from_manager_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    to_manager_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    from_role_title = Column(String(80), nullable=True)
+    to_role_title = Column(String(80), nullable=True)
+    transfer_reason = Column(Text, nullable=True)
+    status = Column(String(40), default="Completed")
+    initiated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    remarks = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    employee = relationship("User", foreign_keys=[user_id])
+    to_location = relationship("Location", foreign_keys=[to_location_id])
+    to_branch = relationship("Branch", foreign_keys=[to_branch_id])
+    to_team = relationship("Team", foreign_keys=[to_team_id])
+
+class ConfigurationOverride(Base):
+    __tablename__ = "configuration_overrides"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scope_level = Column(String(30), nullable=False) # GLOBAL, LOCATION, BRANCH, TEAM, EMPLOYEE
+    scope_id = Column(Integer, default=0, index=True)
+    setting_key = Column(String(100), nullable=False, index=True)
+    setting_value = Column(Text, nullable=False)
+    setting_category = Column(String(60), default="GENERAL")
+    is_customized = Column(Boolean, default=True)
+    last_modified_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
