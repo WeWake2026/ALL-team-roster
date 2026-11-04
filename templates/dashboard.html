@@ -1,42 +1,64 @@
 {% extends "base.html" %}
-{% block title %}Dashboard - ShiftFlow Pro{% endblock %}
+{% block title %}Dashboard - ShiftFlow Pro
+<script>
+// 21st.dev Animated Number Ticker Effect for Stats
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.number-ticker-21st').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(6px)';
+        setTimeout(() => {
+            el.style.opacity = '1';
+            el.style.transform = 'translateY(0)';
+        }, 100);
+    });
+});
+</script>
+
+{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Top Welcome Card (Matches Screenshot Exactly) -->
-    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-5 md:p-6 text-white shadow-lg shadow-blue-500/20">
-        <!-- Floating Subtle Vector/City Overlay -->
-        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none"></div>
+    <!-- Top Welcome Card (21st.dev Bento Hero with Ambient Lighting & Gradient Borders) -->
+    <div class="relative overflow-hidden rounded-3xl bg-slate-900 border border-slate-800 p-6 md:p-8 text-white shadow-2xl bento-card-21st">
+        <!-- Ambient Glow Orbs -->
+        <div class="ambient-glow-21st -top-24 -left-24 w-80 h-80 bg-blue-500"></div>
+        <div class="ambient-glow-21st top-1/2 -right-20 w-80 h-80 bg-purple-500"></div>
+        <div class="ambient-glow-21st -bottom-24 left-1/3 w-72 h-72 bg-emerald-500"></div>
+        <div class="gradient-border-21st"></div>
 
-        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <!-- Clean 3D Style Headquarters Icon/Illustration -->
-                <div class="hidden sm:flex w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 items-center justify-center shrink-0 shadow-inner">
-                    <i data-lucide="building-2" class="w-9 h-9 text-white"></i>
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div class="flex items-center gap-5">
+                <!-- 3D Headquarters Icon with Multi-layer Glow -->
+                <div class="hidden sm:flex w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-xl border border-white/15 items-center justify-center shrink-0 shadow-lg shadow-blue-500/10">
+                    <i data-lucide="building-2" class="w-8 h-8 text-blue-400"></i>
                 </div>
                 <div>
-                    <div class="inline-flex items-center gap-2 text-xs font-medium text-white/90 mb-1">
-                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span>Live Operational Period: {{ today.strftime('%A, %d %B %Y') }} (09:00 AM – 10:00 PM)</span>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-emerald-300 mb-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Operations Live: {{ today.strftime('%A, %d %B %Y') }} (09:00 AM – 10:00 PM)</span>
                     </div>
-                    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-                        <span>Welcome back, {{ user.name.split()[0].upper() }}!</span>
-                        <span class="text-2xl">👋</span>
+                    <h1 class="text-2xl md:text-4xl font-extrabold tracking-tight flex items-center gap-3">
+                        <span class="bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">Welcome back, {{ user.name.split()[0].upper() }}!</span>
+                        <span class="text-3xl animate-bounce">👋</span>
                     </h1>
-                    <p class="text-blue-100/90 text-xs mt-1 font-medium">
-                        {{ user.role_title }} • Operations ({{ user.location }}) | Employee ID: <span class="font-mono font-bold">{{ user.unique_id }}</span>
+                    <p class="text-slate-300 text-xs mt-1.5 font-medium flex items-center gap-2">
+                        <span>{{ user.role_title }}</span>
+                        <span>•</span>
+                        <span>Operations ({{ user.location }})</span>
+                        <span>•</span>
+                        <span>Emp ID: <strong class="font-mono text-blue-400">{{ user.unique_id }}</strong></span>
                     </p>
                 </div>
             </div>
 
             <div class="flex items-center gap-3 shrink-0">
-                <a href="/leaves" class="px-5 py-2.5 rounded-2xl bg-white text-slate-800 hover:bg-slate-50 text-xs md:text-sm font-bold shadow-md transition flex items-center gap-2 hover:scale-105">
-                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
+                <a href="/leaves" class="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs md:text-sm font-bold shadow-lg shadow-blue-600/30 transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98]">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
                     <span>Apply Leave</span>
                 </a>
-                <a href="/roster" class="px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/25 text-white text-xs md:text-sm font-bold backdrop-blur-md transition flex items-center gap-2 hover:scale-105">
+                <a href="/roster" class="px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs md:text-sm font-bold backdrop-blur-xl transition-all flex items-center gap-2 hover:scale-[1.03] active:scale-[0.98]">
                     <i data-lucide="users" class="w-4 h-4"></i>
-                    <span>Full Team Roster</span>
+                    <span>Team Roster</span>
                 </a>
             </div>
         </div>
@@ -299,86 +321,83 @@
         </div>
     </div>
 
-    <!-- Quick Stats Grid (Exact 4 Cards from User Screenshot) -->
+    <!-- 21st.dev Bento Grid: 4 Metric Stats Cards with Number Ticker Style & Glass Elevation -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- 1. TODAY'S SHIFT CARD -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
-            <div>
-                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
-                    <span>TODAY'S SHIFT</span>
+        <div class="bento-card-21st glass-card-21st p-5 relative group">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <i data-lucide="calendar" class="w-4 h-4 text-blue-500"></i>
+                    <span>Today's Shift</span>
                 </div>
-                <div class="text-xl md:text-2xl font-black text-slate-900 dark:text-white mt-2">
-                    {{ today_shift if today_shift != 'Not Scheduled' else '13:00 To 22:00' }}
-                </div>
-                <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span>Status: {{ today_status if today_status != 'Unassigned' else 'Scheduled' }}</span>
-                </div>
+                <span class="metric-pill-21st bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>{{ today_status if today_status != 'Unassigned' else 'Scheduled' }}</span>
+                </span>
             </div>
-            <!-- Soft Blue Circular Icon Pin -->
-            <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900">
-                <i data-lucide="clock" class="w-6 h-6"></i>
+            <div class="text-xl md:text-2xl font-black text-slate-900 dark:text-white mt-2 number-ticker-21st">
+                {{ today_shift if today_shift != 'Not Scheduled' else '13:00 To 22:00' }}
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1">
+                <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i>
+                <span>Operations Duty Roster</span>
             </div>
         </div>
 
         <!-- 2. CASUAL LEAVE (CL) CARD -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
-            <div>
-                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    <i data-lucide="briefcase" class="w-4 h-4 text-blue-600"></i>
-                    <span>CASUAL LEAVE (CL)</span>
+        <div class="bento-card-21st glass-card-21st p-5 relative group">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <i data-lucide="palmtree" class="w-4 h-4 text-blue-500"></i>
+                    <span>Casual Leave (CL)</span>
                 </div>
-                <div class="text-xl md:text-2xl font-black text-blue-600 dark:text-blue-400 mt-2 font-mono">
-                    {{ (user.balance_cl if user.balance_cl is not none else user.cl_balance or 12.0)|round(1) }} <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Days</span>
-                </div>
-                <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-2">
-                    Taken: {{ (user.taken_cl or 0.0)|round(1) }} | Eligible: {{ (user.eligible_cl or 12.0)|round(1) }}
-                </div>
+                <span class="metric-pill-21st bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    <span>12.0 Eligible</span>
+                </span>
             </div>
-            <!-- Palm Tree / Island Vacation Icon -->
-            <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900">
-                <i data-lucide="palmtree" class="w-7 h-7"></i>
+            <div class="text-xl md:text-2xl font-black text-blue-600 dark:text-blue-400 mt-2 font-mono number-ticker-21st">
+                {{ (user.balance_cl if user.balance_cl is not none else user.cl_balance or 12.0)|round(1) }} <span class="text-xs font-bold text-slate-500">Days</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                Taken: <strong class="text-slate-700 dark:text-slate-200">{{ (user.taken_cl or 0.0)|round(1) }}</strong> | Available: <strong class="text-blue-600">{{ (user.balance_cl if user.balance_cl is not none else user.cl_balance or 12.0)|round(1) }}</strong>
             </div>
         </div>
 
         <!-- 3. SICK LEAVE (SL) CARD -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
-            <div>
-                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+        <div class="bento-card-21st glass-card-21st p-5 relative group">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     <i data-lucide="heart-pulse" class="w-4 h-4 text-rose-500"></i>
-                    <span>SICK LEAVE (SL)</span>
+                    <span>Sick Leave (SL)</span>
                 </div>
-                <div class="text-xl md:text-2xl font-black text-rose-600 dark:text-rose-400 mt-2 font-mono">
-                    {{ (user.balance_sl if user.balance_sl is not none else user.sl_balance or 9.0)|round(1) }} <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Days</span>
-                </div>
-                <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-2">
-                    Taken: {{ (user.taken_sl or 0.0)|round(1) }} | Eligible: {{ (user.eligible_sl or 9.0)|round(1) }}
-                </div>
+                <span class="metric-pill-21st bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                    <span>9.0 Eligible</span>
+                </span>
             </div>
-            <!-- Soft Pink Heart / Medical Icon -->
-            <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-100 dark:border-rose-900">
-                <i data-lucide="heart-handshake" class="w-7 h-7"></i>
+            <div class="text-xl md:text-2xl font-black text-rose-600 dark:text-rose-400 mt-2 font-mono number-ticker-21st">
+                {{ (user.balance_sl if user.balance_sl is not none else user.sl_balance or 9.0)|round(1) }} <span class="text-xs font-bold text-slate-500">Days</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                Taken: <strong class="text-slate-700 dark:text-slate-200">{{ (user.taken_sl or 0.0)|round(1) }}</strong> | Medical Quota
             </div>
         </div>
 
         <!-- 4. COMP-OFF (CO) CARD -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
-            <div>
-                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    <i data-lucide="scale" class="w-4 h-4 text-amber-500"></i>
-                    <span>COMP-OFF (CO)</span>
+        <div class="bento-card-21st glass-card-21st p-5 relative group">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <i data-lucide="calendar-clock" class="w-4 h-4 text-amber-500"></i>
+                    <span>Comp-Off (CO)</span>
                 </div>
-                <div class="text-xl md:text-2xl font-black text-amber-500 dark:text-amber-400 mt-2 font-mono">
-                    {{ (user.balance_co if user.balance_co is not none else user.co_balance or 0.0)|round(1) }} <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Days</span>
-                </div>
-                <div class="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mt-2">
-                    Overtime accrued
-                </div>
+                <span class="metric-pill-21st bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                    <span>Accrued</span>
+                </span>
             </div>
-            <!-- Calendar Overtime Icon -->
-            <div class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/60 text-purple-500 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-100 dark:border-purple-900">
-                <i data-lucide="calendar-clock" class="w-7 h-7"></i>
+            <div class="text-xl md:text-2xl font-black text-amber-500 dark:text-amber-400 mt-2 font-mono number-ticker-21st">
+                {{ (user.balance_co if user.balance_co is not none else user.co_balance or 0.0)|round(1) }} <span class="text-xs font-bold text-slate-500">Days</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                Overtime converted to compensatory rest
             </div>
         </div>
     </div>
