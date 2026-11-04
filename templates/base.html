@@ -185,15 +185,22 @@
                     <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-900 animate-pulse ml-auto">{{ pending_leave_count }}</span>
                     {% endif %}
                 </a>
-                {% if user.access_level in ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader', 'Quality', 'QA', 'SME'] %}
-                <a href="/roster/manage" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group {% if active_page == 'manage_roster' %}bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/20{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}" title="Floor Attendance & Shifts">
+                <!-- Reports Navigation Link -->
+                <a href="/reports" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group {% if active_page == 'reports' %}bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/20{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}" title="Reports">
                     <div class="flex items-center gap-3 overflow-hidden">
-                        {% if active_page == 'manage_roster' %}<span class="w-1.5 h-1.5 rounded-full bg-white shrink-0 animate-pulse"></span>{% endif %}
-                        <i data-lucide="sliders" class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"></i>
-                        <span class="sidebar-text truncate">Floor Attendance & Shifts</span>
+                        {% if active_page == 'reports' %}<span class="w-1.5 h-1.5 rounded-full bg-white shrink-0 animate-pulse"></span>{% endif %}
+                        <i data-lucide="bar-chart-3" class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"></i>
+                        <span class="sidebar-text truncate">Reports</span>
                     </div>
                 </a>
-                {% endif %}
+                <!-- Settings Navigation Link -->
+                <a href="/admin/settings" class="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all group {% if active_page == 'settings' %}bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/20{% else %}text-slate-300 hover:text-white hover:bg-slate-800/80{% endif %}" title="Settings">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        {% if active_page == 'settings' %}<span class="w-1.5 h-1.5 rounded-full bg-white shrink-0 animate-pulse"></span>{% endif %}
+                        <i data-lucide="settings" class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110"></i>
+                        <span class="sidebar-text truncate">Settings</span>
+                    </div>
+                </a>
             </div>
 
             <!-- SECTION 2: MORE MODULES COLLAPSIBLE DRAWER -->
@@ -828,12 +835,21 @@
             },
             {
                 id: 'analytics_reports',
-                label: 'Analytics & Reports',
+                label: 'Reports',
                 url: '/reports',
                 icon: 'bar-chart-3',
                 activeKey: 'reports',
                 category: 'Insights',
-                roles: ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader', 'Quality', 'QA', 'SME']
+                roles: ['All']
+            },
+            {
+                id: 'settings',
+                label: 'Settings',
+                url: '/admin/settings',
+                icon: 'settings',
+                activeKey: 'settings',
+                category: 'Settings',
+                roles: ['All']
             },
             {
                 id: 'leave_master',
@@ -885,9 +901,7 @@
         const CURRENT_USER_ROLE = "{{ user.access_level if user else 'Employee' }}";
         const CURRENT_ACTIVE_PAGE = "{{ active_page if active_page else '' }}";
         const IS_ADMIN_LEAD = ['Admin', 'Super Admin', 'Manager', 'Location Manager', 'HR', 'Team Leader'].includes(CURRENT_USER_ROLE);
-        const DEFAULT_PINNED_MODULES = IS_ADMIN_LEAD 
-            ? ['dashboard', 'roster', 'attendance_swaps', 'leaves']
-            : ['dashboard', 'roster', 'leaves'];
+        const DEFAULT_PINNED_MODULES = ['dashboard', 'roster', 'leaves', 'analytics_reports', 'settings'];
 
         // Get modules permitted for this user's role
         function getUserPermittedModules() {

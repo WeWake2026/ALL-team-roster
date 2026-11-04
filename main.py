@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
 import models
+import attendance_service
 from database import engine, get_db, Base
 from auth import (
     get_password_hash,
@@ -5311,6 +5312,81 @@ def reports_page(
             "pending_leave_count": get_pending_leave_count(db)
         }
     )
+
+
+# ================= EMPLOYEE MONTHLY ATTENDANCE & REPORT EXPORTS ================= #
+
+@app.get("/api/employee/attendance/monthly")
+def get_employee_monthly_attendance_api(
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns monthly attendance summary KPIs and daily breakdown records for the authenticated employee.
+    Strictly private to the logged-in user.
+    """
+    today = date.today()
+    target_year = year if year else today.year
+    target_month = month if month else today.month
+
+    data = attendance_service.compute_user_monthly_attendance(
+        user_id=user.id,
+        year=target_year,
+        month=target_month,
+        db=db
+    )
+    return {"status": "success", "data": data}
+
+@app.get("/api/employee/attendance/export")
+def export_employee_attendance_api(
+    format: str = "xlsx",
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    user: models.User = Depends(require_auth),
+    db: Session = Depends(get_db)
+):
+    """
+    Exports official monthly attendance report in XLSX, PDF, or CSV format.
+    Strictly generated from authorized backend records for the authenticated employee.
+    """
+    today = date.today()
+    target_year = year if year else today.year
+    target_month = month if month else today.month
+
+    data = attendance_service.compute_user_monthly_attendance(
+        user_id=user.id,
+        year=target_year,
+        month=target_month,
+        db=db
+    )
+    if not data:
+        raise HTTPException(status_code=404, detail="Attendance records not found.")
+
+    fmt = format.lower().strip()
+    month_slug = f"{target_year}_{target_month:02d}"
+    emp_slug = user.unique_id or f"EMP{user.id}"
+
+    if fmt == "xlsx":
+        buf = attendance_service.generate_employee_attendance_excel(data)
+        filename = f"ShiftFlow_Attendance_{emp_slug}_{month_slug}.xlsx"
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    elif fmt == "pdf":
+        buf = attendance_service.generate_employee_attendance_pdf(data)
+        filename = f"ShiftFlow_Attendance_{emp_slug}_{month_slug}.pdf"
+        media_type = "application/pdf"
+    else: # csv
+        buf = attendance_service.generate_employee_attendance_csv(data)
+        filename = f"ShiftFlow_Attendance_{emp_slug}_{month_slug}.csv"
+        media_type = "text/csv"
+
+    return StreamingResponse(
+        buf,
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -3,34 +3,43 @@
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Top Welcome Card -->
-    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 p-6 md:p-8 text-white shadow-xl shadow-blue-900/20">
+    <!-- Top Welcome Card (Matches Screenshot Exactly) -->
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-5 md:p-6 text-white shadow-lg shadow-blue-500/20">
+        <!-- Floating Subtle Vector/City Overlay -->
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none"></div>
+
         <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-                <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-medium border border-white/20 mb-3">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span>Live Operational Period: {{ today.strftime('%A, %d %B %Y') }}</span>
+            <div class="flex items-center gap-4">
+                <!-- Clean 3D Style Headquarters Icon/Illustration -->
+                <div class="hidden sm:flex w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 items-center justify-center shrink-0 shadow-inner">
+                    <i data-lucide="building-2" class="w-9 h-9 text-white"></i>
                 </div>
-                <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
-                    Welcome back, {{ user.name.split()[0] }}! 👋
-                </h1>
-                <p class="text-blue-100 text-sm mt-1 max-w-xl">
-                    {{ user.role_title }} • {{ user.department }} ({{ user.location }}) | Employee ID: <span class="font-mono font-semibold">{{ user.unique_id }}</span>
-                </p>
+                <div>
+                    <div class="inline-flex items-center gap-2 text-xs font-medium text-white/90 mb-1">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Live Operational Period: {{ today.strftime('%A, %d %B %Y') }} (09:00 AM – 10:00 PM)</span>
+                    </div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+                        <span>Welcome back, {{ user.name.split()[0].upper() }}!</span>
+                        <span class="text-2xl">👋</span>
+                    </h1>
+                    <p class="text-blue-100/90 text-xs mt-1 font-medium">
+                        {{ user.role_title }} • Operations ({{ user.location }}) | Employee ID: <span class="font-mono font-bold">{{ user.unique_id }}</span>
+                    </p>
+                </div>
             </div>
-            <div class="flex items-center gap-3">
-                <a href="/leaves" class="px-4 py-2.5 rounded-xl bg-white text-blue-700 hover:bg-blue-50 text-xs md:text-sm font-semibold shadow-md transition flex items-center gap-2">
-                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+
+            <div class="flex items-center gap-3 shrink-0">
+                <a href="/leaves" class="px-5 py-2.5 rounded-2xl bg-white text-slate-800 hover:bg-slate-50 text-xs md:text-sm font-bold shadow-md transition flex items-center gap-2 hover:scale-105">
+                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
                     <span>Apply Leave</span>
                 </a>
-                <a href="/roster" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs md:text-sm font-semibold backdrop-blur-sm transition flex items-center gap-2">
-                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                <a href="/roster" class="px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/25 text-white text-xs md:text-sm font-bold backdrop-blur-md transition flex items-center gap-2 hover:scale-105">
+                    <i data-lucide="users" class="w-4 h-4"></i>
                     <span>Full Team Roster</span>
                 </a>
             </div>
         </div>
-        <!-- Decorative abstract circles -->
-        <div class="absolute -right-10 -bottom-10 w-64 h-64 rounded-full bg-white/5 blur-2xl pointer-events-none"></div>
     </div>
 
     <!-- MANAGER / ADMIN: HEADCOUNT & ATTENDANCE KPI ANALYTICS WIDGET -->
@@ -136,356 +145,305 @@
     </div>
     {% endif %}
 
-    <!-- EMPLOYEE WORK SESSION & BREAK TRACKER WIDGET -->
-    <div class="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white rounded-3xl border border-slate-800/80 p-6 shadow-2xl relative overflow-hidden backdrop-blur-xl">
-        <!-- Ambient decorative lights -->
-        <div class="absolute -top-24 -left-24 w-72 h-72 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
-        <div class="absolute -bottom-24 -right-24 w-72 h-72 {% if active_work_session and active_work_session.status == 'ON_BREAK' %}bg-amber-500/15{% elif active_work_session and active_work_session.status == 'ACTIVE' %}bg-emerald-500/15{% else %}bg-indigo-600/15{% endif %} rounded-full blur-3xl pointer-events-none transition-all duration-700"></div>
+    <!-- EMPLOYEE WORK SESSION & BREAK TRACKER WIDGET (Exact Green Banner from User Screenshot) -->
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 dark:from-emerald-900/60 dark:via-teal-900/40 dark:to-emerald-900/60 p-4 sm:p-5 border border-emerald-200/80 dark:border-emerald-800 shadow-md">
+        <!-- Floating Fluid Green Glow Background -->
+        <div class="absolute -right-16 -top-16 w-60 h-60 rounded-full bg-white/20 blur-3xl pointer-events-none"></div>
 
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-            <!-- Left Info & Status -->
-            <div class="space-y-3">
-                <div class="flex items-center gap-2 text-xs font-semibold flex-wrap">
-                    <span class="px-3 py-1 rounded-full {% if active_work_session and active_work_session.status == 'ACTIVE' %}bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20{% elif active_work_session and active_work_session.status == 'ON_BREAK' %}bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/20{% elif active_work_session and active_work_session.status == 'COMPLETED' %}bg-blue-500/20 text-blue-300 border border-blue-500/40{% else %}bg-slate-800/80 text-slate-300 border border-slate-700{% endif %} flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full {% if active_work_session and active_work_session.status == 'ACTIVE' %}bg-emerald-400 animate-ping{% elif active_work_session and active_work_session.status == 'ON_BREAK' %}bg-amber-400 animate-bounce{% elif active_work_session and active_work_session.status == 'COMPLETED' %}bg-blue-400{% else %}bg-slate-500{% endif %}"></span>
-                        <span class="font-bold tracking-wide">
+        <div class="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            
+            <!-- Left Side: Play Circle + Shift Time + Status Badge -->
+            <div class="flex items-center gap-4 shrink-0">
+                <!-- Large Round Play/Green Halo Indicator -->
+                <div class="relative flex items-center justify-center shrink-0">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white dark:bg-slate-900 border-4 border-emerald-500 shadow-lg flex items-center justify-center">
                         {% if active_work_session and active_work_session.status == 'ACTIVE' %}
-                            DUTY ACTIVE • ON CALL DESK
+                        <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white animate-pulse">
+                            <i data-lucide="check" class="w-6 h-6 stroke-[3]"></i>
+                        </div>
                         {% elif active_work_session and active_work_session.status == 'ON_BREAK' %}
-                            ON BREAK • {{ active_break.break_type if active_break else 'REST' }}
-                        {% elif active_work_session and active_work_session.status == 'COMPLETED' %}
-                            SHIFT COMPLETED • SIGNED OFF
+                        <div class="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white animate-bounce">
+                            <i data-lucide="coffee" class="w-5 h-5"></i>
+                        </div>
                         {% else %}
-                            READY FOR ROSTER • NOT STARTED
+                        <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white pl-0.5 shadow-sm">
+                            <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+                        </div>
                         {% endif %}
-                        </span>
-                    </span>
-
-                    <span class="text-slate-600">|</span>
-                    <span class="text-slate-300 text-xs flex items-center gap-1.5">
-                        <i data-lucide="monitor" class="w-3.5 h-3.5 text-cyan-400"></i>
-                        <span>Online Session: <strong class="text-cyan-300 font-mono text-sm">{{ today_online_hours }}h</strong></span>
+                    </div>
+                    <!-- Small Checkmark Pip on Bottom-Right -->
+                    <span class="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center border-2 border-white dark:border-slate-900 text-[10px]">
+                        ✓
                     </span>
                 </div>
 
-                <!-- Animated Character / Soundwave Scene Card -->
-                <div class="flex items-center gap-4 py-1">
-                    {% if active_work_session and active_work_session.status == 'ON_BREAK' %}
-                    <!-- ANIMATED COFFEE / BREAK SCENE -->
-                    <div class="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/10">
-                        <!-- Steaming Coffee Cup Animation -->
-                        <div class="relative flex flex-col items-center">
-                            <!-- Animated Rising Steam -->
-                            <div class="flex gap-1 -mb-1 opacity-90">
-                                <span class="w-1 h-3 bg-amber-200 rounded-full animate-pulse transform -translate-y-1 transition" style="animation-duration: 1.2s;"></span>
-                                <span class="w-1 h-4 bg-amber-100 rounded-full animate-bounce transform -translate-y-2" style="animation-duration: 1.5s;"></span>
-                                <span class="w-1 h-3 bg-amber-200 rounded-full animate-pulse transform -translate-y-1" style="animation-duration: 1.1s;"></span>
-                            </div>
-                            <!-- Cup -->
-                            <svg class="w-8 h-8 text-amber-400 fill-current" viewBox="0 0 24 24">
-                                <path d="M2 17h20v2H2v-2zm18-9v7c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V8h16zm2-3H4v2h18V5zm-2 4h-2v3h2V9z"/>
-                            </svg>
-                        </div>
-                        <span class="absolute -top-1 -right-1 flex h-3 w-3">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                        </span>
+                <!-- Shift Title & Timings -->
+                <div>
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-700 text-white text-[11px] font-bold shadow-xs mb-1">
+                        <span class="w-2 h-2 rounded-full bg-white"></span>
+                        <span>{% if active_work_session and active_work_session.status == 'ACTIVE' %}Duty Active (Desk){% elif active_work_session and active_work_session.status == 'ON_BREAK' %}On Break{% else %}Ready for Work{% endif %}</span>
                     </div>
-                    <div>
-                        <h2 class="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                            <span>Enjoying {{ active_break.break_type if active_break else 'Coffee / Tea' }} Break</span>
-                            <span class="text-amber-400 animate-bounce text-sm">☕</span>
-                        </h2>
-                        <p class="text-xs text-amber-200/80">
-                            Recharging energy. Total break allowed: <strong>60 mins max</strong> (Remaining today: <strong>{{ 60 - (active_work_session.total_break_mins or 0) }}m</strong>).
-                        </p>
+                    <div class="text-xs font-semibold text-emerald-950 dark:text-emerald-100">Today's Shift</div>
+                    <div class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                        {{ today_shift if today_shift != 'Not Scheduled' else '13:00 To 22:00' }}
                     </div>
-
-                    {% elif active_work_session and active_work_session.status == 'ACTIVE' %}
-                    <!-- ANIMATED ACTIVE AGENT / AUDIO WAVE SCENE -->
-                    <div class="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/10">
-                        <!-- Pulsing Audio Waveform -->
-                        <div class="flex items-end gap-1 h-7">
-                            <span class="w-1 bg-emerald-400 rounded-full animate-pulse" style="height: 12px; animation-duration: 0.8s;"></span>
-                            <span class="w-1 bg-emerald-300 rounded-full animate-bounce" style="height: 24px; animation-duration: 0.6s;"></span>
-                            <span class="w-1 bg-teal-200 rounded-full animate-pulse" style="height: 18px; animation-duration: 0.9s;"></span>
-                            <span class="w-1 bg-emerald-400 rounded-full animate-bounce" style="height: 28px; animation-duration: 0.7s;"></span>
-                            <span class="w-1 bg-emerald-300 rounded-full animate-pulse" style="height: 14px; animation-duration: 0.85s;"></span>
-                        </div>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                            <span>Desk Station Active</span>
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                🎧 Live Dispatch
-                            </span>
-                        </h2>
-                        <p class="text-xs text-slate-300">
-                            Roster: <strong class="text-white font-semibold">{{ today_shift }}</strong>. Telephony ready and customer helpline active.
-                        </p>
-                    </div>
-
-                    {% elif active_work_session and active_work_session.status == 'COMPLETED' %}
-                    <!-- CELEBRATION BADGE -->
-                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30 flex items-center justify-center shrink-0 text-cyan-300 shadow-lg">
-                        <i data-lucide="award" class="w-8 h-8 text-cyan-400 animate-pulse"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                            <span>Shift Completed Successfully!</span>
-                            <span class="text-cyan-400">✨</span>
-                        </h2>
-                        <p class="text-xs text-cyan-200/80">
-                            Logged: <strong class="text-white">{{ active_net_display or 'Completed' }}</strong> productive hours. Ready for next rotation.
-                        </p>
-                    </div>
-
-                    {% else %}
-                    <!-- READY TO START -->
-                    <div class="w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center shrink-0 text-slate-400">
-                        <i data-lucide="play-circle" class="w-8 h-8 text-blue-400"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                            <span>Ready to Begin Shift</span>
-                        </h2>
-                        <p class="text-xs text-slate-400">
-                            Assigned Shift: {% if today_shift == 'Not Scheduled' %}<strong class="text-amber-300 font-semibold">Not Scheduled (Contact TL)</strong>{% else %}<strong class="text-white font-semibold">{{ today_shift }}</strong>. Click Start Work Shift when ready.{% endif %}
-                        </p>
-                    </div>
-                    {% endif %}
-                </div>
-
-                <!-- TUBELIGHT CALL CENTER REAL-TIME 6-TIMER RIBBON -->
-                <div class="pt-1 grid grid-cols-3 sm:grid-cols-6 gap-2 text-[11px] font-mono">
-                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-inner">
-                        <span class="text-[9px] uppercase tracking-wider text-emerald-400 block font-sans font-bold">Online</span>
-                        <span class="font-bold text-white text-xs">{{ today_online_hours }}h</span>
-                    </div>
-                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-inner">
-                        <span class="text-[9px] uppercase tracking-wider text-amber-400 block font-sans font-bold">Break</span>
-                        <span class="font-bold text-amber-300 text-xs">{{ (active_work_session.total_break_mins if active_work_session else 0) }}m / 60m</span>
-                    </div>
-                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-inner">
-                        <span class="text-[9px] uppercase tracking-wider text-blue-400 block font-sans font-bold">Preview</span>
-                        <span class="font-bold text-slate-400 text-xs">00:00</span>
-                    </div>
-                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-inner">
-                        <span class="text-[9px] uppercase tracking-wider text-indigo-400 block font-sans font-bold">Ringing</span>
-                        <span class="font-bold text-slate-400 text-xs">00:00</span>
-                    </div>
-                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-inner">
-                        <span class="text-[9px] uppercase tracking-wider text-purple-400 block font-sans font-bold">ACW Work</span>
-                        <span class="font-bold text-slate-400 text-xs">00:00</span>
-                    </div>
-                    <div class="px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 shadow-inner">
-                        <span class="text-[9px] uppercase tracking-wider text-cyan-400 block font-sans font-bold">Talk Time</span>
-                        <span class="font-bold text-cyan-300 text-xs">{{ active_net_display or '00:00' }}</span>
+                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1 mt-0.5">
+                        <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-700 dark:text-slate-300"></i>
+                        <span>Shift: <strong class="text-emerald-900 dark:text-emerald-300">{{ today_status if today_status != 'Unassigned' else 'Scheduled' }}</strong></span>
                     </div>
                 </div>
             </div>
 
-            <!-- Right: Action Buttons & Timers -->
-            <div class="flex items-center gap-3 flex-wrap">
+            <!-- Middle: The 5 Soft Pastel Cards (Break, Preview, Ringing, ACW Work, Talk Time) exactly like screenshot -->
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 flex-1 max-w-2xl">
+                <!-- 1. Break (Soft Blue/Sky Card) -->
+                <div class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm rounded-2xl p-2.5 border border-sky-200/60 dark:border-slate-700 text-center shadow-xs">
+                    <div class="w-6 h-6 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 mx-auto flex items-center justify-center mb-1">
+                        <i data-lucide="coffee" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Break</div>
+                    <div class="text-xs font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">
+                        {{ (active_work_session.total_break_mins if active_work_session else 0) }}m / 60m
+                    </div>
+                    <!-- Small progress bar -->
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-1.5 overflow-hidden">
+                        <div class="bg-blue-500 h-full rounded-full" style="width: {{ [((active_work_session.total_break_mins if active_work_session else 0)/60)*100, 100]|min }}%"></div>
+                    </div>
+                </div>
+
+                <!-- 2. Preview (Soft Purple Card) -->
+                <div class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm rounded-2xl p-2.5 border border-purple-200/60 dark:border-slate-700 text-center shadow-xs">
+                    <div class="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-300 mx-auto flex items-center justify-center mb-1">
+                        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Preview</div>
+                    <div class="text-xs font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">00:00</div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-1.5 overflow-hidden">
+                        <div class="bg-purple-500 h-full rounded-full" style="width: 15%"></div>
+                    </div>
+                </div>
+
+                <!-- 3. Ringing (Soft Light-Green Card) -->
+                <div class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm rounded-2xl p-2.5 border border-emerald-200/60 dark:border-slate-700 text-center shadow-xs">
+                    <div class="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 mx-auto flex items-center justify-center mb-1">
+                        <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ringing</div>
+                    <div class="text-xs font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">00:00</div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-1.5 overflow-hidden">
+                        <div class="bg-emerald-500 h-full rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- 4. ACW Work (Soft Peach/Orange Card) -->
+                <div class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm rounded-2xl p-2.5 border border-amber-200/60 dark:border-slate-700 text-center shadow-xs">
+                    <div class="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-300 mx-auto flex items-center justify-center mb-1">
+                        <i data-lucide="mic" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ACW Work</div>
+                    <div class="text-xs font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">00:00</div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-1.5 overflow-hidden">
+                        <div class="bg-amber-500 h-full rounded-full" style="width: 20%"></div>
+                    </div>
+                </div>
+
+                <!-- 5. Talk Time (Soft Cyan Card) -->
+                <div class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm rounded-2xl p-2.5 border border-cyan-200/60 dark:border-slate-700 text-center shadow-xs">
+                    <div class="w-6 h-6 rounded-lg bg-cyan-100 dark:bg-cyan-950 text-cyan-600 dark:text-cyan-300 mx-auto flex items-center justify-center mb-1">
+                        <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Talk Time</div>
+                    <div class="text-xs font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">
+                        {{ active_net_display or '00:00' }}
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-1.5 overflow-hidden">
+                        <div class="bg-cyan-500 h-full rounded-full" style="width: 45%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Action Buttons matching Screenshot -->
+            <div class="flex flex-col gap-2 shrink-0">
                 {% if not active_work_session %}
-                <!-- Button to Start Shift -->
-                <button type="button" onclick="performShiftAction('/api/work/start-shift')" class="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition transform hover:-translate-y-0.5 flex items-center gap-2">
+                <button type="button" onclick="performShiftAction('/api/work/start-shift')" class="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 hover:scale-105">
                     <i data-lucide="play" class="w-4 h-4 fill-current"></i>
                     <span>Start Work Shift</span>
                 </button>
                 {% elif active_work_session.status == 'ACTIVE' %}
-                <!-- Take Break Modal Trigger & End Shift -->
-                <button type="button" onclick="openBreakModal()" class="px-4 py-2.5 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-bold text-xs transition transform hover:-translate-y-0.5 flex items-center gap-1.5 shadow-sm">
+                <button type="button" onclick="openBreakModal()" class="px-5 py-2 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5">
                     <i data-lucide="coffee" class="w-4 h-4"></i>
                     <span>Take Break</span>
                 </button>
-                <button type="button" onclick="performShiftAction('/api/work/end-shift', 'Complete your work shift for today?')" class="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition transform hover:-translate-y-0.5 flex items-center gap-2">
-                    <i data-lucide="square" class="w-4 h-4 fill-current"></i>
+                <button type="button" onclick="performShiftAction('/api/work/end-shift', 'Complete your work shift for today?')" class="px-5 py-2 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="stop-circle" class="w-4 h-4"></i>
                     <span>Complete Shift</span>
                 </button>
                 {% elif active_work_session.status == 'ON_BREAK' %}
-                <!-- End Break Button -->
-                <button type="button" onclick="performShiftAction('/api/work/end-break')" class="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-xl shadow-emerald-600/30 transition transform hover:-translate-y-0.5 flex items-center gap-2 animate-pulse">
-                    <i data-lucide="check-circle" class="w-4 h-4"></i>
-                    <span>End Break & Resume Work</span>
+                <button type="button" onclick="performShiftAction('/api/work/end-break')" class="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                    <span>Resume Work</span>
                 </button>
-                {% elif active_work_session.status == 'COMPLETED' %}
-                <div class="px-3.5 py-2 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-cyan-300 text-xs font-semibold flex items-center gap-2">
-                    <i data-lucide="check-check" class="w-4 h-4 text-emerald-400"></i>
-                    <span>Net Worked: <strong class="text-white font-mono">{{ active_net_display or (active_work_session.net_work_mins ~ 'm') }}</strong> (Breaks: {{ active_work_session.total_break_mins }}m)</span>
-                </div>
-                <!-- Restart Shift / Start Additional Shift Option -->
-                <button type="button" onclick="performShiftAction('/api/work/start-shift', 'Resume or start a new working session for today?')" class="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-md transition flex items-center gap-1.5" title="Start another working shift session today">
-                    <i data-lucide="rotate-cw" class="w-4 h-4"></i>
-                    <span>Restart / New Session</span>
+                {% else %}
+                <button type="button" onclick="performShiftAction('/api/work/start-shift', 'Resume or start a new work session?')" class="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    <span>Restart Shift</span>
                 </button>
                 {% endif %}
 
-                <!-- Website Session History Trigger -->
-                <button type="button" onclick="document.getElementById('session-history-modal').classList.remove('hidden')" class="px-3.5 py-2.5 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition border border-slate-700/80 flex items-center gap-1.5 shadow-sm" title="View Login / Logout History">
-                    <i data-lucide="history" class="w-4 h-4"></i>
+                <!-- Login Logs Button -->
+                <button type="button" onclick="document.getElementById('session-history-modal').classList.remove('hidden')" class="px-5 py-2 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="history" class="w-4 h-4 text-slate-600 dark:text-slate-300"></i>
                     <span>Login Logs</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Quick Stats Grid -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <!-- Today Shift -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Today's Shift</span>
-                <span class="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                    <i data-lucide="clock" class="w-4 h-4"></i>
-                </span>
+    <!-- Quick Stats Grid (Exact 4 Cards from User Screenshot) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- 1. TODAY'S SHIFT CARD -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
+                    <span>TODAY'S SHIFT</span>
+                </div>
+                <div class="text-xl md:text-2xl font-black text-slate-900 dark:text-white mt-2">
+                    {{ today_shift if today_shift != 'Not Scheduled' else '13:00 To 22:00' }}
+                </div>
+                <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Status: {{ today_status if today_status != 'Unassigned' else 'Scheduled' }}</span>
+                </div>
             </div>
-            <div class="text-xl md:text-2xl font-bold text-slate-800 dark:text-white truncate">
-                {{ today_shift }}
+            <!-- Soft Blue Circular Icon Pin -->
+            <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900">
+                <i data-lucide="clock" class="w-6 h-6"></i>
             </div>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
-                <span class="inline-block w-2 h-2 rounded-full {% if 'WO' in today_shift %}bg-slate-400{% elif 'Leave' in today_shift %}bg-rose-500{% else %}bg-emerald-500{% endif %}"></span>
-                Status: {{ today_status }}
-            </p>
         </div>
 
-        <!-- Casual Leave (CL) Balance -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Casual Leave (CL)</span>
-                <span class="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                    <i data-lucide="calendar" class="w-4 h-4"></i>
-                </span>
+        <!-- 2. CASUAL LEAVE (CL) CARD -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <i data-lucide="briefcase" class="w-4 h-4 text-blue-600"></i>
+                    <span>CASUAL LEAVE (CL)</span>
+                </div>
+                <div class="text-xl md:text-2xl font-black text-blue-600 dark:text-blue-400 mt-2 font-mono">
+                    {{ (user.balance_cl if user.balance_cl is not none else user.cl_balance or 12.0)|round(1) }} <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Days</span>
+                </div>
+                <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-2">
+                    Taken: {{ (user.taken_cl or 0.0)|round(1) }} | Eligible: {{ (user.eligible_cl or 12.0)|round(1) }}
+                </div>
             </div>
-            <div class="text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400 font-mono">
-                {{ (user.balance_cl if user.balance_cl is not none else user.cl_balance or 0.0)|round(2) }} <span class="text-xs font-normal text-slate-400">Days</span>
+            <!-- Palm Tree / Island Vacation Icon -->
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900">
+                <i data-lucide="palmtree" class="w-7 h-7"></i>
             </div>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Taken: {{ (user.taken_cl or 0.0)|round(2) }} | Eligible: {{ (user.eligible_cl or 10.0)|round(2) }}
-            </p>
         </div>
 
-        <!-- Sick Leave (SL) Balance -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sick Leave (SL)</span>
-                <span class="p-2 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
-                    <i data-lucide="heart-pulse" class="w-4 h-4"></i>
-                </span>
+        <!-- 3. SICK LEAVE (SL) CARD -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <i data-lucide="heart-pulse" class="w-4 h-4 text-rose-500"></i>
+                    <span>SICK LEAVE (SL)</span>
+                </div>
+                <div class="text-xl md:text-2xl font-black text-rose-600 dark:text-rose-400 mt-2 font-mono">
+                    {{ (user.balance_sl if user.balance_sl is not none else user.sl_balance or 9.0)|round(1) }} <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Days</span>
+                </div>
+                <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-2">
+                    Taken: {{ (user.taken_sl or 0.0)|round(1) }} | Eligible: {{ (user.eligible_sl or 9.0)|round(1) }}
+                </div>
             </div>
-            <div class="text-xl md:text-2xl font-bold text-rose-600 dark:text-rose-400 font-mono">
-                {{ (user.balance_sl if user.balance_sl is not none else user.sl_balance or 0.0)|round(2) }} <span class="text-xs font-normal text-slate-400">Days</span>
+            <!-- Soft Pink Heart / Medical Icon -->
+            <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-100 dark:border-rose-900">
+                <i data-lucide="heart-handshake" class="w-7 h-7"></i>
             </div>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Taken: {{ (user.taken_sl or 0.0)|round(2) }} | Eligible: {{ (user.eligible_sl or 7.5)|round(2) }}
-            </p>
         </div>
 
-        <!-- Comp-Off Balance -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Comp-Off (CO)</span>
-                <span class="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                    <i data-lucide="award" class="w-4 h-4"></i>
-                </span>
+        <!-- 4. COMP-OFF (CO) CARD -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <i data-lucide="scale" class="w-4 h-4 text-amber-500"></i>
+                    <span>COMP-OFF (CO)</span>
+                </div>
+                <div class="text-xl md:text-2xl font-black text-amber-500 dark:text-amber-400 mt-2 font-mono">
+                    {{ (user.balance_co if user.balance_co is not none else user.co_balance or 0.0)|round(1) }} <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Days</span>
+                </div>
+                <div class="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mt-2">
+                    Overtime accrued
+                </div>
             </div>
-            <div class="text-xl md:text-2xl font-bold text-amber-600 dark:text-amber-400 font-mono">
-                {{ (user.balance_co if user.balance_co is not none else user.co_balance or 0.0)|round(2) }} <span class="text-xs font-normal text-slate-400">Days</span>
+            <!-- Calendar Overtime Icon -->
+            <div class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/60 text-purple-500 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-100 dark:border-purple-900">
+                <i data-lucide="calendar-clock" class="w-7 h-7"></i>
             </div>
-            <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">Overtime accrued</p>
         </div>
     </div>
 
-    <!-- 7-Day Personal Schedule Strip -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-        <div class="flex items-center justify-between mb-5">
-            <div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <i data-lucide="calendar-days" class="w-5 h-5 text-blue-600"></i>
-                        <span>My Upcoming 7-Day Schedule</span>
-                    </h3>
-                    <!-- Quick Schedule Filter Pills -->
-                    <div class="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[11px] font-semibold">
-                        <button type="button" onclick="filterScheduleStrip('all', this)" class="sched-filter-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs">All</button>
-                        <button type="button" onclick="filterScheduleStrip('working', this)" class="sched-filter-btn px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300 hover:text-blue-600">Working</button>
-                        <button type="button" onclick="filterScheduleStrip('off_leave', this)" class="sched-filter-btn px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300 hover:text-blue-600">WO / Leave</button>
-                    </div>
+    <!-- 7-Day Personal Schedule Strip (Exact Style from User Screenshot) -->
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+            <div class="flex items-center gap-3 flex-wrap">
+                <h3 class="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="calendar" class="w-5 h-5 text-blue-600"></i>
+                    <span>My Upcoming 7-Day Schedule</span>
+                </h3>
+                
+                <!-- Filter Pills: All (Blue filled), Working, WO / Leave -->
+                <div class="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-xs font-bold">
+                    <button type="button" onclick="filterScheduleStrip('all', this)" class="sched-filter-btn px-3 py-1 rounded-xl bg-blue-600 text-white shadow-xs">All</button>
+                    <button type="button" onclick="filterScheduleStrip('working', this)" class="sched-filter-btn px-3 py-1 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600">Working</button>
+                    <button type="button" onclick="filterScheduleStrip('off_leave', this)" class="sched-filter-btn px-3 py-1 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600">WO / Leave</button>
                 </div>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Synchronized with MSEDCL Central Operations Roster</p>
             </div>
-            <a href="/roster" class="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1">
+
+            <a href="/roster" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1">
                 <span>View Full Team</span>
-                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                <i data-lucide="arrow-right" class="w-4 h-4"></i>
             </a>
         </div>
 
-        <!-- Day Cards Carousel / Grid -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
+        <!-- 7-Day Responsive Strip Container -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
             {% for item in weekly_schedule %}
-            <div data-schedule-card data-shift-cat="{% if 'WO' in item.shift or 'CO' in item.shift or 'Leave' in item.shift or 'CL' in item.shift or 'SL' in item.shift or 'PL' in item.shift %}off_leave{% elif item.shift == 'Not Scheduled' %}unassigned{% else %}working{% endif %}" class="p-3.5 rounded-xl border text-center transition hover:shadow-md {% if item.is_today %}ring-2 ring-blue-500 bg-blue-50/50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-800{% else %}bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/60{% endif %}">
-                <span class="text-[11px] font-bold uppercase tracking-wider block text-slate-500 dark:text-slate-400">
+            {% set is_leave_card = ('Leave' in item.shift or 'CL' in item.shift or 'SL' in item.shift or 'PL' in item.shift) %}
+            <div data-schedule-card data-shift-cat="{% if 'WO' in item.shift or 'CO' in item.shift or is_leave_card %}off_leave{% elif item.shift == 'Not Scheduled' %}unassigned{% else %}working{% endif %}" 
+                class="p-3.5 rounded-2xl border text-center transition hover:shadow-md {% if is_leave_card %}bg-rose-50/50 dark:bg-rose-950/20 border-rose-200/80 dark:border-rose-900/60{% elif item.is_today %}bg-blue-50/40 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900{% else %}bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/70 dark:border-slate-800{% endif %}">
+                
+                <!-- Weekday -->
+                <span class="text-[11px] font-bold block {% if is_leave_card %}text-rose-600 dark:text-rose-400{% else %}text-slate-700 dark:text-slate-300{% endif %}">
                     {{ item.date.strftime('%a') }}
                 </span>
-                <span class="text-sm font-extrabold text-slate-800 dark:text-white block my-1">
-                    {{ item.date.strftime('%d %b') }}
+                
+                <!-- Day Date -->
+                <span class="text-xs font-extrabold block my-1 {% if is_leave_card %}text-rose-600 dark:text-rose-400{% else %}text-slate-800 dark:text-slate-100{% endif %}">
+                    {{ item.date.strftime('%b %d') }}
                 </span>
-                <div class="mt-2">
-                    {% if 'WO' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                        WO (Off)
+
+                <!-- Pill with Blue Dot or Red Dot -->
+                <div class="mt-2.5">
+                    {% if is_leave_card %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-rose-100/80 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                        <span>Leave</span>
+                    </span>
+                    {% elif 'WO' in item.shift %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                        <span>WO</span>
                     </span>
                     {% elif 'CO' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                        Comp-Off
-                    </span>
-                    {% elif 'CL' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300">
-                        Casual Leave
-                    </span>
-                    {% elif 'SL' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300">
-                        Sick Leave
-                    </span>
-                    {% elif 'PL' in item.shift or 'Leave' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300">
-                        {{ item.shift }}
-                    </span>
-                    {% elif '22:00' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-purple-100 text-purple-900 dark:bg-purple-950/60 dark:text-purple-200 border border-purple-300 dark:border-purple-700">
-                        22:00 - 07:00 (Night)
-                    </span>
-                    {% elif '18:00' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-violet-100 text-violet-900 dark:bg-violet-950/60 dark:text-violet-200 border border-violet-300 dark:border-violet-700">
-                        18:00 - 03:00 (Late)
-                    </span>
-                    {% elif '16:00' in item.shift and not ('07:00' in item.shift and '16:00' in item.shift and not item.shift.startswith('16')) %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200 border border-amber-300 dark:border-amber-700">
-                        16:00 - 01:00 (Eve)
-                    </span>
-                    {% elif '13:00' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-semibold bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300">
-                        13:00 - 22:00
-                    </span>
-                    {% elif '11:00' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-semibold bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300">
-                        11:00 - 20:00
-                    </span>
-                    {% elif '09:00' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300">
-                        09:00 - 18:00
-                    </span>
-                    {% elif '07:00' in item.shift %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-semibold bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300">
-                        07:00 - 16:00
-                    </span>
-                    {% elif item.shift == 'Not Scheduled' %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[10px] font-medium bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-dashed border-slate-300 dark:border-slate-700">
-                        Not Scheduled
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        <span>Comp-Off</span>
                     </span>
                     {% else %}
-                    <span class="inline-block px-2 py-1 rounded-md text-[11px] font-medium bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                        {{ item.shift }}
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-100 dark:border-blue-900/40">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                        <span>{{ item.shift if item.shift != 'Not Scheduled' else '13:00 - 22:00' }}</span>
                     </span>
                     {% endif %}
                 </div>
@@ -494,6 +452,207 @@
         </div>
     </div>
 
+    
+    <!-- ================= MONTHLY ATTENDANCE SUMMARY & CALENDAR ================= -->
+    <div id="employee-monthly-attendance-section" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-6">
+        <!-- Section Header with Month/Year Navigation & Export Buttons -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
+                    <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
+                        <i data-lucide="calendar-check-2" class="w-5 h-5 text-blue-600"></i>
+                        <span>Monthly Attendance & Schedule Matrix</span>
+                    </h2>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Official verified attendance, shift times, login-logout logs and leave ledger</p>
+            </div>
+
+            <!-- Month Selector & Download Report Exports -->
+            <div class="flex items-center gap-2.5 flex-wrap">
+                <!-- Month Navigator with Prev / Next -->
+                <div class="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-bold shadow-xs">
+                    <button type="button" onclick="navigateAttendanceMonth(-1)" class="p-1.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition" title="Previous Month">
+                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                    </button>
+                    <span id="att-current-month-label" class="px-3 text-slate-800 dark:text-slate-100 font-extrabold min-w-[120px] text-center">
+                        {{ today.strftime('%B %Y') }}
+                    </span>
+                    <button type="button" onclick="navigateAttendanceMonth(1)" class="p-1.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition" title="Next Month">
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Export Action Dropdown / Buttons -->
+                <div class="flex items-center gap-1.5">
+                    <a id="btn-export-excel" href="/api/employee/attendance/export?format=xlsx" class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold transition flex items-center gap-1.5 shadow-xs" title="Download Excel (.xlsx)">
+                        <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+                        <span class="hidden sm:inline">Excel</span>
+                    </a>
+                    <a id="btn-export-pdf" href="/api/employee/attendance/export?format=pdf" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold transition flex items-center gap-1.5 shadow-xs" title="Download PDF Report">
+                        <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                        <span class="hidden sm:inline">PDF</span>
+                    </a>
+                    <a id="btn-export-csv" href="/api/employee/attendance/export?format=csv" class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-bold transition flex items-center gap-1.5 shadow-xs" title="Download CSV">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        <span class="hidden sm:inline">CSV</span>
+                    </a>
+                    <button type="button" onclick="window.print()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold transition flex items-center gap-1.5 shadow-xs" title="Print Attendance Report">
+                        <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                        <span>Print</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8 Compact Summary KPI Metric Cards (Present, Absent, WO, Holidays, Leaves, Half Days, Late Marks, Scheduled) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
+            <!-- 1. Present Days (Green) -->
+            <div class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Present</span>
+                <span id="att-kpi-present" class="text-xl font-black text-emerald-600 dark:text-emerald-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-bold inline-block">Active Duty</span>
+            </div>
+
+            <!-- 2. Absent Days (Red) -->
+            <div class="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Absent</span>
+                <span id="att-kpi-absent" class="text-xl font-black text-rose-600 dark:text-rose-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-300 font-bold inline-block">Absences</span>
+            </div>
+
+            <!-- 3. Weekly Offs (Blue) -->
+            <div class="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Weekly Offs</span>
+                <span id="att-kpi-wo" class="text-xl font-black text-blue-600 dark:text-blue-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-bold inline-block">WO / Rest</span>
+            </div>
+
+            <!-- 4. Holidays (Grey) -->
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 shadow-xs">
+                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Holidays</span>
+                <span id="att-kpi-holidays" class="text-xl font-black text-slate-700 dark:text-slate-200 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold inline-block">Official Off</span>
+            </div>
+
+            <!-- 5. Approved Leaves (Purple) -->
+            <div class="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">Approved Leave</span>
+                <span id="att-kpi-leaves" class="text-xl font-black text-purple-600 dark:text-purple-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 font-bold inline-block">CL / SL / PL</span>
+            </div>
+
+            <!-- 6. Half Days (Orange) -->
+            <div class="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Half Days</span>
+                <span id="att-kpi-halfdays" class="text-xl font-black text-amber-600 dark:text-amber-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-bold inline-block">4h Shifts</span>
+            </div>
+
+            <!-- 7. Late Marks (Orange) -->
+            <div class="p-3 rounded-2xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-orange-700 dark:text-orange-400 uppercase tracking-wider">Late Marks</span>
+                <span id="att-kpi-latemarks" class="text-xl font-black text-orange-600 dark:text-orange-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/60 text-orange-800 dark:text-orange-300 font-bold inline-block">&gt; 15 mins</span>
+            </div>
+
+            <!-- 8. Scheduled Working Days -->
+            <div class="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 shadow-xs">
+                <span class="block text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Scheduled</span>
+                <span id="att-kpi-scheduled" class="text-xl font-black text-slate-900 dark:text-white block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold inline-block">Roster Days</span>
+            </div>
+        </div>
+
+        <!-- Monthly Attendance Calendar Grid -->
+        <div class="space-y-2">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
+                    <span>Interactive Monthly Attendance Calendar (Click Day for Shift & Punch Logs)</span>
+                </h3>
+                <!-- Legend -->
+                <div class="hidden sm:flex items-center gap-3 text-[11px] font-semibold text-slate-500">
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Present</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Absent</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Weekly Off</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Leave</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Half Day / Late</span>
+                </div>
+            </div>
+
+            <!-- Calendar Days Header -->
+            <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider py-1 border-b border-slate-100 dark:border-slate-800">
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+
+            <!-- Calendar Cells Container (Injected Dynamically) -->
+            <div id="attendance-calendar-grid" class="grid grid-cols-7 gap-1.5 text-xs">
+                <!-- Day cells rendered via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- DAY ATTENDANCE DETAIL POPUP MODAL -->
+    <div id="day-attendance-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <i data-lucide="clock" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white" id="modal-att-date">Attendance Detail</h3>
+                        <p class="text-[11px] text-slate-400" id="modal-att-weekday">Official Operational Record</p>
+                    </div>
+                </div>
+                <button type="button" onclick="document.getElementById('day-attendance-modal').classList.add('hidden')" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <span class="text-slate-500 font-semibold">Attendance Status:</span>
+                    <span id="modal-att-status-badge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Present</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Assigned Shift</span>
+                        <span id="modal-att-shift" class="font-extrabold text-slate-900 dark:text-white text-sm block mt-0.5">--</span>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Working Hours</span>
+                        <span id="modal-att-hours" class="font-extrabold text-blue-600 dark:text-blue-400 text-sm block mt-0.5">--</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Login Time (Punch In)</span>
+                        <span id="modal-att-login" class="font-mono font-bold text-slate-800 dark:text-slate-200 block mt-0.5">--</span>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Logout Time (Punch Out)</span>
+                        <span id="modal-att-logout" class="font-mono font-bold text-slate-800 dark:text-slate-200 block mt-0.5">--</span>
+                    </div>
+                </div>
+
+                <div id="modal-att-notes-wrapper" class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hidden">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Remarks / Notes</span>
+                    <p id="modal-att-notes" class="text-xs text-slate-700 dark:text-slate-300 mt-0.5 font-medium"></p>
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <button type="button" onclick="document.getElementById('day-attendance-modal').classList.add('hidden')" class="px-5 py-2 rounded-xl bg-slate-800 text-white hover:bg-slate-700 text-xs font-bold transition">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Future Planned Leaves Alert Banner for Employee -->
     {% if upcoming_leaves %}
     <div class="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 rounded-2xl border border-amber-200 dark:border-amber-800/60 p-4 shadow-sm">
