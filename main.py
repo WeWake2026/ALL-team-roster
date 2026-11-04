@@ -555,7 +555,9 @@ def switch_persona(user_id: int, db: Session = Depends(get_db)):
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(
     request: Request,
+    view: Optional[str] = None, # "trial", "legacy", or None
     user: models.User = Depends(require_auth),
+    perms: get_user_perms = Depends(get_user_perms),
     db: Session = Depends(get_db)
 ):
     today = date.today()
@@ -678,6 +680,113 @@ def dashboard(
         db=db
     )
 
+    # Check global trial setting from database
+    trial_setting = db.query(models.CompanySetting).filter(models.CompanySetting.setting_key == "employee_dashboard_trial_mode").first()
+    is_global_trial = trial_setting.setting_value.lower() == "true" if trial_setting else False
+
+    # Check query param overrides (?view=trial or ?view=legacy)
+    is_trial_requested = (view == "trial") or (is_global_trial and view != "legacy")
+
+    # Only employee/staff accounts use the modern employee dashboard (or admin testing in trial preview)
+    # Admin & Managers retain their admin view unless they explicitly test trial (?view=trial)
+    is_employee_user = user.access_level in ["Employee", "Agent", "Quality Auditor", "SME", "Staff"] or (view == "trial")
+
+    if is_trial_requested and is_employee_user:
+        # Precompute personalized stats for Employee Dashboard (Strict Privacy)
+        first_of_month = today.replace(day=1)
+        month_entries = db.query(models.RosterEntry).filter(
+            models.RosterEntry.user_id == user.id,
+            models.RosterEntry.date >= first_of_month,
+            models.RosterEntry.date <= today
+        ).all()
+
+        emp_present_count = 0
+        emp_wo_count = 0
+        emp_leave_count = 0
+        emp_absent_count = 0
+        for entry in month_entries:
+            sc = (entry.shift_code_or_time or "").upper()
+            st = (entry.status or "").upper()
+            if "WO" in sc or st == "WO":
+                emp_wo_count += 1
+            elif "LEAVE" in sc or st == "LEAVE":
+                emp_leave_count += 1
+            elif st == "ABSENT":
+                emp_absent_count += 1
+            else:
+                emp_present_count += 1
+
+        emp_work_days = emp_present_count + emp_absent_count
+        emp_attendance_pct = round((emp_present_count / emp_work_days * 100), 1) if emp_work_days > 0 else 100.0
+
+        # Next weekly off date
+        next_wo_entry = db.query(models.RosterEntry).filter(
+            models.RosterEntry.user_id == user.id,
+            models.RosterEntry.date >= today,
+            models.RosterEntry.shift_code_or_time.ilike("%WO%")
+        ).order_by(models.RosterEntry.date.asc()).first()
+
+        # Monthly upcoming personal roster
+        emp_monthly_roster = db.query(models.RosterEntry).filter(
+            models.RosterEntry.user_id == user.id,
+            models.RosterEntry.date >= first_of_month,
+            models.RosterEntry.date <= today + timedelta(days=30)
+        ).order_by(models.RosterEntry.date.asc()).all()
+
+        # Upcoming enterprise holidays
+        emp_upcoming_holidays = db.query(models.Holiday).filter(
+            models.Holiday.date >= today
+        ).order_by(models.Holiday.date.asc()).limit(6).all()
+
+        # Pending leave requests
+        emp_pending_leaves = [l for l in user_leaves if "pending" in (l.status or "").lower()]
+
+        # Shift timing lookup
+        all_system_shifts = db.query(models.Shift).all()
+        shift_timing_dict = {s.name: s for s in all_system_shifts}
+        shift_timing_dict.update({s.code: s for s in all_system_shifts})
+
+        # User preferences
+        emp_pref = db.query(models.UserPreference).filter(models.UserPreference.user_id == user.id).first()
+
+        return templates.TemplateResponse(
+            request=request,
+            name="dashboard_employee_trial.html",
+            context={
+                "user": user,
+                "perms": perms,
+                "active_page": "dashboard",
+                "today": today,
+                "today_shift": today_shift,
+                "today_status": today_status,
+                "weekly_schedule": weekly_schedule,
+                "upcoming_leaves": upcoming_leaves,
+                "user_leaves": user_leaves,
+                "notifications": notifications,
+                "active_work_session": active_work_session,
+                "active_break": active_break,
+                "recent_session_logs": recent_session_logs,
+                "today_online_hours": today_online_hours,
+                "active_net_display": active_net_display,
+                "timedelta": timedelta,
+                "emp_present_count": emp_present_count,
+                "emp_wo_count": emp_wo_count,
+                "emp_leave_count": emp_leave_count,
+                "emp_absent_count": emp_absent_count,
+                "emp_attendance_pct": emp_attendance_pct,
+                "next_wo_entry": next_wo_entry,
+                "emp_monthly_roster": emp_monthly_roster,
+                "emp_upcoming_holidays": emp_upcoming_holidays,
+                "emp_pending_leaves": emp_pending_leaves,
+                "shift_timing_dict": shift_timing_dict,
+                "all_shifts": all_system_shifts,
+                "emp_pref": emp_pref,
+                "is_trial_mode": True,
+                "can_revert": perms.is_admin or perms.is_manager
+            }
+        )
+
+    # Legacy/Existing original dashboard
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",

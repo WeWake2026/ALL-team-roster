@@ -1,0 +1,795 @@
+{% extends "base.html" %}
+{% block title %}My Workplace Dashboard (Trial) - ShiftFlow Pro{% endblock %}
+
+{% block content %}
+<!-- Trial Mode Notice Banner (Visible to Admins / Managers previewing or evaluating the trial) -->
+<div class="mb-5 p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-200 dark:border-blue-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+    <div class="flex items-center gap-2.5">
+        <span class="px-2 py-0.5 rounded-full bg-blue-600 text-white font-extrabold uppercase text-[10px] tracking-wider">Trial Version</span>
+        <span class="text-slate-700 dark:text-slate-300 font-medium">Modern Employee & Operational Staff Workplace Dashboard is running in <strong>Protected Trial Mode</strong>.</span>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if can_revert %}
+        <a href="/admin/control-center" class="px-3 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 transition shadow-sm">
+            Admin Settings
+        </a>
+        {% endif %}
+        <a href="/dashboard?view=legacy" class="px-3 py-1 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-lg text-xs font-semibold hover:opacity-90 transition shadow-sm">
+            Switch to Original Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Main Employee Dashboard Workspace -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+    <!-- 1. Left Navigation Sidebar for Employee Modules -->
+    <aside class="lg:col-span-3 space-y-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+            <!-- Employee Mini Profile Badge -->
+            <div class="p-3 mb-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 flex items-center gap-3">
+                <div class="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-extrabold text-base flex items-center justify-center shrink-0 shadow-md">
+                    {{ user.name[0]|upper }}
+                </div>
+                <div class="min-w-0 flex-1">
+                    <h3 class="text-xs font-extrabold text-slate-900 dark:text-white truncate">{{ user.name }}</h3>
+                    <p class="text-[11px] text-blue-600 dark:text-blue-400 font-medium truncate">{{ user.role_title or user.access_level }}</p>
+                    <span class="text-[10px] text-slate-400 font-mono">{{ user.unique_id }}</span>
+                </div>
+            </div>
+
+            <!-- Sidebar Navigation Links -->
+            <nav class="space-y-1 text-xs font-semibold" id="emp-nav-tabs">
+                <button type="button" onclick="switchEmpTab('overview', this)" class="emp-tab-btn active w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition text-left">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4 text-blue-500"></i>
+                    <span>1. My Dashboard</span>
+                </button>
+                <button type="button" onclick="switchEmpTab('roster', this)" class="emp-tab-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                    <i data-lucide="calendar-days" class="w-4 h-4 text-sky-500"></i>
+                    <span>2. My Roster</span>
+                </button>
+                <button type="button" onclick="switchEmpTab('attendance', this)" class="emp-tab-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>
+                    <span>3. My Attendance</span>
+                </button>
+                <button type="button" onclick="switchEmpTab('apply_leave', this)" class="emp-tab-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                    <i data-lucide="file-plus-2" class="w-4 h-4 text-indigo-500"></i>
+                    <span>4. Apply Leave</span>
+                </button>
+                <button type="button" onclick="switchEmpTab('leave_history', this)" class="emp-tab-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                    <i data-lucide="history" class="w-4 h-4 text-amber-500"></i>
+                    <span>5. My Leave History</span>
+                </button>
+                <button type="button" onclick="switchEmpTab('holidays', this)" class="emp-tab-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-pink-500"></i>
+                    <span>6. Upcoming Holidays</span>
+                </button>
+                <button type="button" onclick="switchEmpTab('notifications', this)" class="emp-tab-btn w-full flex items-center justify-between px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                    <span class="flex items-center gap-2.5">
+                        <i data-lucide="bell" class="w-4 h-4 text-purple-500"></i>
+                        <span>7. Notifications</span>
+                    </span>
+                    {% if notifications|length > 0 %}
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white">{{ notifications|length }}</span>
+                    {% endif %}
+                </button>
+                <button type="button" onclick="switchEmpTab('profile', this)" class="emp-tab-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                    <i data-lucide="user" class="w-4 h-4 text-teal-500"></i>
+                    <span>8. My Profile</span>
+                </button>
+                <button type="button" onclick="switchEmpTab('settings', this)" class="emp-tab-btn w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-left">
+                    <i data-lucide="sliders" class="w-4 h-4 text-slate-500"></i>
+                    <span>9. My Settings</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Shift Work Tracker Card (Clock In / Out & Breaks) -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm text-xs">
+            <h4 class="font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-2">
+                <i data-lucide="timer" class="w-4 h-4 text-blue-600"></i>
+                <span>Work Session Timer</span>
+            </h4>
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500 text-[11px]">Today's Status</span>
+                    <span class="font-bold text-emerald-600">{{ today_status }}</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500 text-[11px]">Online Time</span>
+                    <span class="font-mono font-bold text-slate-900 dark:text-white">{{ today_online_hours }} hrs</span>
+                </div>
+                {% if active_net_display %}
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-500 text-[11px]">Logged Shift Time</span>
+                    <span class="font-mono font-bold text-blue-600">{{ active_net_display }}</span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="mt-3 flex gap-2">
+                {% if not active_work_session or active_work_session.status == 'COMPLETED' %}
+                <button type="button" onclick="handleShiftAction('/api/work/start-shift')" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                    <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                    <span>Start Shift</span>
+                </button>
+                {% elif active_work_session.status == 'ACTIVE' %}
+                <button type="button" onclick="handleShiftAction('/api/work/start-break')" class="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                    <i data-lucide="coffee" class="w-3.5 h-3.5"></i>
+                    <span>Take Break</span>
+                </button>
+                <button type="button" onclick="handleShiftAction('/api/work/end-shift')" class="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                    <i data-lucide="square" class="w-3.5 h-3.5"></i>
+                    <span>End Shift</span>
+                </button>
+                {% elif active_work_session.status == 'ON_BREAK' %}
+                <button type="button" onclick="handleShiftAction('/api/work/end-break')" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                    <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                    <span>Resume Work</span>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </aside>
+
+    <!-- 2. Dynamic Content Area for Tabs -->
+    <main class="lg:col-span-9 space-y-6">
+
+        <!-- TAB 1: OVERVIEW & PERSONAL SUMMARY CARDS -->
+        <section id="emp-tab-overview" class="emp-module-panel space-y-6">
+            <!-- Top Hero Banner with personalized greeting -->
+            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6 text-white shadow-md">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <div class="inline-flex items-center gap-2 text-xs font-medium text-white/90 mb-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span>{{ today.strftime('%A, %d %B %Y') }}</span>
+                        </div>
+                        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">
+                            Welcome back, {{ user.name }}!
+                        </h1>
+                        <p class="text-blue-100 text-xs mt-1">
+                            {{ user.role_title or user.access_level }} &bull; {{ user.location }} Operations &bull; Employee ID: <span class="font-mono font-bold">{{ user.unique_id }}</span>
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <button type="button" onclick="switchEmpTab('apply_leave', document.querySelectorAll('.emp-tab-btn')[3])" class="px-4 py-2 bg-white text-slate-800 hover:bg-slate-100 rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                            <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-blue-600"></i>
+                            <span>Apply Leave</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Employee Summary Cards (Personalized) -->
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <!-- Card 1: My Current Shift -->
+                <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-slate-400 mb-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider">My Current Shift</span>
+                        <div class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center">
+                            <i data-lucide="clock" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-base font-extrabold text-slate-900 dark:text-white truncate">{{ today_shift }}</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Status: <span class="font-bold text-emerald-600">{{ today_status }}</span></p>
+                    </div>
+                </div>
+
+                <!-- Card 2: Today's Attendance -->
+                <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-slate-400 mb-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider">Today's Attendance</span>
+                        <div class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center">
+                            <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-base font-extrabold text-emerald-600">{{ today_status }}</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">{{ emp_attendance_pct }}% Monthly Reliability</p>
+                    </div>
+                </div>
+
+                <!-- Card 3: Next Weekly Off -->
+                <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-slate-400 mb-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider">My Weekly Off</span>
+                        <div class="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center">
+                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-base font-extrabold text-slate-900 dark:text-white">
+                            {{ next_wo_entry.date.strftime('%a, %d %b') if next_wo_entry else 'Configured in Roster' }}
+                        </p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">{{ emp_wo_count }} Offs logged this month</p>
+                    </div>
+                </div>
+
+                <!-- Card 4: My Leave Balance -->
+                <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-slate-400 mb-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider">My Leave Balance</span>
+                        <div class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
+                            <i data-lucide="plane-takeoff" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-base font-extrabold text-slate-900 dark:text-white">
+                            {{ ((user.eligible_cl - user.taken_cl) + (user.eligible_sl - user.taken_sl))|round(1) }} Days
+                        </p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">CL: {{ (user.eligible_cl - user.taken_cl)|round(1) }} &bull; SL: {{ (user.eligible_sl - user.taken_sl)|round(1) }}</p>
+                    </div>
+                </div>
+
+                <!-- Card 5: Pending Leave Requests -->
+                <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-slate-400 mb-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider">Pending Leaves</span>
+                        <div class="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center">
+                            <i data-lucide="clock-alert" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-base font-extrabold text-slate-900 dark:text-white">{{ emp_pending_leaves|length }} Request(s)</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Awaiting Supervisor Review</p>
+                    </div>
+                </div>
+
+                <!-- Card 6: Upcoming Holidays -->
+                <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-slate-400 mb-2">
+                        <span class="text-[11px] font-bold uppercase tracking-wider">Upcoming Holiday</span>
+                        <div class="w-7 h-7 rounded-lg bg-pink-50 dark:bg-pink-950/60 text-pink-600 flex items-center justify-center">
+                            <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div>
+                        {% if emp_upcoming_holidays and emp_upcoming_holidays|length > 0 %}
+                        <p class="text-sm font-extrabold text-slate-900 dark:text-white truncate">{{ emp_upcoming_holidays[0].name }}</p>
+                        <p class="text-[11px] text-pink-600 dark:text-pink-400 font-semibold mt-0.5">{{ emp_upcoming_holidays[0].date.strftime('%d %b %Y') }}</p>
+                        {% else %}
+                        <p class="text-sm font-extrabold text-slate-900 dark:text-white">None scheduled</p>
+                        <p class="text-[11px] text-slate-500 mt-0.5">National Calendar</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 7-Day Upcoming Personal Roster Window -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="calendar-range" class="w-4 h-4 text-blue-600"></i>
+                        <span>My 7-Day Rolling Roster Schedule</span>
+                    </h3>
+                    <button type="button" onclick="switchEmpTab('roster', document.querySelectorAll('.emp-tab-btn')[1])" class="text-xs text-blue-600 dark:text-blue-400 font-semibold hover:underline">
+                        View Full Calendar &rarr;
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
+                    {% for day in weekly_schedule %}
+                    <div class="p-3 rounded-xl border text-center transition {% if day.is_today %}border-blue-500 bg-blue-50/50 dark:bg-blue-950/40 font-bold{% else %}border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30{% endif %}">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 block">{{ day.date.strftime('%a') }}</span>
+                        <span class="text-xs font-bold text-slate-800 dark:text-white block mt-0.5">{{ day.date.strftime('%d %b') }}</span>
+                        <div class="mt-2">
+                            {% if 'WO' in day.shift %}
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">WO</span>
+                            {% elif 'CO' in day.shift %}
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">CO</span>
+                            {% elif 'Leave' in day.shift or 'PL' in day.shift or 'CL' in day.shift or 'SL' in day.shift %}
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">Leave</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 truncate block">{{ day.shift }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: MY ROSTER -->
+        <section id="emp-tab-roster" class="emp-module-panel hidden space-y-6">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-4">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="calendar-days" class="w-4 h-4 text-sky-600"></i>
+                            <span>My Official Roster Schedule</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Strict personal view: Your shift timings, break durations, and scheduled off-days.</p>
+                    </div>
+                </div>
+
+                <!-- Shift Timing Reference Legend -->
+                <div class="p-3 mb-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 text-xs">
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Configured Shift Legend & Color Codes:</span>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>Morning Shift (07:00 - 16:00)
+                        </span>
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>General Shift (09:00 - 18:00)
+                        </span>
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span>Afternoon Shift (13:00 - 22:00)
+                        </span>
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-purple-500"></span>Night Shift (22:00 - 07:00)
+                        </span>
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-slate-500"></span>Weekly Off (WO)
+                        </span>
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-rose-500"></span>Approved Leave
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Monthly Personal Roster Records Table -->
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="p-3">Roster Date</th>
+                                <th class="p-3">Day</th>
+                                <th class="p-3">Shift Assigned</th>
+                                <th class="p-3">Timing Window</th>
+                                <th class="p-3">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-normal">
+                            {% for entry in emp_monthly_roster %}
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 {% if entry.date == today %}bg-blue-50/40 dark:bg-blue-950/20 font-semibold{% endif %}">
+                                <td class="p-3 font-mono font-bold text-slate-900 dark:text-white">
+                                    {{ entry.date.strftime('%Y-%m-%d') }}
+                                    {% if entry.date == today %}
+                                    <span class="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-blue-600 text-white uppercase">Today</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 text-slate-600 dark:text-slate-400">{{ entry.date.strftime('%A') }}</td>
+                                <td class="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                    {% if 'WO' in entry.shift_code_or_time %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">Weekly Off (WO)</span>
+                                    {% elif 'CO' in entry.shift_code_or_time %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">Comp-Off (CO)</span>
+                                    {% elif 'Leave' in entry.shift_code_or_time %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">Approved Leave</span>
+                                    {% else %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">{{ entry.shift_code_or_time }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 text-slate-500 font-mono">
+                                    {{ shift_timing_dict[entry.shift_code_or_time].start_time ~ ' to ' ~ shift_timing_dict[entry.shift_code_or_time].end_time if entry.shift_code_or_time in shift_timing_dict else 'Standard' }}
+                                </td>
+                                <td class="p-3">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">{{ entry.status }}</span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="p-6 text-center text-slate-400 italic">No roster entries scheduled for this month.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: MY ATTENDANCE -->
+        <section id="emp-tab-attendance" class="emp-module-panel hidden space-y-6">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+                            <span>My Monthly Attendance Scorecard</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Strict personal view: Your punctual arrival records, working days, and monthly adherence rate.</p>
+                    </div>
+                </div>
+
+                <!-- Attendance Breakdown KPI Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    <div class="p-4 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-center">
+                        <span class="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">Present Days</span>
+                        <span class="text-xl font-extrabold text-emerald-600 block mt-1">{{ emp_present_count }}</span>
+                    </div>
+                    <div class="p-4 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-center">
+                        <span class="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">Weekly Offs</span>
+                        <span class="text-xl font-extrabold text-blue-600 block mt-1">{{ emp_wo_count }}</span>
+                    </div>
+                    <div class="p-4 rounded-xl bg-rose-50/60 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-center">
+                        <span class="text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider block">Leaves Taken</span>
+                        <span class="text-xl font-extrabold text-rose-600 block mt-1">{{ emp_leave_count }}</span>
+                    </div>
+                    <div class="p-4 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-center">
+                        <span class="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block">Monthly Attendance</span>
+                        <span class="text-xl font-extrabold text-indigo-600 block mt-1">{{ emp_attendance_pct }}%</span>
+                    </div>
+                </div>
+
+                <!-- Recent Login & Attendance Sessions -->
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">Recent System Attendance & Session Logs</h3>
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="p-3">Login Timestamp</th>
+                                <th class="p-3">Logout Timestamp</th>
+                                <th class="p-3">Session Duration</th>
+                                <th class="p-3">Device / IP</th>
+                                <th class="p-3">Session Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-normal">
+                            {% for log in recent_session_logs %}
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="p-3 font-mono">{{ log.login_time.strftime('%Y-%m-%d %H:%M:%S') if log.login_time else '' }}</td>
+                                <td class="p-3 font-mono text-slate-500">{{ log.logout_time.strftime('%Y-%m-%d %H:%M:%S') if log.logout_time else 'Active Now' }}</td>
+                                <td class="p-3 font-semibold text-slate-900 dark:text-white">{{ (log.duration_seconds // 60) }} mins</td>
+                                <td class="p-3 font-mono text-slate-500">{{ log.ip_address or 'Local Web' }}</td>
+                                <td class="p-3">
+                                    {% if log.is_active_session %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Active</span>
+                                    {% else %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">Logged Out</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="p-6 text-center text-slate-400 italic">No recent web sessions recorded.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: APPLY LEAVE -->
+        <section id="emp-tab-apply_leave" class="emp-module-panel hidden space-y-6">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="file-plus-2" class="w-4 h-4 text-indigo-600"></i>
+                            <span>Submit Leave Application</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Apply for Casual, Sick, or Privilege leave with supporting document attachments.</p>
+                    </div>
+                </div>
+
+                <!-- Current Available Balances Indicator -->
+                <div class="grid grid-cols-3 gap-3 mb-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-xs">
+                    <div>
+                        <span class="text-slate-400 text-[10px] uppercase font-bold">Casual Leave (CL)</span>
+                        <p class="font-extrabold text-sm text-blue-600 mt-0.5">{{ (user.eligible_cl - user.taken_cl)|round(1) }} Days</p>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 text-[10px] uppercase font-bold">Sick Leave (SL)</span>
+                        <p class="font-extrabold text-sm text-emerald-600 mt-0.5">{{ (user.eligible_sl - user.taken_sl)|round(1) }} Days</p>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 text-[10px] uppercase font-bold">Comp-Off (CO)</span>
+                        <p class="font-extrabold text-sm text-purple-600 mt-0.5">{{ user.balance_co or 0.0 }} Days</p>
+                    </div>
+                </div>
+
+                <!-- Leave Application Form -->
+                <form action="/leaves/apply" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Leave Type *</label>
+                            <select name="leave_type" required class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                                <option value="CL">Casual Leave (CL)</option>
+                                <option value="SL">Sick Leave (SL)</option>
+                                <option value="PL">Privilege Leave (PL)</option>
+                                <option value="Comp-Off">Compensatory Off (CO)</option>
+                                <option value="Unpaid">Unpaid / Leave Without Pay (LWP)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Duration Portion</label>
+                            <select name="day_part" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                                <option value="full">Full Day (1.0)</option>
+                                <option value="half_first">Half Day - First Half (0.5)</option>
+                                <option value="half_second">Half Day - Second Half (0.5)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">From Date *</label>
+                            <input type="date" name="start_date" required min="{{ today.strftime('%Y-%m-%d') }}" value="{{ today.strftime('%Y-%m-%d') }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">To Date *</label>
+                            <input type="date" name="end_date" required min="{{ today.strftime('%Y-%m-%d') }}" value="{{ today.strftime('%Y-%m-%d') }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Reason for Leave *</label>
+                            <textarea name="reason" rows="3" required placeholder="Detailed reason for supervisor review..." class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"></textarea>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Supporting Document (Medical certificate, ticket, etc.)</label>
+                            <input type="file" name="supporting_doc" accept=".pdf,.png,.jpg,.jpeg" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        </div>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                        <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                            <span>Submit Application</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- TAB 5: MY LEAVE HISTORY -->
+        <section id="emp-tab-leave_history" class="emp-module-panel hidden space-y-6">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="history" class="w-4 h-4 text-amber-600"></i>
+                            <span>My Historical Leave Requests</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Strict personal view: Review approval statuses, supervisor remarks, and cancellation requests.</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">
+                            <tr>
+                                <th class="p-3">App Ref</th>
+                                <th class="p-3">Type</th>
+                                <th class="p-3">From - To</th>
+                                <th class="p-3">Days</th>
+                                <th class="p-3">Reason</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Reviewer Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-normal">
+                            {% for lr in user_leaves %}
+                            <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td class="p-3 font-mono font-bold text-blue-600">{{ lr.application_number or lr.id }}</td>
+                                <td class="p-3 font-bold text-slate-800 dark:text-slate-200">{{ lr.leave_type }}</td>
+                                <td class="p-3 font-mono text-slate-600 dark:text-slate-400">{{ lr.start_date }} to {{ lr.end_date }}</td>
+                                <td class="p-3 font-bold text-slate-900 dark:text-white">{{ lr.duration_days }}</td>
+                                <td class="p-3 text-slate-500 max-w-xs truncate">{{ lr.reason }}</td>
+                                <td class="p-3">
+                                    {% if 'Approved' in lr.status %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">Approved</span>
+                                    {% elif 'Rejected' in lr.status %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300">Rejected</span>
+                                    {% else %}
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">{{ lr.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-3 text-slate-500 italic">{{ lr.reviewer_comment or 'Pending review' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="p-6 text-center text-slate-400 italic">No personal leave records found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 6: UPCOMING HOLIDAYS -->
+        <section id="emp-tab-holidays" class="emp-module-panel hidden space-y-6">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-pink-600"></i>
+                            <span>Enterprise Official Holiday Calendar</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">National holidays and regional operational observances.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {% for h in emp_upcoming_holidays %}
+                    <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between">
+                        <div>
+                            <span class="text-xs font-bold text-slate-900 dark:text-white block">{{ h.name }}</span>
+                            <span class="text-[11px] text-pink-600 dark:text-pink-400 font-semibold mt-0.5 block">{{ h.date.strftime('%A, %d %B %Y') }}</span>
+                            <span class="text-[10px] text-slate-400">{{ h.holiday_type or 'National Holiday' }}</span>
+                        </div>
+                        <div>
+                            {% if h.optional_flag %}
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">Optional</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">Public Holiday</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="p-6 text-center text-slate-400 italic md:col-span-2">No upcoming holidays scheduled in the calendar.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 7: NOTIFICATIONS -->
+        <section id="emp-tab-notifications" class="emp-module-panel hidden space-y-6">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="bell" class="w-4 h-4 text-purple-600"></i>
+                            <span>My Operational Alerts & Notifications</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Roster publications, shift amendments, and supervisor leave decisions.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-2.5">
+                    {% for n in notifications %}
+                    <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-start justify-between gap-3 text-xs">
+                        <div class="flex items-start gap-3">
+                            <div class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 flex items-center justify-center shrink-0 mt-0.5">
+                                <i data-lucide="info" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <p class="text-slate-800 dark:text-slate-200 font-medium">{{ n.message }}</p>
+                                <span class="text-[10px] text-slate-400 mt-1 block">{{ n.created_at.strftime('%d %b %Y, %H:%M') if n.created_at else '' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="p-6 text-center text-slate-400 italic">No unread notifications.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 8: MY PROFILE -->
+        <section id="emp-tab-profile" class="emp-module-panel hidden space-y-6">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="user" class="w-4 h-4 text-teal-600"></i>
+                            <span>My Workforce Profile</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Official employment record, organizational hierarchy, and assigned reporting lines.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                        <span class="text-slate-400 text-[10px] uppercase font-bold">Full Legal Name</span>
+                        <p class="font-extrabold text-sm text-slate-900 dark:text-white mt-0.5">{{ user.name }}</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                        <span class="text-slate-400 text-[10px] uppercase font-bold">Unique ID / ECN</span>
+                        <p class="font-mono font-bold text-sm text-blue-600 mt-0.5">{{ user.unique_id }} ({{ user.ecn or 'N/A' }})</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                        <span class="text-slate-400 text-[10px] uppercase font-bold">Designation & Role</span>
+                        <p class="font-bold text-sm text-slate-900 dark:text-white mt-0.5">{{ user.role_title or user.access_level }}</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                        <span class="text-slate-400 text-[10px] uppercase font-bold">Work Email</span>
+                        <p class="font-mono text-sm text-slate-700 dark:text-slate-300 mt-0.5">{{ user.email }}</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                        <span class="text-slate-400 text-[10px] uppercase font-bold">Operating Location</span>
+                        <p class="font-bold text-sm text-slate-900 dark:text-white mt-0.5">{{ user.work_location.name if user.work_location else user.location }}</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                        <span class="text-slate-400 text-[10px] uppercase font-bold">Department</span>
+                        <p class="font-bold text-sm text-slate-900 dark:text-white mt-0.5">{{ user.dept_rel.name if user.dept_rel else user.department }}</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                        <span class="text-slate-400 text-[10px] uppercase font-bold">Reporting Manager</span>
+                        <p class="font-bold text-sm text-indigo-600 mt-0.5">{{ user.reporting_manager.name if user.reporting_manager else 'Assigned by Operations' }}</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+                        <span class="text-slate-400 text-[10px] uppercase font-bold">Date of Joining (DOJ)</span>
+                        <p class="font-mono text-sm text-slate-900 dark:text-white mt-0.5">{{ user.doj.strftime('%d %B %Y') if user.doj else 'On File' }}</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 9: MY SETTINGS -->
+        <section id="emp-tab-settings" class="emp-module-panel hidden space-y-6">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <i data-lucide="sliders" class="w-4 h-4 text-slate-600"></i>
+                            <span>Personal Settings & Preferences</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Customize your workplace view, date formatting, and credentials.</p>
+                    </div>
+                    <a href="/settings" class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold hover:bg-slate-200 transition">
+                        Full Settings Console &rarr;
+                    </a>
+                </div>
+
+                <div class="space-y-4 text-xs">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Display Theme</label>
+                            <input type="text" readonly value="{{ emp_pref.theme if emp_pref else 'Dark / Auto' }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Preferred Timezone</label>
+                            <input type="text" readonly value="{{ emp_pref.timezone if emp_pref else 'Asia/Kolkata' }}" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                        </div>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 flex items-center justify-between">
+                        <div>
+                            <h4 class="font-bold text-slate-900 dark:text-white">Security Credentials</h4>
+                            <p class="text-[11px] text-slate-500 mt-0.5">Update password and review active browser logins.</p>
+                        </div>
+                        <a href="/settings" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition">
+                            Change Password
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<style>
+.emp-tab-btn.active {
+    background-color: #2563EB;
+    color: #ffffff !important;
+}
+.emp-tab-btn.active i {
+    color: #ffffff !important;
+}
+</style>
+
+<script>
+function switchEmpTab(tabId, btn) {
+    document.querySelectorAll('.emp-tab-btn').forEach(b => {
+        b.classList.remove('active');
+        b.classList.add('text-slate-600', 'dark:text-slate-400');
+    });
+    if (btn) {
+        btn.classList.add('active');
+        btn.classList.remove('text-slate-600', 'dark:text-slate-400');
+    }
+
+    document.querySelectorAll('.emp-module-panel').forEach(p => p.classList.add('hidden'));
+    const target = document.getElementById('emp-tab-' + tabId);
+    if (target) {
+        target.classList.remove('hidden');
+    }
+    lucide.createIcons();
+}
+
+async function handleShiftAction(endpoint) {
+    try {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (res.ok && (data.status === 'success' || data.success)) {
+            window.location.reload();
+        } else {
+            alert(data.message || data.detail || 'Action failed.');
+        }
+    } catch (err) {
+        alert('Network error executing shift action.');
+    }
+}
+</script>
+{% endblock %}

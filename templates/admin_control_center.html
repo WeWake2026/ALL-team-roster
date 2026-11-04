@@ -567,6 +567,25 @@
                             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Session Inactivity Timeout (Minutes)</label>
                             <input type="number" id="cfg-session-timeout" value="480" class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none">
                         </div>
+                        <div class="md:col-span-2 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800/80 dark:to-indigo-950/40 border border-blue-200 dark:border-indigo-800 flex items-center justify-between">
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-600 text-white uppercase tracking-wider">Trial Feature</span>
+                                    <span>Modern Employee Dashboard Redesign (Trial Mode)</span>
+                                </h4>
+                                <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">Toggle the modernized employee dashboard for operational staff. Original dashboard remains fully preserved and recoverable at any time.</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <a href="/dashboard?view=trial" target="_blank" class="px-3 py-1.5 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-700 rounded-lg text-xs font-bold hover:bg-blue-50 transition shadow-sm flex items-center gap-1">
+                                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                                    <span>Preview Trial</span>
+                                </a>
+                                <select id="cfg-trial-mode" class="px-3 py-1.5 rounded-lg text-xs font-bold border border-blue-300 dark:border-blue-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 outline-none">
+                                    <option value="false" {% if settings.get('employee_dashboard_trial_mode') != 'true' %}selected{% endif %}>Trial Mode: OFF (Original Active)</option>
+                                    <option value="true" {% if settings.get('employee_dashboard_trial_mode') == 'true' %}selected{% endif %}>Trial Mode: ON (Modern Active)</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
                         <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition">
@@ -1254,7 +1273,8 @@ async function saveGlobalConfig(e) {
             'default_timezone': document.getElementById('cfg-timezone').value.trim(),
             'default_date_format': document.getElementById('cfg-date-format').value,
             'financial_year': document.getElementById('cfg-financial-year').value.trim(),
-            'session_timeout_mins': document.getElementById('cfg-session-timeout').value.trim()
+            'session_timeout_mins': document.getElementById('cfg-session-timeout').value.trim(),
+            'employee_dashboard_trial_mode': document.getElementById('cfg-trial-mode').value
         }
     };
     try {

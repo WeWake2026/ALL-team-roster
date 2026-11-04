@@ -1,0 +1,1649 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - ShiftFlow Pro{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Top Welcome Card (Matches Screenshot Exactly) -->
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-5 md:p-6 text-white shadow-lg shadow-blue-500/20">
+        <!-- Floating Subtle Vector/City Overlay -->
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <!-- Clean 3D Style Headquarters Icon/Illustration -->
+                <div class="hidden sm:flex w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 items-center justify-center shrink-0 shadow-inner">
+                    <i data-lucide="building-2" class="w-9 h-9 text-white"></i>
+                </div>
+                <div>
+                    <div class="inline-flex items-center gap-2 text-xs font-medium text-white/90 mb-1">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Live Operational Period: {{ today.strftime('%A, %d %B %Y') }} (09:00 AM – 10:00 PM)</span>
+                    </div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+                        <span>Welcome back, {{ user.name.split()[0].upper() }}!</span>
+                        <span class="text-2xl">👋</span>
+                    </h1>
+                    <p class="text-blue-100/90 text-xs mt-1 font-medium">
+                        {{ user.role_title }} • Operations ({{ user.location }}) | Employee ID: <span class="font-mono font-bold">{{ user.unique_id }}</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3 shrink-0">
+                <a href="/leaves" class="px-5 py-2.5 rounded-2xl bg-white text-slate-800 hover:bg-slate-50 text-xs md:text-sm font-bold shadow-md transition flex items-center gap-2 hover:scale-105">
+                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
+                    <span>Apply Leave</span>
+                </a>
+                <a href="/roster" class="px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/25 text-white text-xs md:text-sm font-bold backdrop-blur-md transition flex items-center gap-2 hover:scale-105">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    <span>Full Team Roster</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MANAGER / ADMIN: HEADCOUNT & ATTENDANCE KPI ANALYTICS WIDGET -->
+    {% if user.access_level in ['Admin', 'Manager'] %}
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5 text-blue-600"></i>
+                    <span>Operations Headcount & Attendance Analytics</span>
+                </h2>
+                <p class="text-xs text-slate-500">Live operational calculations across all rostered staff</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <!-- Location Filter -->
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs font-semibold text-slate-500">Location:</label>
+                    <select id="kpi-location-picker" onchange="fetchHeadcountMetrics()"
+                        class="text-xs bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold">
+                        <option value="All">🌐 All Locations</option>
+                        {% for loc in operational_locations %}
+                        <option value="{{ loc.name }}" {% if (selected_location == loc.name) or (not selected_location and loc.name == 'Nagpur') %}selected{% endif %}>
+                            📍 {{ loc.name }}{% if loc_user_counts and loc.name in loc_user_counts %} ({{ loc_user_counts[loc.name] }} Active){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Weekly Date Range Filter (Monday-Sunday Navigation) -->
+                <div id="weekly-range-container"></div>
+            </div>
+        </div>
+
+        <!-- 8 KPI Metric Cards (Interactive: Click to View Users Breakdown) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
+            <!-- Total Planned -->
+            <div onclick="showKpiUsersModal('planned', 'Total Planned Staff')"
+                class="p-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
+                <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Planned</span>
+                <span id="kpi-total" class="text-xl font-extrabold text-slate-900 dark:text-white block my-0.5">{{ kpi_metrics.total_planned if kpi_metrics else 0 }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 font-semibold inline-block">Staff 👆</span>
+            </div>
+
+            <!-- In Office Live -->
+            <div onclick="showKpiUsersModal('in_office', 'Live In-Office Punched Staff')"
+                class="p-3.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
+                <span class="block text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider flex items-center justify-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>In Office</span>
+                </span>
+                <span id="kpi-in-office" class="text-xl font-extrabold text-blue-600 dark:text-blue-400 block my-0.5">{{ kpi_metrics.in_office_live if kpi_metrics else 0 }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 font-bold inline-block">Live Punched 👆</span>
+            </div>
+
+            <!-- Present -->
+            <div onclick="showKpiUsersModal('present', 'Present / Active Shift Staff')"
+                class="p-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
+                <span class="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Present</span>
+                <span id="kpi-present" class="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 block my-0.5">{{ kpi_metrics.present if kpi_metrics else 0 }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold inline-block">Active Shifts 👆</span>
+            </div>
+
+            <!-- Week Off -->
+            <div onclick="showKpiUsersModal('wo', 'Week Off (WO) Staff')"
+                class="p-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/40 dark:hover:bg-slate-800/70 border border-slate-200 dark:border-slate-700 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
+                <span class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Week Off (WO)</span>
+                <span id="kpi-wo" class="text-xl font-extrabold text-slate-700 dark:text-slate-300 block my-0.5">{{ kpi_metrics.wo if kpi_metrics else 0 }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 font-semibold inline-block">Weekly Rest 👆</span>
+            </div>
+
+            <!-- Casual Leave -->
+            <div onclick="showKpiUsersModal('cl', 'Casual Leave (CL) Staff')"
+                class="p-3.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
+                <span class="block text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Casual Leave</span>
+                <span id="kpi-cl" class="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 block my-0.5">{{ kpi_metrics.cl if kpi_metrics else 0 }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300 font-bold inline-block">CL 👆</span>
+            </div>
+
+            <!-- Sick Leave -->
+            <div onclick="showKpiUsersModal('sl', 'Sick Leave (SL) Staff')"
+                class="p-3.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
+                <span class="block text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Sick Leave</span>
+                <span id="kpi-sl" class="text-xl font-extrabold text-rose-600 dark:text-rose-400 block my-0.5">{{ kpi_metrics.sl if kpi_metrics else 0 }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300 font-bold inline-block">SL 👆</span>
+            </div>
+
+            <!-- Comp-Off -->
+            <div onclick="showKpiUsersModal('co', 'Comp-Off (CO) Staff')"
+                class="p-3.5 rounded-xl bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20 dark:hover:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
+                <span class="block text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Comp-Off</span>
+                <span id="kpi-co" class="text-xl font-extrabold text-amber-600 dark:text-amber-400 block my-0.5">{{ kpi_metrics.co if kpi_metrics else 0 }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 font-bold inline-block">CO Accrued 👆</span>
+            </div>
+
+            <!-- Absent / Unplanned -->
+            <div onclick="showKpiUsersModal('absent', 'Absent / Unplanned Staff')"
+                class="p-3.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 border border-red-200 dark:border-red-800/60 cursor-pointer transition transform hover:-translate-y-0.5 shadow-xs">
+                <span class="block text-[10px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Absent / Unplanned</span>
+                <span id="kpi-absent" class="text-xl font-extrabold text-red-600 dark:text-red-400 block my-0.5">{{ kpi_metrics.absent if kpi_metrics else 0 }}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-300 font-bold inline-block">Coverage Gap 👆</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- EMPLOYEE WORK SESSION & BREAK TRACKER WIDGET (Exact Green Banner from User Screenshot) -->
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 dark:from-emerald-900/60 dark:via-teal-900/40 dark:to-emerald-900/60 p-4 sm:p-5 border border-emerald-200/80 dark:border-emerald-800 shadow-md">
+        <!-- Floating Fluid Green Glow Background -->
+        <div class="absolute -right-16 -top-16 w-60 h-60 rounded-full bg-white/20 blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+            
+            <!-- Left Side: Play Circle + Shift Time + Status Badge -->
+            <div class="flex items-center gap-4 shrink-0">
+                <!-- Large Round Play/Green Halo Indicator -->
+                <div class="relative flex items-center justify-center shrink-0">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white dark:bg-slate-900 border-4 border-emerald-500 shadow-lg flex items-center justify-center">
+                        {% if active_work_session and active_work_session.status == 'ACTIVE' %}
+                        <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white animate-pulse">
+                            <i data-lucide="check" class="w-6 h-6 stroke-[3]"></i>
+                        </div>
+                        {% elif active_work_session and active_work_session.status == 'ON_BREAK' %}
+                        <div class="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white animate-bounce">
+                            <i data-lucide="coffee" class="w-5 h-5"></i>
+                        </div>
+                        {% else %}
+                        <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white pl-0.5 shadow-sm">
+                            <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <!-- Small Checkmark Pip on Bottom-Right -->
+                    <span class="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center border-2 border-white dark:border-slate-900 text-[10px]">
+                        ✓
+                    </span>
+                </div>
+
+                <!-- Shift Title & Timings -->
+                <div>
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-700 text-white text-[11px] font-bold shadow-xs mb-1">
+                        <span class="w-2 h-2 rounded-full bg-white"></span>
+                        <span>{% if active_work_session and active_work_session.status == 'ACTIVE' %}Duty Active (Desk){% elif active_work_session and active_work_session.status == 'ON_BREAK' %}On Break{% else %}Ready for Work{% endif %}</span>
+                    </div>
+                    <div class="text-xs font-semibold text-emerald-950 dark:text-emerald-100">Today's Shift</div>
+                    <div class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                        {{ today_shift if today_shift != 'Not Scheduled' else '13:00 To 22:00' }}
+                    </div>
+                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1 mt-0.5">
+                        <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-700 dark:text-slate-300"></i>
+                        <span>Shift: <strong class="text-emerald-900 dark:text-emerald-300">{{ today_status if today_status != 'Unassigned' else 'Scheduled' }}</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle: The 5 Soft Pastel Cards (Break, Preview, Ringing, ACW Work, Talk Time) exactly like screenshot -->
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 flex-1 max-w-2xl">
+                <!-- 1. Break (Soft Blue/Sky Card) -->
+                <div class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm rounded-2xl p-2.5 border border-sky-200/60 dark:border-slate-700 text-center shadow-xs">
+                    <div class="w-6 h-6 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 mx-auto flex items-center justify-center mb-1">
+                        <i data-lucide="coffee" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Break</div>
+                    <div class="text-xs font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">
+                        {{ (active_work_session.total_break_mins if active_work_session else 0) }}m / 60m
+                    </div>
+                    <!-- Small progress bar -->
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-1.5 overflow-hidden">
+                        <div class="bg-blue-500 h-full rounded-full" style="width: {{ [((active_work_session.total_break_mins if active_work_session else 0)/60)*100, 100]|min }}%"></div>
+                    </div>
+                </div>
+
+                <!-- 2. Preview (Soft Purple Card) -->
+                <div class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm rounded-2xl p-2.5 border border-purple-200/60 dark:border-slate-700 text-center shadow-xs">
+                    <div class="w-6 h-6 rounded-lg bg-purple-100 dark:bg-purple-950 text-purple-600 dark:text-purple-300 mx-auto flex items-center justify-center mb-1">
+                        <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Preview</div>
+                    <div class="text-xs font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">00:00</div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-1.5 overflow-hidden">
+                        <div class="bg-purple-500 h-full rounded-full" style="width: 15%"></div>
+                    </div>
+                </div>
+
+                <!-- 3. Ringing (Soft Light-Green Card) -->
+                <div class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm rounded-2xl p-2.5 border border-emerald-200/60 dark:border-slate-700 text-center shadow-xs">
+                    <div class="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 mx-auto flex items-center justify-center mb-1">
+                        <i data-lucide="bar-chart-2" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ringing</div>
+                    <div class="text-xs font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">00:00</div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-1.5 overflow-hidden">
+                        <div class="bg-emerald-500 h-full rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- 4. ACW Work (Soft Peach/Orange Card) -->
+                <div class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm rounded-2xl p-2.5 border border-amber-200/60 dark:border-slate-700 text-center shadow-xs">
+                    <div class="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-300 mx-auto flex items-center justify-center mb-1">
+                        <i data-lucide="mic" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">ACW Work</div>
+                    <div class="text-xs font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">00:00</div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-1.5 overflow-hidden">
+                        <div class="bg-amber-500 h-full rounded-full" style="width: 20%"></div>
+                    </div>
+                </div>
+
+                <!-- 5. Talk Time (Soft Cyan Card) -->
+                <div class="bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm rounded-2xl p-2.5 border border-cyan-200/60 dark:border-slate-700 text-center shadow-xs">
+                    <div class="w-6 h-6 rounded-lg bg-cyan-100 dark:bg-cyan-950 text-cyan-600 dark:text-cyan-300 mx-auto flex items-center justify-center mb-1">
+                        <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+                    </div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Talk Time</div>
+                    <div class="text-xs font-extrabold text-slate-800 dark:text-white font-mono mt-0.5">
+                        {{ active_net_display or '00:00' }}
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full mt-1.5 overflow-hidden">
+                        <div class="bg-cyan-500 h-full rounded-full" style="width: 45%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Action Buttons matching Screenshot -->
+            <div class="flex flex-col gap-2 shrink-0">
+                {% if not active_work_session %}
+                <button type="button" onclick="performShiftAction('/api/work/start-shift')" class="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 hover:scale-105">
+                    <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                    <span>Start Work Shift</span>
+                </button>
+                {% elif active_work_session.status == 'ACTIVE' %}
+                <button type="button" onclick="openBreakModal()" class="px-5 py-2 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="coffee" class="w-4 h-4"></i>
+                    <span>Take Break</span>
+                </button>
+                <button type="button" onclick="performShiftAction('/api/work/end-shift', 'Complete your work shift for today?')" class="px-5 py-2 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="stop-circle" class="w-4 h-4"></i>
+                    <span>Complete Shift</span>
+                </button>
+                {% elif active_work_session.status == 'ON_BREAK' %}
+                <button type="button" onclick="performShiftAction('/api/work/end-break')" class="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                    <span>Resume Work</span>
+                </button>
+                {% else %}
+                <button type="button" onclick="performShiftAction('/api/work/start-shift', 'Resume or start a new work session?')" class="px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    <span>Restart Shift</span>
+                </button>
+                {% endif %}
+
+                <!-- Login Logs Button -->
+                <button type="button" onclick="openSessionHistoryModal()" class="px-5 py-2 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="history" class="w-4 h-4 text-slate-600 dark:text-slate-300"></i>
+                    <span>Login Logs</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Grid (Exact 4 Cards from User Screenshot) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- 1. TODAY'S SHIFT CARD -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
+                    <span>TODAY'S SHIFT</span>
+                </div>
+                <div class="text-xl md:text-2xl font-black text-slate-900 dark:text-white mt-2">
+                    {{ today_shift if today_shift != 'Not Scheduled' else '13:00 To 22:00' }}
+                </div>
+                <div class="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Status: {{ today_status if today_status != 'Unassigned' else 'Scheduled' }}</span>
+                </div>
+            </div>
+            <!-- Soft Blue Circular Icon Pin -->
+            <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900">
+                <i data-lucide="clock" class="w-6 h-6"></i>
+            </div>
+        </div>
+
+        <!-- 2. CASUAL LEAVE (CL) CARD -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <i data-lucide="briefcase" class="w-4 h-4 text-blue-600"></i>
+                    <span>CASUAL LEAVE (CL)</span>
+                </div>
+                <div class="text-xl md:text-2xl font-black text-blue-600 dark:text-blue-400 mt-2 font-mono">
+                    {{ (user.balance_cl if user.balance_cl is not none else user.cl_balance or 12.0)|round(1) }} <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Days</span>
+                </div>
+                <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-2">
+                    Taken: {{ (user.taken_cl or 0.0)|round(1) }} | Eligible: {{ (user.eligible_cl or 12.0)|round(1) }}
+                </div>
+            </div>
+            <!-- Palm Tree / Island Vacation Icon -->
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900">
+                <i data-lucide="palmtree" class="w-7 h-7"></i>
+            </div>
+        </div>
+
+        <!-- 3. SICK LEAVE (SL) CARD -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <i data-lucide="heart-pulse" class="w-4 h-4 text-rose-500"></i>
+                    <span>SICK LEAVE (SL)</span>
+                </div>
+                <div class="text-xl md:text-2xl font-black text-rose-600 dark:text-rose-400 mt-2 font-mono">
+                    {{ (user.balance_sl if user.balance_sl is not none else user.sl_balance or 9.0)|round(1) }} <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Days</span>
+                </div>
+                <div class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-2">
+                    Taken: {{ (user.taken_sl or 0.0)|round(1) }} | Eligible: {{ (user.eligible_sl or 9.0)|round(1) }}
+                </div>
+            </div>
+            <!-- Soft Pink Heart / Medical Icon -->
+            <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-500 dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-100 dark:border-rose-900">
+                <i data-lucide="heart-handshake" class="w-7 h-7"></i>
+            </div>
+        </div>
+
+        <!-- 4. COMP-OFF (CO) CARD -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm relative overflow-hidden flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    <i data-lucide="scale" class="w-4 h-4 text-amber-500"></i>
+                    <span>COMP-OFF (CO)</span>
+                </div>
+                <div class="text-xl md:text-2xl font-black text-amber-500 dark:text-amber-400 mt-2 font-mono">
+                    {{ (user.balance_co if user.balance_co is not none else user.co_balance or 0.0)|round(1) }} <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Days</span>
+                </div>
+                <div class="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mt-2">
+                    Overtime accrued
+                </div>
+            </div>
+            <!-- Calendar Overtime Icon -->
+            <div class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/60 text-purple-500 dark:text-purple-400 flex items-center justify-center shrink-0 border border-purple-100 dark:border-purple-900">
+                <i data-lucide="calendar-clock" class="w-7 h-7"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7-Day Personal Schedule Strip (Exact Style from User Screenshot) -->
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+            <div class="flex items-center gap-3 flex-wrap">
+                <h3 class="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="calendar" class="w-5 h-5 text-blue-600"></i>
+                    <span>My Upcoming 7-Day Schedule</span>
+                </h3>
+                
+                <!-- Filter Pills: All (Blue filled), Working, WO / Leave -->
+                <div class="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-xs font-bold">
+                    <button type="button" onclick="filterScheduleStrip('all', this)" class="sched-filter-btn px-3 py-1 rounded-xl bg-blue-600 text-white shadow-xs">All</button>
+                    <button type="button" onclick="filterScheduleStrip('working', this)" class="sched-filter-btn px-3 py-1 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600">Working</button>
+                    <button type="button" onclick="filterScheduleStrip('off_leave', this)" class="sched-filter-btn px-3 py-1 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600">WO / Leave</button>
+                </div>
+            </div>
+
+            <a href="/roster" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1">
+                <span>View Full Team</span>
+                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </a>
+        </div>
+
+        <!-- 7-Day Responsive Strip Container -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5">
+            {% for item in weekly_schedule %}
+            {% set is_leave_card = ('Leave' in item.shift or 'CL' in item.shift or 'SL' in item.shift or 'PL' in item.shift) %}
+            <div data-schedule-card data-shift-cat="{% if 'WO' in item.shift or 'CO' in item.shift or is_leave_card %}off_leave{% elif item.shift == 'Not Scheduled' %}unassigned{% else %}working{% endif %}" 
+                class="p-3.5 rounded-2xl border text-center transition hover:shadow-md {% if is_leave_card %}bg-rose-50/50 dark:bg-rose-950/20 border-rose-200/80 dark:border-rose-900/60{% elif item.is_today %}bg-blue-50/40 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900{% else %}bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/70 dark:border-slate-800{% endif %}">
+                
+                <!-- Weekday -->
+                <span class="text-[11px] font-bold block {% if is_leave_card %}text-rose-600 dark:text-rose-400{% else %}text-slate-700 dark:text-slate-300{% endif %}">
+                    {{ item.date.strftime('%a') }}
+                </span>
+                
+                <!-- Day Date -->
+                <span class="text-xs font-extrabold block my-1 {% if is_leave_card %}text-rose-600 dark:text-rose-400{% else %}text-slate-800 dark:text-slate-100{% endif %}">
+                    {{ item.date.strftime('%b %d') }}
+                </span>
+
+                <!-- Pill with Blue Dot or Red Dot -->
+                <div class="mt-2.5">
+                    {% if is_leave_card %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-rose-100/80 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                        <span>Leave</span>
+                    </span>
+                    {% elif 'WO' in item.shift %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                        <span>WO</span>
+                    </span>
+                    {% elif 'CO' in item.shift %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        <span>Comp-Off</span>
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 border border-blue-100 dark:border-blue-900/40">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                        <span>{{ item.shift if item.shift != 'Not Scheduled' else '13:00 - 22:00' }}</span>
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    
+    <!-- ================= MONTHLY ATTENDANCE SUMMARY & CALENDAR ================= -->
+    <div id="employee-monthly-attendance-section" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-sm space-y-6">
+        <!-- Section Header with Month/Year Navigation & Export Buttons -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
+                    <h2 class="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
+                        <i data-lucide="calendar-check-2" class="w-5 h-5 text-blue-600"></i>
+                        <span>Monthly Attendance & Schedule Matrix</span>
+                    </h2>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Official verified attendance, shift times, login-logout logs and leave ledger</p>
+            </div>
+
+            <!-- Month Selector & Download Report Exports -->
+            <div class="flex items-center gap-2.5 flex-wrap">
+                <!-- Month Navigator with Prev / Next -->
+                <div class="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-bold shadow-xs">
+                    <button type="button" onclick="navigateAttendanceMonth(-1)" class="p-1.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition" title="Previous Month">
+                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                    </button>
+                    <span id="att-current-month-label" class="px-3 text-slate-800 dark:text-slate-100 font-extrabold min-w-[120px] text-center">
+                        {{ today.strftime('%B %Y') }}
+                    </span>
+                    <button type="button" onclick="navigateAttendanceMonth(1)" class="p-1.5 rounded-xl hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition" title="Next Month">
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Export Action Dropdown / Buttons -->
+                <div class="flex items-center gap-1.5">
+                    <a id="btn-export-excel" href="/api/employee/attendance/export?format=xlsx" class="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold transition flex items-center gap-1.5 shadow-xs" title="Download Excel (.xlsx)">
+                        <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5"></i>
+                        <span class="hidden sm:inline">Excel</span>
+                    </a>
+                    <a id="btn-export-pdf" href="/api/employee/attendance/export?format=pdf" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold transition flex items-center gap-1.5 shadow-xs" title="Download PDF Report">
+                        <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                        <span class="hidden sm:inline">PDF</span>
+                    </a>
+                    <a id="btn-export-csv" href="/api/employee/attendance/export?format=csv" class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-bold transition flex items-center gap-1.5 shadow-xs" title="Download CSV">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        <span class="hidden sm:inline">CSV</span>
+                    </a>
+                    <button type="button" onclick="window.print()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold transition flex items-center gap-1.5 shadow-xs" title="Print Attendance Report">
+                        <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                        <span>Print</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8 Compact Summary KPI Metric Cards (Present, Absent, WO, Holidays, Leaves, Half Days, Late Marks, Scheduled) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
+            <!-- 1. Present Days (Green) -->
+            <div class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Present</span>
+                <span id="att-kpi-present" class="text-xl font-black text-emerald-600 dark:text-emerald-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-bold inline-block">Active Duty</span>
+            </div>
+
+            <!-- 2. Absent Days (Red) -->
+            <div class="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider">Absent</span>
+                <span id="att-kpi-absent" class="text-xl font-black text-rose-600 dark:text-rose-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-300 font-bold inline-block">Absences</span>
+            </div>
+
+            <!-- 3. Weekly Offs (Blue) -->
+            <div class="p-3 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider">Weekly Offs</span>
+                <span id="att-kpi-wo" class="text-xl font-black text-blue-600 dark:text-blue-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 font-bold inline-block">WO / Rest</span>
+            </div>
+
+            <!-- 4. Holidays (Grey) -->
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 shadow-xs">
+                <span class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Holidays</span>
+                <span id="att-kpi-holidays" class="text-xl font-black text-slate-700 dark:text-slate-200 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold inline-block">Official Off</span>
+            </div>
+
+            <!-- 5. Approved Leaves (Purple) -->
+            <div class="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider">Approved Leave</span>
+                <span id="att-kpi-leaves" class="text-xl font-black text-purple-600 dark:text-purple-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 font-bold inline-block">CL / SL / PL</span>
+            </div>
+
+            <!-- 6. Half Days (Orange) -->
+            <div class="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">Half Days</span>
+                <span id="att-kpi-halfdays" class="text-xl font-black text-amber-600 dark:text-amber-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-bold inline-block">4h Shifts</span>
+            </div>
+
+            <!-- 7. Late Marks (Orange) -->
+            <div class="p-3 rounded-2xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/60 shadow-xs">
+                <span class="block text-[10px] font-bold text-orange-700 dark:text-orange-400 uppercase tracking-wider">Late Marks</span>
+                <span id="att-kpi-latemarks" class="text-xl font-black text-orange-600 dark:text-orange-400 block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/60 text-orange-800 dark:text-orange-300 font-bold inline-block">&gt; 15 mins</span>
+            </div>
+
+            <!-- 8. Scheduled Working Days -->
+            <div class="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 shadow-xs">
+                <span class="block text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Scheduled</span>
+                <span id="att-kpi-scheduled" class="text-xl font-black text-slate-900 dark:text-white block my-0.5">--</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold inline-block">Roster Days</span>
+            </div>
+        </div>
+
+        <!-- Monthly Attendance Calendar Grid -->
+        <div class="space-y-2">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
+                    <span>Interactive Monthly Attendance Calendar (Click Day for Shift & Punch Logs)</span>
+                </h3>
+                <!-- Legend -->
+                <div class="hidden sm:flex items-center gap-3 text-[11px] font-semibold text-slate-500">
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Present</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Absent</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Weekly Off</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Leave</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Half Day / Late</span>
+                </div>
+            </div>
+
+            <!-- Calendar Days Header -->
+            <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold text-slate-500 uppercase tracking-wider py-1 border-b border-slate-100 dark:border-slate-800">
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+
+            <!-- Calendar Cells Container (Injected Dynamically) -->
+            <div id="attendance-calendar-grid" class="grid grid-cols-7 gap-1.5 text-xs">
+                <!-- Day cells rendered via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- DAY ATTENDANCE DETAIL POPUP MODAL -->
+    <div id="day-attendance-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-md shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                        <i data-lucide="clock" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white" id="modal-att-date">Attendance Detail</h3>
+                        <p class="text-[11px] text-slate-400" id="modal-att-weekday">Official Operational Record</p>
+                    </div>
+                </div>
+                <button type="button" onclick="document.getElementById('day-attendance-modal').classList.add('hidden')" class="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <span class="text-slate-500 font-semibold">Attendance Status:</span>
+                    <span id="modal-att-status-badge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Present</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Assigned Shift</span>
+                        <span id="modal-att-shift" class="font-extrabold text-slate-900 dark:text-white text-sm block mt-0.5">--</span>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Working Hours</span>
+                        <span id="modal-att-hours" class="font-extrabold text-blue-600 dark:text-blue-400 text-sm block mt-0.5">--</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Login Time (Punch In)</span>
+                        <span id="modal-att-login" class="font-mono font-bold text-slate-800 dark:text-slate-200 block mt-0.5">--</span>
+                    </div>
+                    <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Logout Time (Punch Out)</span>
+                        <span id="modal-att-logout" class="font-mono font-bold text-slate-800 dark:text-slate-200 block mt-0.5">--</span>
+                    </div>
+                </div>
+
+                <div id="modal-att-notes-wrapper" class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 hidden">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Remarks / Notes</span>
+                    <p id="modal-att-notes" class="text-xs text-slate-700 dark:text-slate-300 mt-0.5 font-medium"></p>
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <button type="button" onclick="document.getElementById('day-attendance-modal').classList.add('hidden')" class="px-5 py-2 rounded-xl bg-slate-800 text-white hover:bg-slate-700 text-xs font-bold transition">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Future Planned Leaves Alert Banner for Employee -->
+    {% if upcoming_leaves %}
+    <div class="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 rounded-2xl border border-amber-200 dark:border-amber-800/60 p-4 shadow-sm">
+        <div class="flex items-center gap-2 mb-2 text-xs font-bold text-amber-800 dark:text-amber-300">
+            <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+            <span>Your Upcoming Approved / Planned Leaves</span>
+        </div>
+        <div class="flex flex-wrap gap-2.5">
+            {% for ul in upcoming_leaves %}
+            <div class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-slate-800 text-xs flex items-center gap-2 shadow-sm">
+                <span class="px-1.5 py-0.5 rounded font-extrabold text-[10px] {% if ul.leave_type == 'SL' %}bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300{% elif ul.leave_type == 'CL' %}bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300{% elif ul.leave_type == 'Comp-Off' %}bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300{% else %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300{% endif %}">
+                    {{ ul.leave_type }}
+                </span>
+                <span class="font-semibold text-slate-800 dark:text-slate-100">
+                    {{ ul.start_date.strftime('%d %b %Y') }}{% if ul.start_date != ul.end_date %} to {{ ul.end_date.strftime('%d %b %Y') }}{% endif %}
+                </span>
+                <span class="text-slate-400 text-[11px]">({{ ul.duration_days }} day{% if ul.duration_days > 1 %}s{% endif %})</span>
+                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+                    {{ ul.status }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Split Section: Recent Personal Leaves & Notifications -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Personal Leave Status (2 cols) -->
+        <div class="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <i data-lucide="plane" class="w-5 h-5 text-blue-600"></i>
+                        <span>My Recent Leave Submissions</span>
+                    </h3>
+                    <p class="text-xs text-slate-500">Strictly private to your employee profile</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <!-- Quick Leave Status Filter -->
+                    <select onchange="filterUserLeaves(this.value)" class="text-xs px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        <option value="ALL">All Statuses</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Rejected">Rejected</option>
+                    </select>
+                    <a href="/leaves" class="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">View All</a>
+                </div>
+            </div>
+
+            {% if user_leaves %}
+            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                {% for lr in user_leaves[:4] %}
+                <div data-user-leave-row data-status="{{ lr.status }}" class="py-3.5 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <span class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs {% if lr.leave_type == 'PL' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300{% elif lr.leave_type == 'SL' %}bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300{% else %}bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300{% endif %}">
+                            {{ lr.leave_type }}
+                        </span>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-800 dark:text-slate-100">
+                                {{ lr.start_date.strftime('%d %b %Y') }} {% if lr.start_date != lr.end_date %}to {{ lr.end_date.strftime('%d %b %Y') }}{% endif %}
+                                <span class="text-slate-400 font-normal">({{ lr.duration_days }} Day{% if lr.duration_days > 1 %}s{% endif %})</span>
+                            </p>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+                                {{ lr.reason }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold {% if lr.status == 'Approved' %}bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300{% elif lr.status == 'Rejected' %}bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300{% else %}bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300{% endif %}">
+                            {{ lr.status }}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="py-8 text-center text-slate-400 text-xs">
+                <i data-lucide="calendar-check-2" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
+                No leave requests filed yet.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- In-app Alerts & Notifications (Interactive with Filters & View All) -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <i data-lucide="bell" class="w-5 h-5 text-blue-600"></i>
+                        <span>Activity & Alerts</span>
+                    </h3>
+                    <p class="text-xs text-slate-500">Live operational events, roster updates & leave decisions</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="alerts-count-badge" class="text-xs px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-900">
+                        {{ notifications|length }} Alerts
+                    </span>
+                    <button type="button" onclick="openAllAlertsModal()" class="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/60 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 text-xs font-semibold transition flex items-center gap-1 border border-blue-200 dark:border-blue-900" title="Expand Full Alert History">
+                        <span>See All</span>
+                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Category Filter Buttons for Alerts -->
+            <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                <button type="button" onclick="filterDashboardAlerts('ALL')" id="filter-btn-all" class="px-2.5 py-1 rounded-lg font-bold bg-blue-600 text-white shadow-xs transition text-[11px]">
+                    All ({{ notifications|length }})
+                </button>
+                <button type="button" onclick="filterDashboardAlerts('leave_status')" id="filter-btn-leave" class="px-2.5 py-1 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-[11px] flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>Leaves</span>
+                </button>
+                <button type="button" onclick="filterDashboardAlerts('shift_change')" id="filter-btn-shift" class="px-2.5 py-1 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-[11px] flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    <span>Roster Shifts</span>
+                </button>
+                <button type="button" onclick="filterDashboardAlerts('general')" id="filter-btn-general" class="px-2.5 py-1 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-[11px] flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                    <span>System</span>
+                </button>
+            </div>
+
+            <!-- Alerts List with View More Toggle -->
+            <div class="space-y-2.5" id="alerts-container">
+                {% if notifications %}
+                    {% for n in notifications %}
+                    <div class="alert-item p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 hover:border-blue-500/30 transition flex items-start gap-3 {% if loop.index > 5 %}hidden extra-alert{% endif %}"
+                         data-category="{{ n.category }}">
+                        <span class="mt-0.5 p-1.5 rounded-lg shrink-0 {% if n.category == 'leave_status' %}bg-emerald-500/10 text-emerald-600 dark:text-emerald-400{% elif n.category == 'shift_change' %}bg-blue-500/10 text-blue-600 dark:text-blue-400{% else %}bg-purple-500/10 text-purple-600 dark:text-purple-400{% endif %}">
+                            {% if n.category == 'leave_status' %}
+                            <i data-lucide="plane" class="w-3.5 h-3.5"></i>
+                            {% elif n.category == 'shift_change' %}
+                            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                            {% else %}
+                            <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                            {% endif %}
+                        </span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-2">
+                                <p class="text-xs font-semibold text-slate-800 dark:text-white truncate">{{ n.title }}</p>
+                                <span class="text-[10px] text-slate-400 whitespace-nowrap">{{ (n.created_at + timedelta(hours=5, minutes=30)).strftime('%d %b, %I:%M %p') }} IST</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{{ n.message }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="py-6 text-center text-slate-400 text-xs">
+                    <i data-lucide="bell-off" class="w-6 h-6 mx-auto mb-1 opacity-50"></i>
+                    No alerts or notifications yet.
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- See More / Show Less Button -->
+            {% if notifications|length > 5 %}
+            <div class="pt-2 text-center border-t border-slate-100 dark:border-slate-800">
+                <button type="button" id="toggle-more-alerts-btn" onclick="toggleMoreAlerts()" class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 inline-flex items-center gap-1.5 py-1 px-3 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 transition">
+                    <span id="toggle-more-text">See More Alerts ({{ notifications|length - 5 }} More)</span>
+                    <i data-lucide="chevron-down" id="toggle-more-icon" class="w-4 h-4"></i>
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ALL ALERTS EXPANDED MODAL -->
+<div id="all-alerts-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl shadow-2xl p-6 sm:p-7 max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Activity & Notification Feed</h3>
+                    <p class="text-xs text-slate-500">Chronological stream of all system and operational events</p>
+                </div>
+            </div>
+            <button onclick="closeAllAlertsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Search inside notifications -->
+        <div class="py-3 shrink-0">
+            <div class="relative">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                <input type="text" id="modal-alert-search" oninput="filterModalAlerts()" placeholder="Search alert content, staff name, or ID..."
+                    class="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto space-y-2.5 pr-1" id="modal-alerts-list">
+            {% for n in notifications %}
+            <div class="modal-alert-item p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-start gap-3"
+                 data-category="{{ n.category }}"
+                 data-text="{{ (n.title ~ ' ' ~ n.message)|lower }}">
+                <span class="mt-0.5 p-2 rounded-xl shrink-0 {% if n.category == 'leave_status' %}bg-emerald-500/15 text-emerald-600 dark:text-emerald-400{% elif n.category == 'shift_change' %}bg-blue-500/15 text-blue-600 dark:text-blue-400{% else %}bg-purple-500/15 text-purple-600 dark:text-purple-400{% endif %}">
+                    {% if n.category == 'leave_status' %}
+                    <i data-lucide="plane" class="w-4 h-4"></i>
+                    {% elif n.category == 'shift_change' %}
+                    <i data-lucide="clock" class="w-4 h-4"></i>
+                    {% else %}
+                    <i data-lucide="info" class="w-4 h-4"></i>
+                    {% endif %}
+                </span>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-bold text-slate-900 dark:text-white">{{ n.title }}</span>
+                        <span class="text-[10px] text-slate-400 font-mono">{{ (n.created_at + timedelta(hours=5, minutes=30)).strftime('%d %b %Y, %I:%M %p') }} IST</span>
+                    </div>
+                    <p class="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">{{ n.message }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end shrink-0">
+            <button onclick="closeAllAlertsModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- KPI USER BREAKDOWN DETAILS MODAL -->
+<div id="kpi-users-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-3xl shadow-2xl p-6 sm:p-7 max-h-[85vh] flex flex-col">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span id="kpi-modal-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900">
+                        Operational Breakdown
+                    </span>
+                    <span id="kpi-modal-date" class="text-xs text-slate-500 font-mono"></span>
+                </div>
+                <h3 id="kpi-modal-title" class="text-base font-extrabold text-slate-900 dark:text-white mt-1">
+                    Staff Breakdown
+                </h3>
+            </div>
+            <button onclick="closeKpiUsersModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Search / Filter toolbar inside modal -->
+        <div class="pt-3 pb-2 flex items-center justify-between gap-3 shrink-0">
+            <div class="relative flex-1">
+                <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5"></i>
+                <input type="text" id="kpi-modal-search" oninput="filterKpiModalList()" placeholder="Filter by staff name, ID, or shift..."
+                    class="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <span id="kpi-modal-count-badge" class="text-xs font-bold font-mono px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 shrink-0">
+                0 Staff
+            </span>
+        </div>
+
+        <!-- Users Table Container -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar border border-slate-100 dark:border-slate-800/80 rounded-2xl mt-2">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead class="sticky top-0 bg-slate-50 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
+                    <tr>
+                        <th class="p-3 pl-4">Staff Member</th>
+                        <th class="p-3">Designation</th>
+                        <th class="p-3">Location</th>
+                        <th class="p-3">Assigned Shift</th>
+                        <th class="p-3 text-right pr-4">Live Status</th>
+                    </tr>
+                </thead>
+                <tbody id="kpi-modal-tbody" class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                    <!-- Populated dynamically via JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+            <span class="text-[11px] text-slate-400">Strictly scoped to your location & role authorization.</span>
+            <button onclick="closeKpiUsersModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ================= RESILIENT DATA CLIENT (Safe Caching & Error Containment) ================= //
+class ResilientDataClient {
+    constructor() {
+        this.cache = new Map();
+        this.activeControllers = new Map();
+    }
+
+    async query(url, options = {}) {
+        const { ttl = 30000, force = false, key = url } = options;
+        const now = Date.now();
+
+        // 1. Return fresh cached response immediately (eliminates flicker)
+        if (!force && this.cache.has(key)) {
+            const cached = this.cache.get(key);
+            if (now - cached.timestamp < ttl) {
+                return cached.data;
+            }
+        }
+
+        // 2. Abort only pending duplicate requests for this exact key
+        if (this.activeControllers.has(key)) {
+            this.activeControllers.get(key).abort();
+        }
+
+        const controller = new AbortController();
+        this.activeControllers.set(key, controller);
+
+        try {
+            const res = await fetch(url, {
+                credentials: 'same-origin',
+                signal: controller.signal,
+                headers: {
+                    'Accept': 'application/json',
+                    ...(options.headers || {})
+                }
+            });
+
+            // 3. Fallback on restricted or auth responses without throwing layout-tearing exceptions
+            if (res.status === 401 || res.status === 403) {
+                console.warn(`[DataClient] Access restricted (${res.status}) for ${url}`);
+                return this.cache.get(key)?.data || null;
+            }
+
+            if (!res.ok) throw new Error(`HTTP_${res.status}`);
+
+            const data = await res.json();
+            this.cache.set(key, { data, timestamp: Date.now() });
+            return data;
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                return this.cache.get(key)?.data || null;
+            }
+            console.error(`[DataClient] Fetch error on ${url}:`, err);
+            return this.cache.get(key)?.data || null;
+        } finally {
+            if (this.activeControllers.get(key) === controller) {
+                this.activeControllers.delete(key);
+            }
+        }
+    }
+
+    // Background poller that halts execution when browser tab is inactive
+    registerPoll(key, fetcher, intervalMs = 60000) {
+        let timer = null;
+        const run = async () => {
+            if (!document.hidden) {
+                try {
+                    await fetcher();
+                } catch (e) {
+                    console.error('[DataClient Poll Error]', e);
+                }
+            }
+            timer = setTimeout(run, intervalMs);
+        };
+        timer = setTimeout(run, intervalMs);
+        return () => clearTimeout(timer);
+    }
+}
+
+window.apiClient = new ResilientDataClient();
+
+// ================= WEEKLY DATE RANGE PICKER (Monday-Sunday, Local Timezone Safe) ================= //
+class WeeklyDateRangePicker {
+    constructor(containerId, options = {}) {
+        this.container = document.getElementById(containerId);
+        this.onChange = options.onChange || (() => {});
+        
+        const params = new URLSearchParams(window.location.search);
+        const urlDate = params.get('date_str') || params.get('start_date');
+        this.currentDate = urlDate ? this.parseLocalDate(urlDate) : new Date();
+        this.selectedDayStr = this.formatDateLocal(this.currentDate);
+        this.init();
+    }
+
+    // Prevents UTC shift by parsing explicitly in local time
+    parseLocalDate(dateStr) {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    }
+
+    // Outputs YYYY-MM-DD in local time
+    formatDateLocal(d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    getMondaySundayRange(date) {
+        const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const day = d.getDay(); // 0 is Sunday, 1 is Monday...
+        const diffToMonday = (day === 0 ? -6 : 1) - day;
+        
+        const monday = new Date(d);
+        monday.setDate(d.getDate() + diffToMonday);
+        
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        
+        return { monday, sunday };
+    }
+
+    formatDisplay(d) {
+        return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    }
+
+    selectDate(targetDate) {
+        this.currentDate = targetDate;
+        this.selectedDayStr = this.formatDateLocal(targetDate);
+        this.render();
+        this.notifyChange();
+    }
+
+    setWeek(targetDate) {
+        this.currentDate = targetDate;
+        const { monday, sunday } = this.getMondaySundayRange(this.currentDate);
+        const monStr = this.formatDateLocal(monday);
+        const sunStr = this.formatDateLocal(sunday);
+        if (this.selectedDayStr < monStr || this.selectedDayStr > sunStr) {
+            this.selectedDayStr = monStr;
+        }
+        this.render();
+        this.notifyChange();
+    }
+
+    prevWeek() {
+        const prev = new Date(this.currentDate);
+        prev.setDate(prev.getDate() - 7);
+        this.setWeek(prev);
+    }
+
+    nextWeek() {
+        const next = new Date(this.currentDate);
+        next.setDate(next.getDate() + 7);
+        this.setWeek(next);
+    }
+
+    notifyChange() {
+        const { monday, sunday } = this.getMondaySundayRange(this.currentDate);
+        const startStr = this.formatDateLocal(monday);
+        const endStr = this.formatDateLocal(sunday);
+
+        // Sync with browser URL without reloading page
+        const url = new URL(window.location);
+        url.searchParams.set('date_str', this.selectedDayStr);
+        url.searchParams.set('start_date', startStr);
+        url.searchParams.set('end_date', endStr);
+        window.history.replaceState({}, '', url);
+
+        this.onChange({
+            selectedDate: this.selectedDayStr,
+            startDate: startStr,
+            endDate: endStr,
+            monday,
+            sunday
+        });
+    }
+
+    render() {
+        if (!this.container) return;
+        const { monday, sunday } = this.getMondaySundayRange(this.currentDate);
+        const startStr = this.formatDateLocal(monday);
+        const endStr = this.formatDateLocal(sunday);
+
+        // Build 7 days
+        const days = [];
+        for (let i = 0; i < 7; i++) {
+            const dayObj = new Date(monday);
+            dayObj.setDate(monday.getDate() + i);
+            const iso = this.formatDateLocal(dayObj);
+            const weekday = dayObj.toLocaleDateString('en-GB', { weekday: 'short' });
+            const dayNum = dayObj.getDate();
+            const isSelected = (iso === this.selectedDayStr);
+            days.push({ iso, weekday, dayNum, isSelected });
+        }
+
+        this.container.innerHTML = `
+            <div class="flex flex-col sm:flex-row items-center gap-2">
+                <!-- Week Navigator Bar -->
+                <div class="inline-flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-1 shadow-xs text-xs font-semibold">
+                    <button type="button" class="btn-prev-week p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition" title="Previous Week">
+                        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                    </button>
+                    <div class="relative flex items-center px-2 cursor-pointer group" title="Click to choose custom date">
+                        <span class="text-slate-800 dark:text-slate-100 font-semibold">${this.formatDisplay(monday)} – ${this.formatDisplay(sunday)} ${sunday.getFullYear()}</span>
+                        <input type="date" aria-label="Select week date" class="week-native-picker absolute inset-0 opacity-0 cursor-pointer w-full" value="${this.selectedDayStr}">
+                    </div>
+                    <button type="button" class="btn-next-week p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition" title="Next Week">
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Clickable Day Pills (Mon - Sun) -->
+                <div class="inline-flex items-center bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700">
+                    ${days.map(d => `
+                        <button type="button" data-day-iso="${d.iso}" class="day-pill px-2.5 py-1 text-xs font-bold rounded-lg transition ${
+                            d.isSelected 
+                            ? 'bg-blue-600 text-white shadow-xs' 
+                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-700/60'
+                        }">
+                            <span class="block text-[9px] uppercase leading-none opacity-80">${d.weekday}</span>
+                            <span class="text-[11px] leading-tight">${d.dayNum}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+
+        this.container.querySelector('.btn-prev-week').onclick = () => this.prevWeek();
+        this.container.querySelector('.btn-next-week').onclick = () => this.nextWeek();
+        this.container.querySelector('.week-native-picker').onchange = (e) => {
+            if (e.target.value) this.selectDate(this.parseLocalDate(e.target.value));
+        };
+
+        this.container.querySelectorAll('.day-pill').forEach(btn => {
+            btn.onclick = () => {
+                const targetIso = btn.getAttribute('data-day-iso');
+                if (targetIso) this.selectDate(this.parseLocalDate(targetIso));
+            };
+        });
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    init() {
+        this.render();
+        this.notifyChange();
+    }
+}
+
+// Active week date state
+let activeWeekRange = null;
+
+async function fetchHeadcountMetrics() {
+    const locInput = document.getElementById('kpi-location-picker');
+    const locVal = locInput ? locInput.value : 'All';
+    const dateStr = activeWeekRange ? (activeWeekRange.selectedDate || activeWeekRange.startDate) : new Date().toISOString().split('T')[0];
+    
+    const url = `/api/dashboard/metrics?date_str=${encodeURIComponent(dateStr)}&location=${encodeURIComponent(locVal)}`;
+    const data = await window.apiClient.query(url, { ttl: 15000 });
+    if (!data) return;
+
+    const totalEl = document.getElementById('kpi-total');
+    if (totalEl) totalEl.textContent = data.total_planned ?? 0;
+    const inOfficeEl = document.getElementById('kpi-in-office');
+    if (inOfficeEl) inOfficeEl.textContent = data.in_office_live ?? 0;
+    const presentEl = document.getElementById('kpi-present');
+    if (presentEl) presentEl.textContent = data.present ?? 0;
+    const woEl = document.getElementById('kpi-wo');
+    if (woEl) woEl.textContent = data.wo ?? 0;
+    const clEl = document.getElementById('kpi-cl');
+    if (clEl) clEl.textContent = data.cl ?? 0;
+    const slEl = document.getElementById('kpi-sl');
+    if (slEl) slEl.textContent = data.sl ?? 0;
+    const coEl = document.getElementById('kpi-co');
+    if (coEl) coEl.textContent = data.co ?? 0;
+    const absentEl = document.getElementById('kpi-absent');
+    if (absentEl) absentEl.textContent = data.absent ?? 0;
+}
+
+// Initialize on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('weekly-range-container')) {
+        new WeeklyDateRangePicker('weekly-range-container', {
+            onChange: (range) => {
+                activeWeekRange = range;
+                fetchHeadcountMetrics();
+            }
+        });
+    }
+
+    // Register safe background poller every 60 seconds (halts when tab is hidden)
+    window.apiClient.registerPoll('dashboard_metrics', () => fetchHeadcountMetrics(), 60000);
+});
+
+// ================= KPI METRIC MODAL BREAKDOWN HANDLERS ================= //
+let currentKpiUsersList = [];
+
+async function showKpiUsersModal(category, title) {
+    const modal = document.getElementById('kpi-users-modal');
+    if (!modal) return;
+
+    const locInput = document.getElementById('kpi-location-picker');
+    const locVal = locInput ? locInput.value : 'All';
+    const dateStr = activeWeekRange ? (activeWeekRange.selectedDate || activeWeekRange.startDate) : new Date().toISOString().split('T')[0];
+
+    document.getElementById('kpi-modal-title').textContent = title;
+    document.getElementById('kpi-modal-date').textContent = `Date: ${dateStr} • Location: ${locVal}`;
+    document.getElementById('kpi-modal-badge').textContent = category.toUpperCase();
+    document.getElementById('kpi-modal-search').value = '';
+
+    const tbody = document.getElementById('kpi-modal-tbody');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5" class="p-6 text-center text-slate-400">
+                <i data-lucide="loader-2" class="w-5 h-5 mx-auto animate-spin mb-2 text-blue-500"></i>
+                Loading staff list for ${title}...
+            </td>
+        </tr>
+    `;
+    modal.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+
+    try {
+        const url = `/api/dashboard/metrics/users?category=${encodeURIComponent(category)}&date_str=${encodeURIComponent(dateStr)}&location=${encodeURIComponent(locVal)}`;
+        const res = await window.apiClient.query(url, { ttl: 5000 });
+        if (res && res.users) {
+            currentKpiUsersList = res.users;
+            renderKpiModalUsers(currentKpiUsersList);
+        } else {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400">No matching staff records found.</td></tr>`;
+            document.getElementById('kpi-modal-count-badge').textContent = '0 Staff';
+        }
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-rose-500">Error loading records: ${err.message}</td></tr>`;
+    }
+}
+
+function renderKpiModalUsers(users) {
+    const tbody = document.getElementById('kpi-modal-tbody');
+    const countBadge = document.getElementById('kpi-modal-count-badge');
+    if (countBadge) countBadge.textContent = `${users.length} Staff`;
+
+    if (!users || users.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400 font-normal">No staff found matching current criteria.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = users.map(u => `
+        <tr class="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
+            <td class="p-3 pl-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 font-bold text-[11px] flex items-center justify-center shrink-0">
+                        ${u.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                        <span class="font-bold text-slate-800 dark:text-slate-100 block leading-tight">${u.name}</span>
+                        <span class="font-mono text-[10px] text-slate-400">ID: ${u.unique_id}</span>
+                    </div>
+                </div>
+            </td>
+            <td class="p-3 text-slate-600 dark:text-slate-300 font-medium">${u.role_title}</td>
+            <td class="p-3">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    📍 ${u.location}
+                </span>
+            </td>
+            <td class="p-3">
+                <span class="font-mono text-xs font-bold text-slate-700 dark:text-slate-200">${u.shift}</span>
+            </td>
+            <td class="p-3 text-right pr-4">
+                ${u.live_punched 
+                    ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live Online</span>' 
+                    : `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">${u.status}</span>`}
+            </td>
+        </tr>
+    `).join('');
+    if (window.lucide) lucide.createIcons();
+}
+
+function filterKpiModalList() {
+    const q = (document.getElementById('kpi-modal-search')?.value || '').toLowerCase().trim();
+    if (!q) {
+        renderKpiModalUsers(currentKpiUsersList);
+        return;
+    }
+    const filtered = currentKpiUsersList.filter(u => 
+        (u.name && u.name.toLowerCase().includes(q)) ||
+        (u.unique_id && u.unique_id.toLowerCase().includes(q)) ||
+        (u.role_title && u.role_title.toLowerCase().includes(q)) ||
+        (u.shift && u.shift.toLowerCase().includes(q)) ||
+        (u.location && u.location.toLowerCase().includes(q))
+    );
+    renderKpiModalUsers(filtered);
+}
+
+function closeKpiUsersModal() {
+    const modal = document.getElementById('kpi-users-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Alerts Filtering & Show More Handlers
+let isAlertsExpanded = false;
+let currentAlertCategory = 'ALL';
+
+function toggleMoreAlerts() {
+    isAlertsExpanded = !isAlertsExpanded;
+    const extraAlerts = document.querySelectorAll('.extra-alert');
+    const textEl = document.getElementById('toggle-more-text');
+    const iconEl = document.getElementById('toggle-more-icon');
+
+    extraAlerts.forEach(el => {
+        if (isAlertsExpanded) {
+            // Check if matches active category
+            const cat = el.getAttribute('data-category');
+            if (currentAlertCategory === 'ALL' || cat === currentAlertCategory) {
+                el.classList.remove('hidden');
+            }
+        } else {
+            el.classList.add('hidden');
+        }
+    });
+
+    if (textEl) textEl.textContent = isAlertsExpanded ? 'Show Fewer Alerts' : 'See More Alerts';
+    if (iconEl) iconEl.setAttribute('data-lucide', isAlertsExpanded ? 'chevron-up' : 'chevron-down');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function filterDashboardAlerts(cat) {
+    currentAlertCategory = cat;
+    
+    // Update button styles
+    ['all', 'leave', 'shift', 'general'].forEach(c => {
+        const btn = document.getElementById(`filter-btn-${c}`);
+        if (!btn) return;
+        const matches = (c === 'all' && cat === 'ALL') || 
+                        (c === 'leave' && cat === 'leave_status') || 
+                        (c === 'shift' && cat === 'shift_change') || 
+                        (c === 'general' && cat === 'general');
+        if (matches) {
+            btn.className = 'px-2.5 py-1 rounded-lg font-bold bg-blue-600 text-white shadow-xs transition text-[11px]';
+        } else {
+            btn.className = 'px-2.5 py-1 rounded-lg font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-[11px]';
+        }
+    });
+
+    const items = document.querySelectorAll('.alert-item');
+    let visibleCount = 0;
+
+    items.forEach(item => {
+        const itemCat = item.getAttribute('data-category');
+        const isMatch = (cat === 'ALL' || itemCat === cat);
+        const isExtra = item.classList.contains('extra-alert');
+
+        if (isMatch && (!isExtra || isAlertsExpanded)) {
+            item.classList.remove('hidden');
+            visibleCount++;
+        } else {
+            item.classList.add('hidden');
+        }
+    });
+
+    const badge = document.getElementById('alerts-count-badge');
+    if (badge) badge.textContent = `${visibleCount} Filtered`;
+}
+
+// All Alerts Modal Controls
+function openAllAlertsModal() {
+    const modal = document.getElementById('all-alerts-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+}
+
+function closeAllAlertsModal() {
+    const modal = document.getElementById('all-alerts-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function filterModalAlerts() {
+    const query = (document.getElementById('modal-alert-search')?.value || '').toLowerCase().trim();
+    const items = document.querySelectorAll('.modal-alert-item');
+
+    items.forEach(item => {
+        const text = item.getAttribute('data-text') || '';
+        if (!query || text.includes(query)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+// Work Session & Break Action Handler
+async function performShiftAction(url, confirmMsg) {
+    if (confirmMsg && !confirm(confirmMsg)) return;
+    try {
+        const res = await fetch(url, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Operation failed');
+        }
+    } catch(err) {
+        alert('Network error: ' + err.message);
+    }
+}
+
+function openBreakModal() {
+    document.getElementById('take-break-modal').classList.remove('hidden');
+}
+
+function closeBreakModal() {
+    document.getElementById('take-break-modal').classList.add('hidden');
+}
+
+async function submitBreakStart(e) {
+    e.preventDefault();
+    const breakType = document.getElementById('break-type-select').value;
+    const form = new FormData();
+    form.append('break_type', breakType);
+
+    try {
+        const res = await fetch('/api/work/start-break', {
+            method: 'POST',
+            body: form
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            window.location.reload();
+        } else {
+            alert(data.message || 'Failed to start break');
+        }
+    } catch(err) {
+        alert('Network error: ' + err.message);
+    }
+}
+
+    // User Dashboard Schedule Filter
+    function filterScheduleStrip(category, btnElement) {
+        document.querySelectorAll('.sched-filter-btn').forEach(b => {
+            b.className = 'sched-filter-btn px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300 hover:text-blue-600';
+        });
+        if (btnElement) {
+            btnElement.className = 'sched-filter-btn px-2 py-0.5 rounded-md bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 font-bold shadow-xs';
+        }
+        document.querySelectorAll('[data-schedule-card]').forEach(card => {
+            const cat = card.getAttribute('data-shift-cat');
+            if (category === 'all') {
+                card.classList.remove('hidden');
+            } else if (category === 'working') {
+                card.classList.toggle('hidden', cat !== 'working');
+            } else if (category === 'off_leave') {
+                card.classList.toggle('hidden', cat !== 'off_leave');
+            }
+        });
+    }
+
+    // User Dashboard Personal Leaves Status Filter
+    function filterUserLeaves(statusVal) {
+        document.querySelectorAll('[data-user-leave-row]').forEach(row => {
+            const rowStatus = row.getAttribute('data-status');
+            if (statusVal === 'ALL' || rowStatus === statusVal) {
+                row.classList.remove('hidden');
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+    }
+
+</script>
+
+<!-- TAKE BREAK MODAL -->
+<div id="take-break-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-sm shadow-2xl p-6">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <i data-lucide="coffee" class="w-4 h-4 text-amber-500"></i>
+                <span>Take Operational Break</span>
+            </h3>
+            <button onclick="closeBreakModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <form onsubmit="submitBreakStart(event)" class="mt-4 space-y-4 text-xs">
+            <div>
+                <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Select Break Type</label>
+                <select id="break-type-select" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-semibold focus:ring-2 focus:ring-blue-500">
+                    <option value="Lunch">Lunch Break (Max 45 mins)</option>
+                    <option value="Tea">Tea Break (Max 15 mins)</option>
+                    <option value="Meeting">Meeting (Operational Briefing)</option>
+                    <option value="Bio Break">Bio Break (Short Rest)</option>
+                    <option value="Quality Feedback">Quality Feedback (QA Audit Session)</option>
+                    <option value="Training">Training (Process Update)</option>
+                    <option value="Social Media">Social Media (Digital Queue Response)</option>
+                    <option value="Submit And Go">Submit And Go (Shift Wrap-up)</option>
+                    <option value="Health Issue">Health Issue (Medical Need)</option>
+                </select>
+                <div class="mt-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-300">
+                    <strong class="block font-bold">24/7 Shift Break Policy:</strong>
+                    <span>Lunch/Dinner max 45m • Tea max 15m • <strong>Combined Total Break: 60 mins (1 Hour Max)</strong>. Excess is flagged for supervisor audit.</span>
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                <button type="button" onclick="closeBreakModal()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold transition">
+                    Start Break
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- WEBSITE SESSION LOGS MODAL -->
+<div id="session-history-modal" onclick="if(event.target === this) closeSessionHistoryModal()" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6 relative flex flex-col">
+        <!-- Header with Bold Title and Prominent Close Button -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-500 flex items-center justify-center shrink-0">
+                    <i data-lucide="history" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">Website Login & Logout History</h3>
+                    <p class="text-[11px] text-slate-400">Total Online Today: <strong class="text-cyan-500">{{ today_online_hours }} Hours</strong></p>
+                </div>
+            </div>
+            <!-- Prominent Top Close Button -->
+            <button type="button" onclick="closeSessionHistoryModal()" aria-label="Close" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center justify-center transition cursor-pointer shadow-xs">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <!-- Session List Container -->
+        <div class="mt-4 space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar text-xs">
+            {% for s in recent_session_logs %}
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full {% if s.is_active_session %}bg-emerald-400 animate-pulse{% else %}bg-slate-400{% endif %}"></span>
+                        <span class="font-bold text-slate-800 dark:text-white">{{ (s.login_time + timedelta(hours=5, minutes=30)).strftime('%d %b %Y, %I:%M %p') }} IST</span>
+                        {% if s.is_active_session %}
+                        <span class="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Active Now</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-mono mt-0.5">IP: {{ s.ip_address or 'Local' }}</p>
+                </div>
+                <div class="text-right">
+                    {% if s.logout_time %}
+                    <span class="font-mono font-bold text-slate-700 dark:text-slate-300 block">{{ s.duration_seconds // 3600 }}h {{ (s.duration_seconds % 3600) // 60 }}m</span>
+                    <span class="text-[10px] text-slate-400">Out: {{ (s.logout_time + timedelta(hours=5, minutes=30)).strftime('%I:%M %p') }} IST</span>
+                    {% else %}
+                    <span class="text-emerald-500 font-semibold font-mono">In Progress</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <p class="text-slate-400 text-center py-4">No login sessions recorded yet.</p>
+            {% endfor %}
+        </div>
+
+        <!-- Bottom Action Toolbar with Close Button -->
+        <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end">
+            <button type="button" onclick="closeSessionHistoryModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition cursor-pointer flex items-center gap-1.5">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                <span>Close</span>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<script>
+
+function openSessionHistoryModal() {
+    const modal = document.getElementById('session-history-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+}
+
+function closeSessionHistoryModal() {
+    const modal = document.getElementById('session-history-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Global escape key listener to close modals
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeSessionHistoryModal();
+    }
+});
+
+</script>
