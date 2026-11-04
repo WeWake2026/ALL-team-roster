@@ -291,7 +291,7 @@
                 {% endif %}
 
                 <!-- Login Logs Button -->
-                <button type="button" onclick="document.getElementById('session-history-modal').classList.remove('hidden')" class="px-5 py-2 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5">
+                <button type="button" onclick="openSessionHistoryModal()" class="px-5 py-2 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-xs shadow-xs transition flex items-center justify-center gap-1.5">
                     <i data-lucide="history" class="w-4 h-4 text-slate-600 dark:text-slate-300"></i>
                     <span>Login Logs</span>
                 </button>
@@ -1566,21 +1566,26 @@ async function submitBreakStart(e) {
 </div>
 
 <!-- WEBSITE SESSION LOGS MODAL -->
-<div id="session-history-modal" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6">
+<div id="session-history-modal" onclick="if(event.target === this) closeSessionHistoryModal()" class="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-lg shadow-2xl p-6 relative flex flex-col">
+        <!-- Header with Bold Title and Prominent Close Button -->
         <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div>
-                <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <i data-lucide="history" class="w-4 h-4 text-cyan-500"></i>
-                    <span>Website Login & Logout History</span>
-                </h3>
-                <p class="text-[11px] text-slate-400">Total Online Today: <strong class="text-cyan-500">{{ today_online_hours }} Hours</strong></p>
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 text-cyan-500 flex items-center justify-center shrink-0">
+                    <i data-lucide="history" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">Website Login & Logout History</h3>
+                    <p class="text-[11px] text-slate-400">Total Online Today: <strong class="text-cyan-500">{{ today_online_hours }} Hours</strong></p>
+                </div>
             </div>
-            <button onclick="document.getElementById('session-history-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 p-1">
+            <!-- Prominent Top Close Button -->
+            <button type="button" onclick="closeSessionHistoryModal()" aria-label="Close" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white flex items-center justify-center transition cursor-pointer shadow-xs">
                 <i data-lucide="x" class="w-4 h-4"></i>
             </button>
         </div>
 
+        <!-- Session List Container -->
         <div class="mt-4 space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar text-xs">
             {% for s in recent_session_logs %}
             <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -1607,6 +1612,38 @@ async function submitBreakStart(e) {
             <p class="text-slate-400 text-center py-4">No login sessions recorded yet.</p>
             {% endfor %}
         </div>
+
+        <!-- Bottom Action Toolbar with Close Button -->
+        <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end">
+            <button type="button" onclick="closeSessionHistoryModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition cursor-pointer flex items-center gap-1.5">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                <span>Close</span>
+            </button>
+        </div>
     </div>
 </div>
 {% endblock %}
+
+<script>
+
+function openSessionHistoryModal() {
+    const modal = document.getElementById('session-history-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+}
+
+function closeSessionHistoryModal() {
+    const modal = document.getElementById('session-history-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Global escape key listener to close modals
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeSessionHistoryModal();
+    }
+});
+
+</script>
